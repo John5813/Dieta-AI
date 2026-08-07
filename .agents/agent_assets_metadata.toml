@@ -1,0 +1,74 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "zCqT1p4Xo52zuDo78cEsR"
+uri = "file://attached_assets/tablet_welcome.jpg"
+type = "image"
+title = "1 — Xush kelibsiz"
+
+[[outputs]]
+id = "oSVVd5kwWoy-5ukN58HiE"
+uri = "file://attached_assets/tablet_gender.jpg"
+type = "image"
+title = "2 — Jins tanlash"
+
+[[outputs]]
+id = "3QTYfQ0WBOOiHW4Fnggmc"
+uri = "file://attached_assets/tablet_goal.jpg"
+type = "image"
+title = "3 — Maqsad"
+
+[[outputs]]
+id = "UhRxmbopI0kOOQ7AKHkyJ"
+uri = "file://attached_assets/tablet_plan.jpg"
+type = "image"
+title = "4 — Shaxsiy reja"
+
+[[outputs]]
+id = "3vQ1nRbCscpx2xAcK3_mu"
+uri = "file://attached_assets/tablet_ai.jpg"
+type = "image"
+title = "5 — Premium"
+
+[[outputs]]
+id = "a6PVHS7PeKIytm9bAmIvG"
+uri = "file://attached_assets/tab1_welcome.jpg"
+type = "image"
+title = "1 — Xush kelibsiz"
+
+[[outputs]]
+id = "eJ2uDDDIKFwccv6OWz2ty"
+uri = "file://attached_assets/tab2_gender.jpg"
+type = "image"
+title = "2 — Jins tanlash"
+
+[[outputs]]
+id = "Zk_OoKVr1TGKsEJ3J_d1b"
+uri = "file://attached_assets/tab3_goal.jpg"
+type = "image"
+title = "3 — Maqsad"
+
+[[outputs]]
+id = "4QfJGIAL5A3MOrWyAyI9h"
+uri = "file://attached_assets/tab4_plan.jpg"
+type = "image"
+title = "4 — Shaxsiy reja"
+
+[[outputs]]
+id = "VKTnWOVbzhvq-CzhZmkWm"
+uri = "file://attached_assets/tab5_premium.jpg"
+type = "image"
+title = "5 — Premium"
+
+[[outputs]]
+id = "nD5-JBcsaJdpmSgng78HC"
+uri = "file://attached_assets/tab6_comparison.jpg"
+type = "image"
+title = "6 — Taqqoslash"
+
+[[outputs]]
+id = "AgI72jLANM36nGPcewQTe"
+uri = "file://attached_assets/tablet_screenshots.zip"
+type = "unspecified"
+title = "Planshet screenshotlar (6 ta)"

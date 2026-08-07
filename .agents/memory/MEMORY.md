@@ -1,0 +1,2 @@
+- [Docker package-manager parity](docker-package-manager-parity.md) — container pnpm version must match the lockfile’s generating pnpm version for frozen installs.
+- [Deployment readiness probe](deployment-readiness-probe.md) — API containers must answer the platform’s default root probe with 200 and bind to 0.0.0.0.

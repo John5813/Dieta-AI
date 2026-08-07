@@ -1,0 +1,43 @@
+name: dieta-ai
+region: fra
+services:
+  - name: api
+    dockerfile_path: Dockerfile
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    health_check:
+      http_path: /
+      initial_delay_seconds: 20
+      period_seconds: 30
+      timeout_seconds: 5
+      failure_threshold: 5
+      success_threshold: 1
+    envs:
+      - key: NODE_ENV
+        scope: RUN_TIME
+        value: production
+      - key: PORT
+        scope: RUN_TIME
+        value: "8080"
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: TELEGRAM_BOT_TOKEN
+        scope: RUN_TIME
+        type: SECRET
+      - key: TELEGRAM_ADMIN_CHAT_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: OPENROUTER_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: AI_INTEGRATIONS_OPENROUTER_BASE_URL
+        scope: RUN_TIME
+        value: https://openrouter.ai/api/v1
+      - key: TELEGRAM_REQUEST_TIMEOUT_MS
+        scope: RUN_TIME
+        value: "30000"
+      - key: LOG_LEVEL
+        scope: RUN_TIME
+        value: info

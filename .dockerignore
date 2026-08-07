@@ -1,0 +1,16 @@
+.git
+.cache
+.local
+.agents
+node_modules
+**/node_modules
+**/dist
+**/.expo
+**/.metro-cache
+**/static-build
+attached_assets
+*.tsbuildinfo
+*.log
+.env
+.env.*
+!.env.example

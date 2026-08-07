@@ -1,0 +1,67 @@
+{
+  "expo": {
+    "name": "Bir Burda - Kaloriya Hisobi",
+    "slug": "bir-burda",
+    "version": "1.0.8",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "birburda",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "uz.birburda.app"
+    },
+    "android": {
+      "package": "uz.birburda.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#E8F5E9"
+      },
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "newArchEnabled": true,
+      "versionCode": 14
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://dietaai-lexhk.ondigitalocean.app/"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Oziq-ovqat rasmlarini tahlil qilish uchun ruxsat.",
+          "cameraPermission": "Oziq-ovqat suratga olish uchun ruxsat."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "49924f1c-4f62-4ba9-8858-a91d759d6e41"
+      }
+    },
+    "owner": "javlon5813"
+  }
+}
