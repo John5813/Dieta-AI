@@ -177,7 +177,7 @@ function MealDetailModal({
 export default function RatsionScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { profile, addEntries } = useApp();
+  const { profile, addEntries, todayKey } = useApp();
 
   const [activeDiet, setActiveDiet] = useState<DietKey>("national");
   const [plan, setPlan] = useState<PlanResponse | null>(null);
@@ -239,7 +239,7 @@ export default function RatsionScreen() {
       try {
         const cached = await AsyncStorage.getItem("ratsion_plan");
         if (cached) {
-          const obj = JSON.parse(cached) as { profileKey: string; plan: PlanResponse };
+          const obj = JSON.parse(cached) as { profileKey: string; date?: string; plan: PlanResponse };
           if (obj && obj.plan) {
             const allMeals = [
               ...(obj.plan.national ?? []),
@@ -250,9 +250,12 @@ export default function RatsionScreen() {
             const hasValidCals = allMeals.some(
               (m) => Number.isFinite(m.cal) && m.cal > 0
             );
-            if (hasValidCals) {
+            // Kesh faqat BUGUNGI kun uchun amal qiladi — aks holda kechagi
+            // (yoki undan ham eskiroq) reja profil o'zgarmagunicha ko'rsatilib
+            // qolar edi.
+            if (hasValidCals && obj.date === todayKey) {
               setPlan(obj.plan);
-              lastKeyRef.current = obj.profileKey ?? "";
+              lastKeyRef.current = obj.profileKey ? `${obj.profileKey}|${obj.date}` : "";
             } else {
               await AsyncStorage.removeItem("ratsion_plan");
             }
@@ -275,9 +278,14 @@ export default function RatsionScreen() {
       profile.goal ?? "",
       profile.dailyCalories ?? "",
       profile.protein ?? "",
+      profile.carbs ?? "",
+      profile.fat ?? "",
       profile.mealsPerDay ?? "",
     ].join("|");
   }, [profile]);
+  // Profil o'zgarmagan bo'lsa ham, kun almashganda reja qayta so'ralsin —
+  // aks holda kechagi AI rejasi cheksiz saqlanib qolaveradi.
+  const cacheKey = `${profileKey}|${todayKey}`;
 
   const buildProfilePayload = () => {
     const age = profile.birthDate
@@ -326,7 +334,7 @@ export default function RatsionScreen() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as PlanResponse;
       setPlan(data);
-      lastKeyRef.current = profileKey;
+      lastKeyRef.current = cacheKey;
       // Yangi reja taomlarini "recent" ro'yxatga qo'shish
       pushRecentNames({
         national: (data.national ?? []).map((m) => m.name),
@@ -336,7 +344,7 @@ export default function RatsionScreen() {
       });
       AsyncStorage.setItem(
         "ratsion_plan",
-        JSON.stringify({ profileKey, plan: data }),
+        JSON.stringify({ profileKey, date: todayKey, plan: data }),
       ).catch(() => {});
     } catch (err) {
       const isAbort = (err as { name?: string })?.name === "AbortError";
@@ -388,16 +396,25 @@ export default function RatsionScreen() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { meal?: PlanMeal };
       if (!data?.meal) throw new Error("empty");
+      const newMeal = data.meal;
 
-      const newMeals = [...plan[activeDiet]];
-      newMeals[idx] = data.meal;
-      const newPlan: PlanResponse = { ...plan, [activeDiet]: newMeals };
-      setPlan(newPlan);
-      pushRecentNames({ [activeDiet]: [data.meal.name] });
-      AsyncStorage.setItem(
-        "ratsion_plan",
-        JSON.stringify({ profileKey, plan: newPlan }),
-      ).catch(() => {});
+      pushRecentNames({ [activeDiet]: [newMeal.name] });
+      // setPlan'ning funksional shakli — agar shu kutish paytida "Yangilash"
+      // butun rejani almashtirib ulgurgan bo'lsa, o'sha ESKI `plan`ni emas,
+      // ENG SO'NGGI holatni asos qilib olamiz (aks holda yangi reja butunlay
+      // ustidan yozilib, faqat shu bitta taom bilan qaytarib qo'yiladi).
+      setPlan((prev) => {
+        const list = prev?.[activeDiet];
+        if (!prev || !list || !list[idx]) return prev;
+        const newMeals = [...list];
+        newMeals[idx] = newMeal;
+        const newPlan: PlanResponse = { ...prev, [activeDiet]: newMeals };
+        AsyncStorage.setItem(
+          "ratsion_plan",
+          JSON.stringify({ profileKey, date: todayKey, plan: newPlan }),
+        ).catch(() => {});
+        return newPlan;
+      });
     } catch {
       setToast({ visible: true, message: "Almashtirib bo'lmadi. Qayta urining." });
     } finally {
@@ -408,10 +425,10 @@ export default function RatsionScreen() {
 
   useEffect(() => {
     if (!hydrated) return;
-    if (plan && lastKeyRef.current === profileKey) return;
+    if (plan && lastKeyRef.current === cacheKey) return;
     fetchPlan(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileKey, hydrated]);
+  }, [cacheKey, hydrated]);
 
   const handleAddMeal = (m: PlanMeal) => {
     addEntries([

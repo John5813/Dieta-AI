@@ -160,6 +160,14 @@ const STAT_INFO: Record<string, StatInfoData> = {
   },
 };
 
+const ACTIVITY_LABELS: Array<{ value: number; label: string }> = [
+  { value: 1.2, label: "Kam harakatli" },
+  { value: 1.375, label: "Yengil faol" },
+  { value: 1.55, label: "O'rtacha faol" },
+  { value: 1.725, label: "Juda faol" },
+  { value: 1.9, label: "Sportchi" },
+];
+
 export default function PlanScreen() {
   const { profile } = useApp();
   const colors = useColors();
@@ -167,6 +175,9 @@ export default function PlanScreen() {
   const [activeInfo, setActiveInfo] = useState<StatInfoData | null>(null);
 
   const plan = useMemo(() => calculatePlan(profile), [profile]);
+  const activityLevel = profile.activityLevel && profile.activityLevel > 0 ? profile.activityLevel : 1.375;
+  const activityLabel =
+    ACTIVITY_LABELS.find((a) => a.value === activityLevel)?.label ?? "Yengil faol";
 
   const isMaintain = profile.goal === "saqlash";
   const isGain = profile.goal === "oshirish";
@@ -388,7 +399,7 @@ export default function PlanScreen() {
           />
           <SummaryRow
             label="Faollik darajasi"
-            value="Yengil (1.375)"
+            value={`${activityLabel} (${activityLevel})`}
             last
           />
         </View>

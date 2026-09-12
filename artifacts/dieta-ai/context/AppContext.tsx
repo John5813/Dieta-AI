@@ -231,9 +231,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  const persistBurned = (next: Record<string, number>) => {
-    setBurnedByDate(next);
-    AsyncStorage.setItem("burned_by_date", JSON.stringify(next)).catch(() => {});
+  const persistBurned = (updater: (prev: Record<string, number>) => Record<string, number>) => {
+    setBurnedByDate((prev) => {
+      const next = updater(prev);
+      if (next === prev) return prev;
+      AsyncStorage.setItem("burned_by_date", JSON.stringify(next)).catch(() => {});
+      return next;
+    });
   };
 
   const persistExPlan = (next: StoredExercisePlan | null) => {
@@ -276,9 +280,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     persistExPlan(null);
   };
 
-  const persistEntries = (next: DiaryEntry[]) => {
-    setEntriesState(next);
-    AsyncStorage.setItem("diary_entries", JSON.stringify(next)).catch(() => {});
+  const persistEntries = (updater: (prev: DiaryEntry[]) => DiaryEntry[]) => {
+    setEntriesState((prev) => {
+      const next = updater(prev);
+      AsyncStorage.setItem("diary_entries", JSON.stringify(next)).catch(() => {});
+      return next;
+    });
   };
 
   const persistSub = (next: Subscription) => {
@@ -489,7 +496,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       time: nowTime(),
       date: todayStr(),
     };
-    persistEntries([e, ...entries]);
+    persistEntries((prev) => [e, ...prev]);
   };
 
   const addEntries = (list: Array<Omit<DiaryEntry, "id" | "time" | "date">>) => {
@@ -501,29 +508,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       time: t,
       date: d,
     }));
-    persistEntries([...newOnes, ...entries]);
+    persistEntries((prev) => [...newOnes, ...prev]);
   };
 
   const removeEntry = (id: string) => {
-    const target = entries.find((e) => e.id === id);
-    if (target?.imageUri && target.imageUri.startsWith("file://")) {
-      FileSystem.deleteAsync(target.imageUri, { idempotent: true }).catch(() => {});
-    }
-    persistEntries(entries.filter((e) => e.id !== id));
+    persistEntries((prev) => {
+      const target = prev.find((e) => e.id === id);
+      if (target?.imageUri && target.imageUri.startsWith("file://")) {
+        FileSystem.deleteAsync(target.imageUri, { idempotent: true }).catch(() => {});
+      }
+      return prev.filter((e) => e.id !== id);
+    });
   };
 
   const addBurned = (cal: number) => {
     if (!Number.isFinite(cal) || cal <= 0) return;
     const key = todayStr();
-    persistBurned({ ...burnedByDate, [key]: (burnedByDate[key] ?? 0) + Math.round(cal) });
+    persistBurned((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + Math.round(cal) }));
   };
 
   const resetBurnedToday = () => {
     const key = todayStr();
-    if (!(key in burnedByDate)) return;
-    const next = { ...burnedByDate };
-    delete next[key];
-    persistBurned(next);
+    persistBurned((prev) => {
+      if (!(key in prev)) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   };
 
   return (

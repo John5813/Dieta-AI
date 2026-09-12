@@ -502,6 +502,8 @@ function MealPlanModal({
       profile.goal ?? "",
       profile.dailyCalories ?? "",
       profile.protein ?? "",
+      profile.carbs ?? "",
+      profile.fat ?? "",
       profile.mealsPerDay ?? "",
     ].join("|");
   }, [profile]);

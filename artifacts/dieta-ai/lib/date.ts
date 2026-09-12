@@ -37,15 +37,19 @@ function localDate(base: Date = new Date()): Date {
   return new Date(utcMs + cachedOffsetMinutes * 60000);
 }
 
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
 export function todayStr(): string {
   const d = localDate();
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
 export function yesterdayStr(): string {
   const d = localDate();
   d.setDate(d.getDate() - 1);
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
 export function getCachedOffsetMinutes(): number | null {
