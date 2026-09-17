@@ -55,3 +55,21 @@ export function yesterdayStr(): string {
 export function getCachedOffsetMinutes(): number | null {
   return cachedOffsetMinutes;
 }
+
+/**
+ * Normalizes a "YYYY-M-D" or "YYYY-MM-DD" date key to the zero-padded
+ * "YYYY-MM-DD" form used everywhere. Diary entries / burned-calorie keys
+ * saved before todayStr()/yesterdayStr() were zero-padded are stored on
+ * existing devices as e.g. "2026-9-5" — normalizing on read lets those
+ * legacy values keep matching stats/home-screen lookups without a
+ * separate migration step.
+ */
+export function normalizeDateKey(raw: string): string {
+  const parts = raw.split("-");
+  if (parts.length !== 3) return raw;
+  const [y, m, d] = parts;
+  const mNum = Number(m);
+  const dNum = Number(d);
+  if (!y || !Number.isFinite(mNum) || !Number.isFinite(dNum)) return raw;
+  return `${y}-${pad2(mNum)}-${pad2(dNum)}`;
+}

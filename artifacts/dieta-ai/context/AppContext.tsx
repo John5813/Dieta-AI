@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from "r
 import { AppState, type AppStateStatus, Platform } from "react-native";
 import {
   loadCachedOffset,
+  normalizeDateKey,
   refreshLocationTimezone,
   todayStr,
   yesterdayStr,
@@ -211,6 +212,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setEntriesState(
               parsed.map((e) => ({
                 ...e,
+                // Eski qurilmalarda nol qo'shilmagan sana kalitlari
+                // ("2026-9-5") saqlanib qolgan bo'lishi mumkin — statistika
+                // va bosh sahifa bilan mos kelishi uchun normallashtiramiz.
+                date: normalizeDateKey(e.date),
                 cal: Number.isFinite(e.cal) ? e.cal : 0,
                 protein: Number.isFinite(e.protein) ? e.protein : 0,
                 carbs: Number.isFinite(e.carbs) ? e.carbs : 0,
@@ -220,7 +225,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           } catch {}
         }
         if (burnedRaw[1]) {
-          try { setBurnedByDate(JSON.parse(burnedRaw[1])); } catch {}
+          try {
+            const parsed = JSON.parse(burnedRaw[1]) as Record<string, number>;
+            const normalized: Record<string, number> = {};
+            for (const [k, v] of Object.entries(parsed)) {
+              const nk = normalizeDateKey(k);
+              normalized[nk] = (normalized[nk] ?? 0) + (Number.isFinite(v) ? v : 0);
+            }
+            setBurnedByDate(normalized);
+          } catch {}
         }
         if (exPlanRaw[1]) {
           try { setExercisePlanState(JSON.parse(exPlanRaw[1])); } catch {}
