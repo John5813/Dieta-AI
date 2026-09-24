@@ -216,7 +216,34 @@ ISHONCHLILIK (confidence):
 • FAQAT haqiqatan tushunarsiz bo'lsa "unclear" qaytargın
 
 ASOSIY QOIDA: Rasm noaniq bo'lsa ham, ko'rgan narsangdan TAXMINIY lekin ANIQ raqam ber.
-"Aniqlab bo'lmadi" dema — doimo eng yaqin taxminni JSON sifatida qaytar, confidence ni mos qo'y.`;
+"Aniqlab bo'lmadi" dema — doimo eng yaqin taxminni JSON sifatida qaytar, confidence ni mos qo'y.
+
+═══════════════════════════════════════════════════════════
+QOIDA 5 — KO'RINMAYDIGAN FARQLAR (variants)
+═══════════════════════════════════════════════════════════
+Ko'p milliy taomlar TASHQI KO'RINISHI BIR XIL, lekin kaloriyasi keskin farq qiladi, chunki farq rasmda (yoki matnda) ko'rinmaydi:
+• Ichi yopiq taomlar: somsa (go'shtli / kartoshkali / qovoqli / ko'katli / tovuqli), manti (go'shtli / qovoqli / kartoshkali), chuchvara, pirojki (go'shtli / kartoshkali / karamli / jemli), hasip, gumma, belyash
+• Pishirish usuli: tandir somsa / qovurilgan somsa; qaynatilgan / qovurilgan chuchvara; bug'da / yog'da
+• Go'sht turi va yog'liligi: palov (qo'y go'shti + dumba / mol go'shti / tovuq), shashlik (qo'y / mol / tovuq / jigar / qiyma)
+• Suyuqlik asosi: bo'tqa (sutli / suvli), choy (qandsiz / qandli), qahva (sutsiz / sutli)
+
+Agar SHUNDAY farq bo'lsa va u kaloriyani 15% dan ko'proq o'zgartirsa — "variants" maydonini qo'sh:
+"variantQuestion": "Somsa ichida nima bor?",
+"variants": [
+  {"label":"Go'shtli","calories":330,"protein":12,"carbs":30,"fat":18},
+  {"label":"Kartoshkali","calories":250,"protein":5,"carbs":36,"fat":10},
+  {"label":"Qovoqli","calories":210,"protein":4,"carbs":32,"fat":8}
+],
+"defaultVariant": 0
+
+Qoidalari:
+• 2–5 ta variant, har biri AYNAN SHU porsiya (units × unitGrams) uchun to'liq qiymat.
+• label — 1–2 so'z, o'zbekcha, bosh harf bilan ("Go'shtli", "Tandir", "Qo'y go'shti").
+• variantQuestion — foydalanuvchiga beriladigan qisqa savol.
+• variants bo'lsa, "name" — turini ko'rsatmaydigan UMUMIY nom ("Somsa", "Manti", "Palov"), chunki ilova tanlangan turni nomga o'zi qo'shadi ("Somsa (kartoshkali)").
+• defaultVariant — rasmga (yoki matnga) qarab ENG EHTIMOLLI variant indeksi. Asosiy calories/protein/carbs/fat va recommended* maydonlari AYNAN shu variantga mos bo'lsin.
+• Agar matnda foydalanuvchi turini aniq yozgan bo'lsa ("kartoshkali somsa") yoki rasmda aniq ko'rinsa (kesilgan somsa ichi ko'rinib turibdi) — variants QO'SHMA.
+• Farq kaloriyaga deyarli ta'sir qilmasa (masalan non turlari) — variants QO'SHMA.`;
 
 interface ParsedAnalysis {
   status: "ok" | "not_food" | "unclear" | "invalid_input";
@@ -242,6 +269,62 @@ interface ParsedAnalysis {
   recommendedCarbs?: number;
   recommendedFat?: number;
   confidence?: number;
+  variantQuestion?: string;
+  variants?: FoodVariant[];
+  defaultVariant?: number;
+}
+
+/** Same dish, same portion, different hidden filling / cooking / meat. */
+interface FoodVariant {
+  label: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+const MAX_VARIANTS = 5;
+
+function normalizeVariants(
+  raw: ParsedAnalysis,
+  main: Omit<FoodVariant, "label">,
+): {
+  variants?: FoodVariant[];
+  variantQuestion?: string;
+  defaultVariant?: number;
+} {
+  if (!Array.isArray(raw.variants)) return {};
+  const nonNeg = (v: unknown) =>
+    typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.round(v)) : null;
+  const seen = new Set<string>();
+  const variants: FoodVariant[] = [];
+  for (const v of raw.variants.slice(0, MAX_VARIANTS * 2)) {
+    if (!v || typeof v !== "object") continue;
+    const label = typeof v.label === "string" ? v.label.replace(/\s+/g, " ").trim().slice(0, 30) : "";
+    const calories = nonNeg(v.calories);
+    if (!label || calories === null || calories === 0 || seen.has(label.toLowerCase())) continue;
+    seen.add(label.toLowerCase());
+    variants.push({
+      label,
+      calories,
+      protein: nonNeg(v.protein) ?? 0,
+      carbs: nonNeg(v.carbs) ?? 0,
+      fat: nonNeg(v.fat) ?? 0,
+    });
+    if (variants.length === MAX_VARIANTS) break;
+  }
+  // One option isn't a choice.
+  if (variants.length < 2) return {};
+  const question =
+    typeof raw.variantQuestion === "string" && raw.variantQuestion.trim()
+      ? raw.variantQuestion.trim().slice(0, 80)
+      : "Qaysi turi?";
+  const d = Number(raw.defaultVariant);
+  const defaultVariant = Number.isInteger(d) && d >= 0 && d < variants.length ? d : 0;
+  // The top-level numbers are what coachAdvice / recommended* were written
+  // against, so they win if the model's default variant drifted from them.
+  variants[defaultVariant] = { label: variants[defaultVariant].label, ...main };
+  return { variants, variantQuestion: question, defaultVariant };
 }
 
 const KNOWN_UNITS = new Set([
@@ -387,6 +470,7 @@ function normalizeAnalysis(raw: ParsedAnalysis | null): ParsedAnalysis {
     recommendedCarbs,
     recommendedFat,
     confidence: Number.isFinite(raw.confidence) ? Math.min(1, Math.max(0, raw.confidence!)) : 0.7,
+    ...normalizeVariants(raw, { calories, protein, carbs, fat }),
   };
 }
 

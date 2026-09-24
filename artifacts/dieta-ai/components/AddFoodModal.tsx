@@ -18,12 +18,15 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import {
   aiAnalyzeImage,
   aiAnalyzeText,
+  type AiNutritionResponse,
+  type FoodVariant,
 } from "@/lib/api-client";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
@@ -70,6 +73,22 @@ interface AiResult {
   source: Source;
   imageUri?: string;
   extras?: ExtraItem[];
+  /** Look-alike types of this dish (filling, cooking, meat) — see VariantPicker. */
+  variants?: FoodVariant[];
+  variantQuestion?: string;
+  selectedVariant?: number;
+  /** The AI's own pick; its advice/recommendation numbers only hold for it. */
+  defaultVariant?: number;
+  /** Dish name without the variant label, e.g. "Somsa". */
+  baseName?: string;
+  aiAdviceSnapshot?: Pick<
+    AiResult,
+    "coachAdvice" | "recommendedCal" | "recommendedProtein" | "recommendedCarbs" | "recommendedFat"
+  >;
+}
+
+function variantName(base: string, v: FoodVariant): string {
+  return `${base} (${v.label.toLowerCase()})`;
 }
 
 interface AddedFood {
@@ -245,58 +264,54 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
   };
 
   const showAnalysisResult = (
-    analysis: {
-      status?: string;
-      reason?: string;
-      detected?: string;
-      name?: string;
-      portion?: string;
-      emoji?: string;
-      calories?: number;
-      protein?: number;
-      carbs?: number;
-      fat?: number;
-    },
+    analysis: AiNutritionResponse,
     source: Source,
     imageUri?: string,
   ) => {
     if (analysis.status === "ok") {
-      const extra = analysis as typeof analysis & {
-        portionGrams?: number;
-        caloriesPer100?: number;
-        unitPer100?: "g" | "ml";
-        unitName?: string;
-        unitGrams?: number;
-        units?: number;
-        coachAdvice?: string;
-        recommendedUnits?: number;
-        recommendedCal?: number;
-        recommendedProtein?: number;
-        recommendedCarbs?: number;
-        recommendedFat?: number;
-      };
+      const baseName = analysis.name ?? "Aniqlanmagan taom";
+      const variants =
+        analysis.variants && analysis.variants.length >= 2 ? analysis.variants : undefined;
+      const defaultVariant =
+        variants && analysis.defaultVariant != null && analysis.defaultVariant < variants.length
+          ? analysis.defaultVariant
+          : 0;
       setAiResult({
         source,
-        name: analysis.name ?? "Aniqlanmagan taom",
+        name: variants ? variantName(baseName, variants[defaultVariant]) : baseName,
+        baseName,
         portion: analysis.portion ?? "1 porsiya",
-        portionGrams: extra.portionGrams,
+        portionGrams: analysis.portionGrams,
         emoji: analysis.emoji ?? "🍽️",
         cal: analysis.calories ?? 0,
         protein: analysis.protein ?? 0,
         carbs: analysis.carbs ?? 0,
         fat: analysis.fat ?? 0,
-        caloriesPer100: extra.caloriesPer100,
-        unitPer100: extra.unitPer100 ?? "g",
-        unitName: extra.unitName,
-        unitGrams: extra.unitGrams,
-        units: extra.units,
-        coachAdvice: extra.coachAdvice,
-        recommendedUnits: extra.recommendedUnits,
-        recommendedCal: extra.recommendedCal,
-        recommendedProtein: extra.recommendedProtein,
-        recommendedCarbs: extra.recommendedCarbs,
-        recommendedFat: extra.recommendedFat,
+        caloriesPer100: analysis.caloriesPer100,
+        unitPer100: analysis.unitPer100 ?? "g",
+        unitName: analysis.unitName,
+        unitGrams: analysis.unitGrams,
+        units: analysis.units,
+        coachAdvice: analysis.coachAdvice,
+        recommendedUnits: analysis.recommendedUnits,
+        recommendedCal: analysis.recommendedCal,
+        recommendedProtein: analysis.recommendedProtein,
+        recommendedCarbs: analysis.recommendedCarbs,
+        recommendedFat: analysis.recommendedFat,
         imageUri,
+        variants,
+        variantQuestion: variants ? analysis.variantQuestion ?? "Qaysi turi?" : undefined,
+        selectedVariant: variants ? defaultVariant : undefined,
+        defaultVariant: variants ? defaultVariant : undefined,
+        aiAdviceSnapshot: variants
+          ? {
+              coachAdvice: analysis.coachAdvice,
+              recommendedCal: analysis.recommendedCal,
+              recommendedProtein: analysis.recommendedProtein,
+              recommendedCarbs: analysis.recommendedCarbs,
+              recommendedFat: analysis.recommendedFat,
+            }
+          : undefined,
       });
       animateStep(source === "text" ? "text-confirm" : "ai-confirm", source);
     } else {
@@ -486,6 +501,39 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
     });
   };
 
+  const handleSelectVariant = (idx: number) => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    setAiResult((prev) => {
+      const v = prev?.variants?.[idx];
+      if (!prev || !v || prev.selectedVariant === idx) return prev;
+      const next: AiResult = {
+        ...prev,
+        selectedVariant: idx,
+        name: variantName(prev.baseName ?? prev.name, v),
+        cal: v.calories,
+        protein: v.protein,
+        carbs: v.carbs,
+        fat: v.fat,
+        // The AI's advice text and recommended* numbers were written for its
+        // own pick; for any other variant fall back to the locally computed
+        // advice so the text never quotes the wrong calories.
+        ...(idx === prev.defaultVariant
+          ? prev.aiAdviceSnapshot
+          : {
+              coachAdvice: undefined,
+              recommendedCal: undefined,
+              recommendedProtein: undefined,
+              recommendedCarbs: undefined,
+              recommendedFat: undefined,
+            }),
+      };
+      if (next.portionGrams && next.portionGrams > 0) {
+        next.caloriesPer100 = Math.round((next.cal / next.portionGrams) * 100);
+      }
+      return next;
+    });
+  };
+
   const handleAddIngredient = async (note: string) => {
     if (!aiResult) return;
     triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
@@ -616,6 +664,7 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
                   onConfirmFinal={handleConfirmAiFinal}
                   onReject={handleRejectAi}
                   onUpdateFood={handleUpdateAiFood}
+                  onSelectVariant={handleSelectVariant}
                   onAddIngredient={handleAddIngredient}
                   onRemoveIngredient={handleRemoveIngredient}
                   recomputing={loading === "text" || loading === "camera"}
@@ -631,6 +680,7 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
                   onBack={handleBack}
                   onConfirm={handleConfirmAiFinal}
                   onReject={handleRejectAi}
+                  onSelectVariant={handleSelectVariant}
                 />
               ) : step === "error" ? (
                 <ErrorStep
@@ -661,6 +711,68 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
+  );
+}
+
+/**
+ * "Somsa ichida nima bor?" — the photo can't show a filling or how something
+ * was cooked, so let the user pick; each chip shows what it does to calories.
+ */
+function VariantPicker({
+  food,
+  multiplier,
+  accent,
+  onSelect,
+  style,
+}: {
+  food: AiResult;
+  multiplier: number;
+  accent: string;
+  onSelect: (idx: number) => void;
+  style?: object;
+}) {
+  if (!food.variants || food.variants.length < 2) return null;
+  const aiPick = food.variants[food.defaultVariant ?? 0];
+  return (
+    <View style={[vp.card, style]}>
+      <View style={vp.head}>
+        <View style={[vp.icon, { backgroundColor: accent + "1A" }]}>
+          <Feather name="help-circle" size={16} color={accent} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={vp.question}>{food.variantQuestion ?? "Qaysi turi?"}</Text>
+          <Text style={vp.hint}>
+            {food.source === "text" ? "Matndan" : "Rasmdan"} aniq bilib bo'lmaydi. AI taxmini:{" "}
+            {aiPick.label.toLowerCase()}. Boshqacha bo'lsa, tanlang — kaloriya o'zgaradi.
+          </Text>
+        </View>
+      </View>
+      <View style={vp.chips}>
+        {food.variants.map((v, i) => {
+          const active = i === food.selectedVariant;
+          return (
+            <Pressable
+              key={v.label}
+              onPress={() => onSelect(i)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: active }}
+              style={({ pressed }) => [
+                vp.chip,
+                active
+                  ? { backgroundColor: accent, borderColor: accent }
+                  : { backgroundColor: "#FFFFFF", borderColor: "#D5DDE6" },
+                { opacity: pressed ? 0.8 : 1 },
+              ]}
+            >
+              <Text style={[vp.chipLabel, { color: active ? "#FFFFFF" : "#1A202C" }]}>{v.label}</Text>
+              <Text style={[vp.chipCal, { color: active ? "rgba(255,255,255,0.85)" : "#718096" }]}>
+                {Math.round(v.calories * multiplier)} kkal
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
@@ -1207,6 +1319,7 @@ function TextConfirmStep({
   onBack,
   onConfirm,
   onReject,
+  onSelectVariant,
 }: {
   colors: ColorPalette;
   food: AiResult;
@@ -1220,6 +1333,7 @@ function TextConfirmStep({
     extrasSummary?: string;
   }) => void;
   onReject: () => void;
+  onSelectVariant: (idx: number) => void;
 }) {
   const baseCal = Math.max(0, Math.round(food.cal));
   const baseProtein = Math.max(0, Math.round(food.protein));
@@ -1233,8 +1347,13 @@ function TextConfirmStep({
   const [editCarbs, setEditCarbs] = useState(String(baseCarbs));
   const [editFat, setEditFat] = useState(String(baseFat));
 
+  // A new analysis resets the portion; switching variant (same dish) keeps it.
+  const dishKey = food.baseName ?? food.name;
   useEffect(() => {
     setPortion(1.0);
+  }, [dishKey]);
+
+  useEffect(() => {
     setEditMode(false);
     setEditCal(String(Math.max(0, Math.round(food.cal))));
     setEditProtein(String(Math.max(0, Math.round(food.protein))));
@@ -1454,6 +1573,14 @@ function TextConfirmStep({
         )}
       </View>
 
+      <VariantPicker
+        food={food}
+        multiplier={portion}
+        accent={ACCENT.text}
+        onSelect={onSelectVariant}
+        style={{ marginTop: 12, borderWidth: 1, borderColor: colors.border }}
+      />
+
       <View style={{ flexDirection: "row", gap: 12, marginTop: 16 }}>
         <Pressable
           onPress={onReject}
@@ -1505,6 +1632,7 @@ function AiConfirmStep({
   onConfirmFinal,
   onReject,
   onUpdateFood,
+  onSelectVariant,
   onAddIngredient,
   onRemoveIngredient,
   recomputing,
@@ -1526,6 +1654,7 @@ function AiConfirmStep({
   }) => void;
   onReject: () => void;
   onUpdateFood: (patch: Partial<AiResult>) => void;
+  onSelectVariant: (idx: number) => void;
   onAddIngredient: (note: string) => void;
   onRemoveIngredient: (index: number) => void;
   recomputing: boolean;
@@ -1536,6 +1665,8 @@ function AiConfirmStep({
 }) {
   const [portion, setPortion] = useState(1.0);
   const [showDetails, setShowDetails] = useState(false);
+  const { width: winW } = useWindowDimensions();
+  const photoHeight = Math.round(Math.min(winW * 0.85, 380));
   const [showPortion, setShowPortion] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showIngredient, setShowIngredient] = useState(false);
@@ -1802,13 +1933,26 @@ function AiConfirmStep({
         <View style={ac.headerSpacer} />
       </LinearGradient>
 
-      {/* ── Food Image ── */}
+      {/* ── Food Image ──
+          Phone photos are portrait; a fixed-height "cover" crop kept only a
+          thin middle strip. Show the whole photo ("contain") over a blurred,
+          dimmed copy of itself so any aspect ratio fills the frame. */}
       {food.imageUri ? (
-        <Image
-          source={{ uri: food.imageUri }}
-          style={ac.foodImage}
-          contentFit="cover"
-        />
+        <View style={[ac.photoFrame, { height: photoHeight }]}>
+          <Image
+            source={{ uri: food.imageUri }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            blurRadius={24}
+          />
+          <View style={[StyleSheet.absoluteFill, ac.photoDim]} />
+          <Image
+            source={{ uri: food.imageUri }}
+            style={ac.photoMain}
+            contentFit="contain"
+            accessibilityLabel={`${food.name} rasmi`}
+          />
+        </View>
       ) : (
         <View style={ac.foodEmojiBox}>
           <Text style={ac.foodEmoji}>{food.emoji}</Text>
@@ -1820,6 +1964,14 @@ function AiConfirmStep({
         <Text style={ac.nameBadgeText} numberOfLines={1}>{food.name}</Text>
         <Text style={ac.portionBadgeText}>{food.portion}</Text>
       </View>
+
+      <VariantPicker
+        food={food}
+        multiplier={portion}
+        accent="#2471A3"
+        onSelect={onSelectVariant}
+        style={ac.variantCard}
+      />
 
       {/* ── Receipt-style breakdown (extras list) ── */}
       {extras.length > 0 ? (
@@ -2809,11 +2961,16 @@ const ac = StyleSheet.create({
   },
   headerSpacer: { width: 40 },
   /* Food image */
-  foodImage: {
+  photoFrame: {
     width: "100%",
-    height: 230,
-    resizeMode: "cover",
+    backgroundColor: "#1A202C",
+    overflow: "hidden",
   },
+  photoDim: { backgroundColor: "rgba(0,0,0,0.28)" },
+  // Stops 20px short of the bottom: the name badge overlaps the frame by 20px
+  // (marginTop: -20), so that strip is blurred backdrop, not the photo itself.
+  photoMain: { position: "absolute", top: 0, left: 0, right: 0, bottom: 20 },
+  variantCard: { marginHorizontal: 16, marginTop: 12 },
   foodEmojiBox: {
     width: "100%",
     height: 200,
@@ -3289,4 +3446,26 @@ const ac = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     color: "#FFFFFF",
   },
+});
+
+const vp = StyleSheet.create({
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 14,
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  head: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
+  icon: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  question: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#1A202C" },
+  hint: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#718096", marginTop: 2, lineHeight: 17 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: { borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, minWidth: 92 },
+  chipLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  chipCal: { fontSize: 11.5, fontFamily: "Inter_500Medium", marginTop: 1 },
 });

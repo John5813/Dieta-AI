@@ -106,6 +106,19 @@ export interface AiNutritionResponse {
   recommendedFat?: number;
   confidence?: number;
   items?: FoodItem[];
+  /** Present when the dish's calories hinge on something the photo/text can't show (filling, cooking, meat). */
+  variantQuestion?: string;
+  variants?: FoodVariant[];
+  defaultVariant?: number;
+}
+
+/** Same dish and portion as the parent result, with a different hidden filling / cooking / meat. */
+export interface FoodVariant {
+  label: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
 }
 
 export interface AiMealPlanRequest {
