@@ -70,6 +70,8 @@ interface AiResult {
   recommendedProtein?: number;
   recommendedCarbs?: number;
   recommendedFat?: number;
+  /** 0–1; the AI's own certainty. Low values (blurry / partial photo) get a warning. */
+  confidence?: number;
   source: Source;
   imageUri?: string;
   extras?: ExtraItem[];
@@ -298,6 +300,7 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
         recommendedProtein: analysis.recommendedProtein,
         recommendedCarbs: analysis.recommendedCarbs,
         recommendedFat: analysis.recommendedFat,
+        confidence: analysis.confidence,
         imageUri,
         variants,
         variantQuestion: variants ? analysis.variantQuestion ?? "Qaysi turi?" : undefined,
@@ -623,7 +626,7 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
             style={[
               step === "ai-confirm" ? styles.sheetFull : styles.sheet,
               {
-                backgroundColor: step === "ai-confirm" ? "#EDF2F7" : colors.card,
+                backgroundColor: step === "ai-confirm" ? colors.background : colors.card,
                 transform: [{ translateY: sheetY }],
                 paddingBottom: step === "ai-confirm" ? 0 : Math.max(insets.bottom + 16, 32),
               },
@@ -1664,10 +1667,9 @@ function AiConfirmStep({
   bottomInset: number;
 }) {
   const [portion, setPortion] = useState(1.0);
-  const [showDetails, setShowDetails] = useState(false);
   const { width: winW } = useWindowDimensions();
+  const topInset = useSafeAreaInsets().top;
   const photoHeight = Math.round(Math.min(winW * 0.85, 380));
-  const [showPortion, setShowPortion] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showIngredient, setShowIngredient] = useState(false);
   const [editName, setEditName] = useState(food.name);
@@ -1851,24 +1853,6 @@ function AiConfirmStep({
     return portion;
   })();
 
-  // Tavsiya qabul qilinganda asosiy taomning aniq qiymatlari (server raqami yoki mult orqali)
-  const acceptBaseCal =
-    food.recommendedCal != null && food.recommendedCal >= 0
-      ? food.recommendedCal
-      : Math.round(food.cal * acceptMult);
-  const acceptBaseProtein =
-    food.recommendedProtein != null && food.recommendedProtein >= 0
-      ? food.recommendedProtein
-      : Math.round(food.protein * acceptMult);
-  const acceptBaseCarbs =
-    food.recommendedCarbs != null && food.recommendedCarbs >= 0
-      ? food.recommendedCarbs
-      : Math.round(food.carbs * acceptMult);
-  const acceptBaseFat =
-    food.recommendedFat != null && food.recommendedFat >= 0
-      ? food.recommendedFat
-      : Math.round(food.fat * acceptMult);
-
   // Qo'shimchalarning qisqa nomini tuzish — saqlangan taom nomida ishlatish uchun
   const extrasSummary = (() => {
     if (extras.length === 0) return undefined;
@@ -1877,14 +1861,25 @@ function AiConfirmStep({
   })();
 
   // Porsiya yorlig'i — saqlanganda ko'rinadi
-  const acceptPortionLabel = isCountUnit
-    ? `${fmtUnits(recommendedUnits ?? baseUnits * acceptMult)} ${unitNamePlural}`
-    : recommendedGrams
-      ? `${recommendedGrams}${unit}`
-      : food.portion;
   const manualPortionLabel = isCountUnit
     ? `${fmtUnits(portion * baseUnits)} ${unitNamePlural}`
-    : `${fmtUnits(portion)}× ${food.portion}`;
+    : Math.abs(portion - 1) < 0.01
+      ? food.portion
+      : `${fmtUnits(portion)}× ${food.portion}`;
+
+  const toggleEdit = () => {
+    if (!showEdit) {
+      // Seed from the current portion (without extras) — otherwise a chosen
+      // multiplier (e.g. 2x) is silently dropped when the edit is saved.
+      setEditName(food.name);
+      setEditPortionText(food.portion);
+      setEditCal(String(baseCal));
+      setEditProtein(String(baseProtein));
+      setEditCarbs(String(baseCarbs));
+      setEditFat(String(baseFat));
+    }
+    setShowEdit(!showEdit);
+  };
 
   const applyEdit = () => {
     const cal = Number.parseInt(editCal, 10);
@@ -1911,435 +1906,397 @@ function AiConfirmStep({
     setShowIngredient(false);
   };
 
+  const kcalLeftAfter = remainingCal != null ? remainingCal - displayCal : null;
+  const lowConfidence = food.confidence != null && food.confidence < 0.6;
+  const portionIsRecommended = Math.abs(acceptMult - portion) < 0.01;
+  const recommendedLabel = isCountUnit
+    ? `${fmtUnits(baseUnits * acceptMult)} ${unitNamePlural}`
+    : recommendedGrams
+      ? `${recommendedGrams}${unit}`
+      : `${fmtUnits(acceptMult)}×`;
+  const currentGrams =
+    food.portionGrams && food.portionGrams > 0 ? Math.round(food.portionGrams * portion) : null;
+
+  const stepPortion = (dir: 1 | -1) => {
+    if (isCountUnit) {
+      const u = portion * baseUnits;
+      const next =
+        dir > 0 ? (u < 1 ? u + 0.25 : u + 0.5) : u <= 1 ? Math.max(0.25, u - 0.25) : u - 0.5;
+      setPortion(Math.min(20, next) / baseUnits);
+    } else {
+      setPortion((p) => Math.min(10, Math.max(0.25, Math.round((p + dir * 0.25) * 100) / 100)));
+    }
+  };
+  const canStepDown = isCountUnit ? portion * baseUnits > 0.25 + 1e-6 : portion > 0.25 + 1e-6;
+
+  const macro = (label: string, value: number, color: string) => (
+    <View style={[ac.macroCell, { backgroundColor: colors.secondary }]}>
+      <View style={[ac.macroDot, { backgroundColor: color }]} />
+      <Text style={[ac.macroValue, { color: colors.text }]}>
+        {value}
+        <Text style={[ac.macroUnit, { color: colors.mutedForeground }]}> g</Text>
+      </Text>
+      <Text style={[ac.macroLabel, { color: colors.mutedForeground }]}>{label}</Text>
+    </View>
+  );
+
   return (
-    <KeyboardAwareScrollViewCompat
-      style={ac.container}
-      contentContainerStyle={[ac.contentContainer, { paddingBottom: bottomInset + 16 }]}
-      showsVerticalScrollIndicator={false}
-      bounces={false}
-      bottomOffset={20}
-    >
-      {/* ── Header ── */}
-      <LinearGradient
-        colors={["#1A4F8A", "#2471A3"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={ac.header}
+    <View style={[ac.root, { backgroundColor: colors.background }]}>
+      <KeyboardAwareScrollViewCompat
+        style={ac.flex1}
+        contentContainerStyle={ac.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bottomOffset={20}
       >
-        <TouchableOpacity onPress={onBack} hitSlop={12} style={ac.headerBack}>
-          <Feather name="chevron-left" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={ac.headerTitle}>Ovqat topildi!</Text>
-        <View style={ac.headerSpacer} />
-      </LinearGradient>
-
-      {/* ── Food Image ──
-          Phone photos are portrait; a fixed-height "cover" crop kept only a
-          thin middle strip. Show the whole photo ("contain") over a blurred,
-          dimmed copy of itself so any aspect ratio fills the frame. */}
-      {food.imageUri ? (
-        <View style={[ac.photoFrame, { height: photoHeight }]}>
-          <Image
-            source={{ uri: food.imageUri }}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            blurRadius={24}
-          />
-          <View style={[StyleSheet.absoluteFill, ac.photoDim]} />
-          <Image
-            source={{ uri: food.imageUri }}
-            style={ac.photoMain}
-            contentFit="contain"
-            accessibilityLabel={`${food.name} rasmi`}
-          />
+        {/* ── Photo ──
+            Phone photos are portrait; show the whole photo ("contain") over a
+            blurred, dimmed copy of itself so any aspect ratio fills the frame. */}
+        <View style={[ac.photoFrame, { height: food.imageUri ? photoHeight : 170 }]}>
+          {food.imageUri ? (
+            <>
+              <Image
+                source={{ uri: food.imageUri }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                blurRadius={24}
+              />
+              <View style={[StyleSheet.absoluteFill, ac.photoDim]} />
+              <Image
+                source={{ uri: food.imageUri }}
+                style={ac.photoMain}
+                contentFit="contain"
+                accessibilityLabel={`${food.name} rasmi`}
+              />
+            </>
+          ) : (
+            <View style={[StyleSheet.absoluteFill, ac.emojiBox, { backgroundColor: colors.secondary }]}>
+              <Text style={ac.emojiBig}>{food.emoji}</Text>
+            </View>
+          )}
+          <Pressable
+            onPress={onBack}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Orqaga"
+            style={({ pressed }) => [ac.backBtn, { top: topInset + 10, opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Feather name="chevron-left" size={24} color="#FFFFFF" />
+          </Pressable>
         </View>
-      ) : (
-        <View style={ac.foodEmojiBox}>
-          <Text style={ac.foodEmoji}>{food.emoji}</Text>
-        </View>
-      )}
 
-      {/* ── Food name badge ── */}
-      <View style={ac.nameBadge}>
-        <Text style={ac.nameBadgeText} numberOfLines={1}>{food.name}</Text>
-        <Text style={ac.portionBadgeText}>{food.portion}</Text>
-      </View>
-
-      <VariantPicker
-        food={food}
-        multiplier={portion}
-        accent="#2471A3"
-        onSelect={onSelectVariant}
-        style={ac.variantCard}
-      />
-
-      {/* ── Receipt-style breakdown (extras list) ── */}
-      {extras.length > 0 ? (
-        <View style={ac.receiptBox}>
-          <View style={ac.receiptHeader}>
-            <Feather name="plus-circle" size={14} color="#7D3C98" />
-            <Text style={ac.receiptTitle}>Qo'shimchalar ({extras.length})</Text>
-          </View>
-          <View style={ac.receiptMain}>
-            <Text style={ac.receiptMainName} numberOfLines={1}>
-              {food.name} · {isCountUnit ? `${fmtUnits(portion * baseUnits)} ${unitNamePlural}` : food.portion}
-            </Text>
-            <Text style={ac.receiptMainCal}>{baseCal} kkal</Text>
-          </View>
-          {extras.map((it, idx) => (
-            <View key={`${it.note}-${idx}`} style={ac.receiptRow}>
-              <Text style={ac.receiptRowName} numberOfLines={2}>+ {it.note}</Text>
-              <Text style={ac.receiptRowCal}>
-                {it.cal > 0 ? `${it.cal} kkal` : "?"}
+        {/* ── Summary: what it is and what it costs ── */}
+        <View style={[ac.summary, { backgroundColor: colors.card }]}>
+          <View style={ac.titleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[ac.foodName, { color: colors.text }]} numberOfLines={2}>
+                {food.emoji} {food.name}
               </Text>
-              <TouchableOpacity
-                onPress={() => onRemoveIngredient(idx)}
-                hitSlop={8}
-                style={ac.receiptRowRemove}
-              >
-                <Feather name="x" size={14} color="#7D3C98" />
-              </TouchableOpacity>
+              <Text style={[ac.foodPortion, { color: colors.mutedForeground }]} numberOfLines={1}>
+                {manualPortionLabel}
+                {currentGrams && isCountUnit ? ` · ~${currentGrams}${unit}` : ""}
+              </Text>
             </View>
-          ))}
-          <View style={ac.receiptDivider} />
-          <View style={ac.receiptTotal}>
-            <Text style={ac.receiptTotalLabel}>Jami</Text>
-            <Text style={ac.receiptTotalCal}>{displayCal} kkal</Text>
-          </View>
-        </View>
-      ) : null}
-
-      {/* ── AI Advice Panel ── */}
-      <LinearGradient
-        colors={["#1B3F6E", "#2471A3"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={ac.aiPanel}
-      >
-        <View style={ac.aiPanelRow}>
-          <View style={ac.aiIconWrap}>
-            <Feather name="cpu" size={20} color="#FFFFFF" />
-          </View>
-          <Text style={ac.aiPanelText}>{aiAdvice}</Text>
-        </View>
-        <TouchableOpacity
-          style={ac.aiAcceptBtn}
-          onPress={() => {
-            onConfirmFinal({
-              cal: acceptBaseCal + extrasCalSum,
-              protein: acceptBaseProtein + extrasProteinSum,
-              carbs: acceptBaseCarbs + extrasCarbsSum,
-              fat: acceptBaseFat + extrasFatSum,
-              portionLabel: acceptPortionLabel,
-              extrasSummary,
-            });
-          }}
-          activeOpacity={0.82}
-        >
-          <Text style={ac.aiAcceptBtnText}>
-            Tavsiyani qabul qilaman ({acceptBaseCal + extrasCalSum} kkal)
-          </Text>
-        </TouchableOpacity>
-      </LinearGradient>
-
-      {/* ── Details Toggle Button ── */}
-      <TouchableOpacity
-        style={ac.detailsToggle}
-        onPress={() => {
-          setShowDetails((v) => !v);
-          if (!showDetails) {
-            setShowPortion(false);
-            setShowEdit(false);
-            setShowIngredient(false);
-          }
-        }}
-        activeOpacity={0.75}
-      >
-        <Feather name="sliders" size={15} color="#2471A3" />
-        <Text style={ac.detailsToggleText}>
-          {showDetails ? "Sozlamalarni yashirish" : "Batafsil sozlamalar va makrolar"}
-        </Text>
-        <Feather name={showDetails ? "chevron-up" : "chevron-down"} size={15} color="#2471A3" />
-      </TouchableOpacity>
-
-      {showDetails && (
-        <>
-          {/* ── Nutrition Grid ── */}
-          <View style={ac.nutriRow}>
-            <View style={ac.nutriCell}>
-              <Text style={ac.nutriLabel}>Kaloriya</Text>
-              <Text style={ac.nutriValue}>{displayCal}<Text style={ac.nutriUnit}> kcal</Text></Text>
-            </View>
-            <View style={[ac.nutriCell, ac.nutriBorder]}>
-              <Text style={ac.nutriLabel}>Uglevodlar</Text>
-              <Text style={ac.nutriValue}>{displayCarbs}<Text style={ac.nutriUnit}> g</Text></Text>
-            </View>
-            <View style={[ac.nutriCell, ac.nutriBorder]}>
-              <Text style={ac.nutriLabel}>Oqsil</Text>
-              <Text style={ac.nutriValue}>{displayProtein}<Text style={ac.nutriUnit}> g</Text></Text>
-            </View>
-            <View style={[ac.nutriCell, ac.nutriBorder]}>
-              <Text style={ac.nutriLabel}>Yog'</Text>
-              <Text style={ac.nutriValue}>{displayFat}<Text style={ac.nutriUnit}> g</Text></Text>
-            </View>
+            <Pressable
+              onPress={toggleEdit}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Tahrirlash"
+              style={({ pressed }) => [
+                ac.iconBtn,
+                {
+                  backgroundColor: showEdit ? colors.primary : colors.secondary,
+                  opacity: pressed ? 0.8 : 1,
+                },
+              ]}
+            >
+              <Feather name={showEdit ? "x" : "edit-2"} size={16} color={showEdit ? "#FFFFFF" : colors.primary} />
+            </Pressable>
           </View>
 
-          {/* ── Per 100g/100ml info ── */}
-          {per100Cal != null && per100Cal > 0 ? (
-            <View style={ac.per100Row}>
-              <View style={ac.per100IconWrap}>
-                <Feather name="info" size={14} color="#1A5276" />
-              </View>
-              <Text style={ac.per100Text}>
-                {isCountUnit && food.unitGrams
-                  ? `1 ${unitNamePlural} ~${Math.round(food.unitGrams)}${unit} · 100${unit}: `
-                  : `100${unit} uchun: `}
-                <Text style={ac.per100Bold}>{per100Cal} kkal</Text>
-                {!isCountUnit && food.portionGrams ? ` · porsiya ~${food.portionGrams}${unit}` : ""}
+          {lowConfidence ? (
+            <View style={ac.warnBox}>
+              <Feather name="alert-triangle" size={15} color="#B45309" />
+              <Text style={ac.warnText}>
+                AI ishonchi past — rasm xira yoki taom to'liq ko'rinmayapti. Nomi va porsiyasini
+                tekshiring yoki qayta suratga oling.
               </Text>
             </View>
           ) : null}
 
-          {/* ── Portion Selector ── */}
-          {showPortion && (
-            <View style={ac.portionSelector}>
-              <Text style={ac.portionSelectorTitle}>Porsiyani tanlang</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={ac.portionOptionsRow}
-                keyboardShouldPersistTaps="handled"
+          <View style={ac.kcalRow}>
+            <Text style={[ac.kcalValue, { color: colors.text }]}>{displayCal}</Text>
+            <Text style={[ac.kcalUnit, { color: colors.mutedForeground }]}>kkal</Text>
+            <View style={{ flex: 1 }} />
+            {kcalLeftAfter != null ? (
+              <Text
+                style={[
+                  ac.leftText,
+                  { color: kcalLeftAfter >= 0 ? colors.mutedForeground : colors.destructive },
+                ]}
               >
-                {PORTION_OPTIONS.map((p) => {
-                  const active = Math.abs(portion - p.mult) < 0.01;
-                  return (
-                    <TouchableOpacity
-                      key={p.label}
-                      onPress={() => setPortion(p.mult)}
-                      style={[ac.portionOption, active && ac.portionOptionActive]}
-                      activeOpacity={0.75}
-                    >
-                      <Text style={[ac.portionOptionText, active && ac.portionOptionTextActive]}>
-                        {p.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-              <View style={ac.customPortionRow}>
-                <TextInput
-                  value={customPortionText}
-                  onChangeText={setCustomPortionText}
-                  placeholder={isCountUnit ? `Qo'lda: masalan 1.5` : `Qo'lda: masalan 1.5`}
-                  placeholderTextColor="#9AAAB8"
-                  keyboardType="decimal-pad"
-                  style={ac.customPortionInput}
-                  onSubmitEditing={applyCustomPortion}
-                  returnKeyType="done"
-                />
-                <TouchableOpacity
-                  style={[
-                    ac.customPortionBtn,
-                    !customPortionText.trim() && { opacity: 0.4 },
-                  ]}
-                  onPress={applyCustomPortion}
-                  disabled={!customPortionText.trim()}
-                  activeOpacity={0.8}
-                >
-                  <Feather name="check" size={16} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-              <Text style={ac.customPortionHint}>
-                Tanlangan: {fmtUnits(isCountUnit ? portion * baseUnits : portion)}
-                {isCountUnit ? ` ${unitNamePlural}` : "x"} ≈ {displayCal} kkal
+                {kcalLeftAfter >= 0
+                  ? `Keyin qoladi: ${kcalLeftAfter} kkal`
+                  : `Normadan +${-kcalLeftAfter} kkal`}
               </Text>
-            </View>
-          )}
-
-          {/* ── Action Grid ── */}
-          <View style={ac.actionGrid}>
-            <TouchableOpacity
-              style={[ac.actionCell, showPortion && ac.actionCellActive]}
-              onPress={() => { setShowPortion((v) => !v); setShowEdit(false); setShowIngredient(false); }}
-              activeOpacity={0.75}
-            >
-              <View style={[ac.actionIcon, { backgroundColor: "#EBF5FB" }]}>
-                <Feather name="sliders" size={20} color="#2471A3" />
-              </View>
-              <Text style={ac.actionLabel}>Porsiyani sozlash</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[ac.actionCell, showEdit && ac.actionCellActive]}
-              onPress={() => {
-                setShowEdit((v) => {
-                  const next = !v;
-                  if (next) {
-                    // Tahrirlash oynasini joriy porsiya (extralarsiz) qiymatlaridan
-                    // qayta boshlaymiz — aks holda tanlangan porsiya ko'paytmasi
-                    // (masalan 2x) saqlashda jim tashlab ketiladi.
-                    setEditName(food.name);
-                    setEditPortionText(food.portion);
-                    setEditCal(String(baseCal));
-                    setEditProtein(String(baseProtein));
-                    setEditCarbs(String(baseCarbs));
-                    setEditFat(String(baseFat));
-                  }
-                  return next;
-                });
-                setShowPortion(false);
-                setShowIngredient(false);
-              }}
-              activeOpacity={0.75}
-            >
-              <View style={[ac.actionIcon, { backgroundColor: "#EBF5FB" }]}>
-                <Feather name="edit-2" size={20} color="#2471A3" />
-              </View>
-              <Text style={ac.actionLabel}>Ovqatni tahrirlash</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[ac.actionCell, showIngredient && ac.actionCellActive]}
-              onPress={() => { setShowIngredient((v) => !v); setShowPortion(false); setShowEdit(false); }}
-              activeOpacity={0.75}
-            >
-              <View style={[ac.actionIcon, { backgroundColor: "#F4ECF7" }]}>
-                <Feather name="plus-circle" size={20} color="#7D3C98" />
-              </View>
-              <Text style={ac.actionLabel}>Qo'shimcha qo'shish</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={ac.actionCell} onPress={onReject} activeOpacity={0.75}>
-              <View style={[ac.actionIcon, { backgroundColor: "#FEF9E7" }]}>
-                <Feather name="refresh-cw" size={20} color="#B7950B" />
-              </View>
-              <Text style={ac.actionLabel}>Ovqat turini o'zgartir</Text>
-            </TouchableOpacity>
+            ) : null}
           </View>
 
-          {/* ── Edit form ── */}
-          {showEdit && (
-            <View style={ac.editForm}>
-              <Text style={ac.editFormTitle}>Ovqatni tahrirlash</Text>
-              <Text style={ac.editLabel}>Nomi</Text>
-              <TextInput
-                value={editName}
-                onChangeText={setEditName}
-                style={ac.editInput}
-                placeholder="Taom nomi"
-                placeholderTextColor="#9AAAB8"
-              />
-              <Text style={ac.editLabel}>Porsiya tavsifi</Text>
-              <TextInput
-                value={editPortionText}
-                onChangeText={setEditPortionText}
-                style={ac.editInput}
-                placeholder="masalan: 1 tovoq (350g)"
-                placeholderTextColor="#9AAAB8"
-              />
-              <View style={ac.editGrid}>
-                <View style={ac.editGridCell}>
-                  <Text style={ac.editLabel}>Kaloriya</Text>
-                  <TextInput
-                    value={editCal}
-                    onChangeText={setEditCal}
-                    style={ac.editInput}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9AAAB8"
-                  />
-                </View>
-                <View style={ac.editGridCell}>
-                  <Text style={ac.editLabel}>Oqsil (g)</Text>
-                  <TextInput
-                    value={editProtein}
-                    onChangeText={setEditProtein}
-                    style={ac.editInput}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9AAAB8"
-                  />
-                </View>
-              </View>
-              <View style={ac.editGrid}>
-                <View style={ac.editGridCell}>
-                  <Text style={ac.editLabel}>Uglevod (g)</Text>
-                  <TextInput
-                    value={editCarbs}
-                    onChangeText={setEditCarbs}
-                    style={ac.editInput}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9AAAB8"
-                  />
-                </View>
-                <View style={ac.editGridCell}>
-                  <Text style={ac.editLabel}>Yog' (g)</Text>
-                  <TextInput
-                    value={editFat}
-                    onChangeText={setEditFat}
-                    style={ac.editInput}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9AAAB8"
-                  />
-                </View>
-              </View>
-              <TouchableOpacity style={ac.editSaveBtn} onPress={applyEdit} activeOpacity={0.85}>
-                <Feather name="check" size={16} color="#FFFFFF" />
-                <Text style={ac.editSaveBtnText}>Saqlash</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          <View style={ac.macroRow}>
+            {macro("Oqsil", displayProtein, colors.chartRed)}
+            {macro("Uglevod", displayCarbs, colors.accent)}
+            {macro("Yog'", displayFat, "#3B82F6")}
+          </View>
 
-          {/* ── Ingredient form ── */}
-          {showIngredient && (
-            <View style={ac.editForm}>
-              <Text style={ac.editFormTitle}>Qo'shimcha qo'shish</Text>
-              <Text style={ac.editLabel}>Nimani qo'shdingiz?</Text>
+          {per100Cal != null && per100Cal > 0 ? (
+            <Text style={[ac.per100, { color: colors.mutedForeground }]}>
+              {isCountUnit && food.unitGrams
+                ? `1 ${unitNamePlural} ≈ ${Math.round(food.unitGrams)}${unit} · `
+                : ""}
+              100{unit} = {per100Cal} kkal
+            </Text>
+          ) : null}
+        </View>
+
+        {/* ── Manual edit ── */}
+        {showEdit ? (
+          <View style={[ac.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[ac.cardTitle, { color: colors.text }]}>Qo'lda tahrirlash</Text>
+            <Text style={[ac.fieldLabel, { color: colors.mutedForeground }]}>Nomi</Text>
+            <TextInput
+              value={editName}
+              onChangeText={setEditName}
+              style={[ac.input, { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
+              placeholder="Taom nomi"
+              placeholderTextColor={colors.mutedForeground}
+            />
+            <Text style={[ac.fieldLabel, { color: colors.mutedForeground }]}>Porsiya tavsifi</Text>
+            <TextInput
+              value={editPortionText}
+              onChangeText={setEditPortionText}
+              style={[ac.input, { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
+              placeholder="masalan: 1 tovoq (350g)"
+              placeholderTextColor={colors.mutedForeground}
+            />
+            <View style={ac.editGrid}>
+              {(
+                [
+                  ["Kaloriya", editCal, setEditCal],
+                  ["Oqsil (g)", editProtein, setEditProtein],
+                  ["Uglevod (g)", editCarbs, setEditCarbs],
+                  ["Yog' (g)", editFat, setEditFat],
+                ] as const
+              ).map(([label, value, setValue]) => (
+                <View key={label} style={ac.editCell}>
+                  <Text style={[ac.fieldLabel, { color: colors.mutedForeground }]}>{label}</Text>
+                  <TextInput
+                    value={value}
+                    onChangeText={setValue}
+                    keyboardType="number-pad"
+                    selectTextOnFocus
+                    style={[ac.input, { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
+                  />
+                </View>
+              ))}
+            </View>
+            <Pressable
+              onPress={applyEdit}
+              style={({ pressed }) => [ac.smallPrimary, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
+            >
+              <Feather name="check" size={16} color="#FFFFFF" />
+              <Text style={ac.smallPrimaryText}>Saqlash</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {/* ── Portion ── */}
+        <View style={[ac.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[ac.cardTitle, { color: colors.text }]}>Porsiya</Text>
+          <View style={ac.stepperRow}>
+            <Pressable
+              onPress={() => stepPortion(-1)}
+              disabled={!canStepDown}
+              accessibilityRole="button"
+              accessibilityLabel="Kamaytirish"
+              style={({ pressed }) => [
+                ac.stepBtn,
+                { backgroundColor: colors.secondary, opacity: !canStepDown ? 0.35 : pressed ? 0.7 : 1 },
+              ]}
+            >
+              <Feather name="minus" size={20} color={colors.primary} />
+            </Pressable>
+            <View style={ac.stepCenter}>
+              <Text style={[ac.stepValue, { color: colors.text }]}>
+                {isCountUnit ? `${fmtUnits(portion * baseUnits)} ${unitNamePlural}` : `${fmtUnits(portion)}×`}
+              </Text>
+              {currentGrams ? (
+                <Text style={[ac.stepSub, { color: colors.mutedForeground }]}>~{currentGrams}{unit}</Text>
+              ) : null}
+            </View>
+            <Pressable
+              onPress={() => stepPortion(1)}
+              accessibilityRole="button"
+              accessibilityLabel="Ko'paytirish"
+              style={({ pressed }) => [ac.stepBtn, { backgroundColor: colors.secondary, opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Feather name="plus" size={20} color={colors.primary} />
+            </Pressable>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={ac.chipsRow}
+            keyboardShouldPersistTaps="handled"
+          >
+            {PORTION_OPTIONS.map((p) => {
+              const active = Math.abs(portion - p.mult) < 0.01;
+              return (
+                <Pressable
+                  key={p.label}
+                  onPress={() => setPortion(p.mult)}
+                  style={[
+                    ac.chip,
+                    active
+                      ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                      : { backgroundColor: colors.card, borderColor: colors.border },
+                  ]}
+                >
+                  <Text style={[ac.chipText, { color: active ? "#FFFFFF" : colors.text }]}>{p.label}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          <View style={ac.customRow}>
+            <TextInput
+              value={customPortionText}
+              onChangeText={setCustomPortionText}
+              placeholder={isCountUnit ? `Boshqa miqdor (${unitNamePlural}), masalan 1.5` : "Boshqa miqdor, masalan 1.5"}
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="decimal-pad"
+              style={[ac.input, ac.flex1, { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
+              onSubmitEditing={applyCustomPortion}
+              returnKeyType="done"
+            />
+            <Pressable
+              onPress={applyCustomPortion}
+              disabled={!customPortionText.trim()}
+              accessibilityRole="button"
+              accessibilityLabel="Miqdorni qo'llash"
+              style={[ac.customBtn, { backgroundColor: colors.primary, opacity: customPortionText.trim() ? 1 : 0.4 }]}
+            >
+              <Feather name="check" size={18} color="#FFFFFF" />
+            </Pressable>
+          </View>
+        </View>
+
+        <VariantPicker
+          food={food}
+          multiplier={portion}
+          accent={colors.primary}
+          onSelect={onSelectVariant}
+          style={[ac.variantCard, { borderColor: colors.border }]}
+        />
+
+        {/* ── AI advice: applies as a portion, never as a second "add" button ── */}
+        <View style={[ac.card, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+          <View style={ac.adviceRow}>
+            <View style={[ac.adviceIcon, { backgroundColor: colors.primary }]}>
+              <Feather name="cpu" size={16} color="#FFFFFF" />
+            </View>
+            <Text style={[ac.adviceText, { color: colors.text }]}>{aiAdvice}</Text>
+          </View>
+          {portionIsRecommended ? (
+            <View style={ac.adviceDone}>
+              <Feather name="check-circle" size={15} color={colors.primary} />
+              <Text style={[ac.adviceDoneText, { color: colors.primary }]}>Tavsiya etilgan porsiya tanlangan</Text>
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => setPortion(acceptMult)}
+              style={({ pressed }) => [
+                ac.adviceBtn,
+                { borderColor: colors.primary, backgroundColor: colors.card, opacity: pressed ? 0.8 : 1 },
+              ]}
+            >
+              <Text style={[ac.adviceBtnText, { color: colors.primary }]}>
+                Tavsiyani qo'llash · {recommendedLabel}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+
+        {/* ── Extras (butter, sauce, bread...) ── */}
+        <View style={[ac.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={ac.extrasHead}>
+            <Text style={[ac.cardTitle, { color: colors.text, flex: 1 }]}>
+              Qo'shimchalar{extras.length ? ` (${extras.length})` : ""}
+            </Text>
+            <Pressable
+              onPress={() => setShowIngredient((v) => !v)}
+              hitSlop={8}
+              style={({ pressed }) => [ac.linkBtn, { opacity: pressed ? 0.6 : 1 }]}
+            >
+              <Feather name={showIngredient ? "x" : "plus"} size={15} color={colors.primary} />
+              <Text style={[ac.linkText, { color: colors.primary }]}>{showIngredient ? "Yopish" : "Qo'shish"}</Text>
+            </Pressable>
+          </View>
+          {extras.length === 0 && !showIngredient ? (
+            <Text style={[ac.hintText, { color: colors.mutedForeground }]}>
+              Sariyog', sous, non yoki shakar qo'shdingizmi? Ularni ham hisoblaymiz.
+            </Text>
+          ) : null}
+          {extras.map((it, idx) => (
+            <View key={`${it.note}-${idx}`} style={[ac.extraRow, { borderTopColor: colors.border }]}>
+              <Text style={[ac.extraName, { color: colors.text }]} numberOfLines={2}>+ {it.note}</Text>
+              <Text style={[ac.extraCal, { color: colors.text }]}>{it.cal > 0 ? `${it.cal} kkal` : "?"}</Text>
+              <Pressable
+                onPress={() => onRemoveIngredient(idx)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Qo'shimchani olib tashlash"
+              >
+                <Feather name="x" size={16} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+          ))}
+          {showIngredient ? (
+            <View style={{ gap: 8, marginTop: 6 }}>
               <TextInput
                 value={ingredientNote}
                 onChangeText={setIngredientNote}
-                style={[ac.editInput, { height: 80, textAlignVertical: "top", paddingTop: 10 }]}
                 multiline
                 editable={!recomputing}
                 placeholder="masalan: 30g sariyog' va 1 osh qoshiq smetana"
-                placeholderTextColor="#9AAAB8"
-              />
-              <TouchableOpacity
+                placeholderTextColor={colors.mutedForeground}
                 style={[
-                  ac.editSaveBtn,
-                  (!ingredientNote.trim() || recomputing) && { opacity: 0.5 },
+                  ac.input,
+                  ac.multiline,
+                  { backgroundColor: colors.input, borderColor: colors.border, color: colors.text },
                 ]}
+              />
+              <Pressable
                 onPress={applyIngredient}
                 disabled={!ingredientNote.trim() || recomputing}
-                activeOpacity={0.85}
+                style={[
+                  ac.smallPrimary,
+                  { backgroundColor: colors.primary, opacity: !ingredientNote.trim() || recomputing ? 0.5 : 1 },
+                ]}
               >
-                {recomputing ? (
-                  <>
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                    <Text style={ac.editSaveBtnText}>AI hisoblamoqda…</Text>
-                  </>
-                ) : (
-                  <>
-                    <Feather name="plus" size={16} color="#FFFFFF" />
-                    <Text style={ac.editSaveBtnText}>Qo'shimchani qo'shish</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+                {recomputing ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Feather name="plus" size={16} color="#FFFFFF" />}
+                <Text style={ac.smallPrimaryText}>{recomputing ? "AI hisoblamoqda…" : "Qo'shimchani qo'shish"}</Text>
+              </Pressable>
             </View>
-          )}
-        </>
-      )}
+          ) : null}
+        </View>
 
-      {/* ── Bottom Buttons ── */}
-      <View style={ac.bottomRow}>
-        <TouchableOpacity style={ac.retakeBtn} onPress={onReject} activeOpacity={0.8}>
-          <Feather name="camera" size={16} color="#4A5568" />
-          <Text style={ac.retakeBtnText} numberOfLines={1}>Qayta olish</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={ac.confirmBtn}
+        <Pressable onPress={onReject} style={({ pressed }) => [ac.retake, { opacity: pressed ? 0.6 : 1 }]}>
+          <Feather name="camera" size={15} color={colors.mutedForeground} />
+          <Text style={[ac.retakeText, { color: colors.mutedForeground }]}>Boshqa ovqat ekan — qayta suratga olish</Text>
+        </Pressable>
+      </KeyboardAwareScrollViewCompat>
+
+      {/* ── One primary action ── */}
+      <View style={[ac.footer, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: bottomInset }]}>
+        <Pressable
           onPress={() =>
             onConfirmFinal({
               cal: displayCal,
@@ -2350,14 +2307,16 @@ function AiConfirmStep({
               extrasSummary,
             })
           }
-          activeOpacity={0.85}
+          accessibilityRole="button"
+          style={({ pressed }) => [ac.confirmBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.88 : 1 }]}
         >
-          <Text style={ac.confirmBtnText} numberOfLines={1}>
-            Kiritish · {displayCal} kkal
+          <Feather name="check" size={20} color="#FFFFFF" />
+          <Text style={ac.confirmText} numberOfLines={1}>
+            Kundalikka qo'shish · {displayCal} kkal
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
-    </KeyboardAwareScrollViewCompat>
+    </View>
   );
 }
 
@@ -2930,522 +2889,122 @@ const styles = StyleSheet.create({
 
 /* ── AiConfirmStep styles ── */
 const ac = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#EDF2F7",
-  },
-  contentContainer: {
-    flexGrow: 1,
-  },
-  /* Header */
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: Platform.OS === "ios" ? 54 : 40,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-  },
-  headerBack: {
+  root: { flex: 1 },
+  flex1: { flex: 1 },
+  scrollContent: { paddingBottom: 24 },
+  photoFrame: { width: "100%", backgroundColor: "#1A202C", overflow: "hidden" },
+  photoDim: { backgroundColor: "rgba(0,0,0,0.28)" },
+  // Stops 24px short of the bottom: the summary card overlaps the frame by
+  // 24px, so that strip is blurred backdrop, not the photo itself.
+  photoMain: { position: "absolute", top: 0, left: 0, right: 0, bottom: 24 },
+  emojiBox: { alignItems: "center", justifyContent: "center" },
+  emojiBig: { fontSize: 72 },
+  backBtn: {
+    position: "absolute",
+    left: 14,
     width: 40,
     height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.35)",
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: "Inter_700Bold",
-    color: "#FFFFFF",
-    flex: 1,
-    textAlign: "center",
-  },
-  headerSpacer: { width: 40 },
-  /* Food image */
-  photoFrame: {
-    width: "100%",
-    backgroundColor: "#1A202C",
-    overflow: "hidden",
-  },
-  photoDim: { backgroundColor: "rgba(0,0,0,0.28)" },
-  // Stops 20px short of the bottom: the name badge overlaps the frame by 20px
-  // (marginTop: -20), so that strip is blurred backdrop, not the photo itself.
-  photoMain: { position: "absolute", top: 0, left: 0, right: 0, bottom: 20 },
-  variantCard: { marginHorizontal: 16, marginTop: 12 },
-  foodEmojiBox: {
-    width: "100%",
-    height: 200,
-    backgroundColor: "#D6EAF8",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  foodEmoji: { fontSize: 80 },
-  /* Name badge */
-  nameBadge: {
-    backgroundColor: "#FFFFFF",
+  summary: {
     marginHorizontal: 16,
-    marginTop: -20,
-    borderRadius: 14,
-    padding: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 8,
-  },
-  nameBadgeText: {
-    fontSize: 17,
-    fontFamily: "Inter_700Bold",
-    color: "#1A2B3C",
-    flex: 1,
-  },
-  portionBadgeText: {
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-    color: "#5D7A8A",
-    flexShrink: 0,
-  },
-  /* AI Panel */
-  aiPanel: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    borderRadius: 16,
+    marginTop: -24,
+    borderRadius: 20,
     padding: 16,
     gap: 12,
-  },
-  aiPanelRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  aiIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-    marginTop: 1,
-  },
-  aiPanelText: {
-    flex: 1,
-    fontSize: 13.5,
-    fontFamily: "Inter_500Medium",
-    color: "#D6EAF8",
-    lineHeight: 20,
-  },
-  aiAcceptBtn: {
-    backgroundColor: "#1A5276",
-    borderRadius: 24,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-  },
-  /* Details Toggle */
-  detailsToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginHorizontal: 16,
-    marginTop: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: "#EBF5FB",
-    borderWidth: 1,
-    borderColor: "#AED6F1",
-  },
-  detailsToggleText: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-    color: "#2471A3",
-  },
-  aiAcceptBtnText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-  },
-  /* Nutrition row */
-  nutriRow: {
-    flexDirection: "row",
-    marginHorizontal: 16,
-    marginTop: 12,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  nutriCell: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 4,
-    gap: 4,
-  },
-  nutriBorder: {
-    borderLeftWidth: 1,
-    borderLeftColor: "#EAF0F6",
-  },
-  nutriLabel: {
-    fontSize: 11,
-    fontFamily: "Inter_500Medium",
-    color: "#7F8C9A",
-    textAlign: "center",
-  },
-  nutriValue: {
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-    color: "#1A2B3C",
-  },
-  nutriUnit: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    color: "#7F8C9A",
-  },
-  /* Portion selector */
-  portionSelector: {
-    marginHorizontal: 16,
-    marginTop: 10,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    padding: 14,
-    gap: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  portionSelectorTitle: {
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-    color: "#1A2B3C",
-    textAlign: "center",
-  },
-  portionOptionsRow: {
-    flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-  },
-  portionOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: "#CBD5E0",
-    backgroundColor: "#F7FAFC",
-  },
-  customPortionRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 4,
-    alignItems: "center",
-  },
-  customPortionInput: {
-    flex: 1,
-    height: 42,
-    borderRadius: 10,
-    borderWidth: 1.2,
-    borderColor: "#CBD5E0",
-    backgroundColor: "#F7FAFC",
-    paddingHorizontal: 12,
-    fontSize: 14,
-    fontFamily: "Inter_500Medium",
-    color: "#1A2B3C",
-  },
-  customPortionBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: "#2471A3",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  customPortionHint: {
-    fontSize: 12,
-    fontFamily: "Inter_500Medium",
-    color: "#5D7A8A",
-    textAlign: "center",
-    marginTop: 2,
-  },
-  /* Receipt-style breakdown */
-  receiptBox: {
-    marginHorizontal: 16,
-    marginTop: 10,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 14,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: "#E8DCEF",
-  },
-  receiptHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 2,
-  },
-  receiptTitle: {
-    fontSize: 12.5,
-    fontFamily: "Inter_700Bold",
-    color: "#7D3C98",
-  },
-  receiptMain: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-    paddingVertical: 4,
-  },
-  receiptMainName: {
-    flex: 1,
-    fontSize: 13.5,
-    fontFamily: "Inter_600SemiBold",
-    color: "#1A2B3C",
-  },
-  receiptMainCal: {
-    fontSize: 13.5,
-    fontFamily: "Inter_700Bold",
-    color: "#1A2B3C",
-  },
-  receiptRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 4,
-  },
-  receiptRowName: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-    color: "#5B2C6F",
-  },
-  receiptRowCal: {
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-    color: "#7D3C98",
-  },
-  receiptRowRemove: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "rgba(125,60,152,0.12)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  receiptDivider: {
-    height: 1,
-    backgroundColor: "#E8DCEF",
-    marginVertical: 4,
-  },
-  receiptTotal: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 4,
-  },
-  receiptTotalLabel: {
-    fontSize: 14,
-    fontFamily: "Inter_700Bold",
-    color: "#1A2B3C",
-  },
-  receiptTotalCal: {
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-    color: "#0E7C3A",
-  },
-  portionOptionActive: {
-    backgroundColor: "#2471A3",
-    borderColor: "#2471A3",
-  },
-  portionOptionText: {
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-    color: "#4A5568",
-  },
-  portionOptionTextActive: { color: "#FFFFFF" },
-  /* Action grid */
-  actionGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginHorizontal: 16,
-    marginTop: 10,
-    gap: 10,
-  },
-  actionCell: {
-    width: "47.5%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    padding: 14,
-    alignItems: "center",
-    gap: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  actionCellActive: {
-    borderWidth: 1.5,
-    borderColor: "#2471A3",
-    backgroundColor: "#EBF5FB",
-  },
-  actionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionLabel: {
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-    color: "#2C3E50",
-    textAlign: "center",
-    lineHeight: 18,
-  },
-  /* Per-100 info row */
-  per100Row: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 16,
-    marginTop: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: "#EBF5FB",
-    borderRadius: 10,
-    gap: 8,
-  },
-  per100IconWrap: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  per100Text: {
-    flex: 1,
-    fontSize: 12.5,
-    fontFamily: "Inter_500Medium",
-    color: "#1A5276",
-  },
-  per100Bold: {
-    fontFamily: "Inter_700Bold",
-  },
-  /* Edit form */
-  editForm: {
-    marginHorizontal: 16,
-    marginTop: 10,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    padding: 14,
-    gap: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  editFormTitle: {
-    fontSize: 14,
-    fontFamily: "Inter_700Bold",
-    color: "#1A2B3C",
-    marginBottom: 4,
-  },
-  editLabel: {
-    fontSize: 11.5,
-    fontFamily: "Inter_500Medium",
-    color: "#5D7A8A",
-    marginTop: 4,
-  },
-  editInput: {
-    height: 42,
-    borderRadius: 10,
-    borderWidth: 1.2,
-    borderColor: "#CBD5E0",
-    backgroundColor: "#F7FAFC",
-    paddingHorizontal: 12,
-    fontSize: 14,
-    fontFamily: "Inter_500Medium",
-    color: "#1A2B3C",
-  },
-  editGrid: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  editGridCell: {
-    flex: 1,
-  },
-  editSaveBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#2471A3",
-    gap: 8,
-    marginTop: 10,
-  },
-  editSaveBtnText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-  },
-  /* Bottom buttons */
-  bottomRow: {
-    flexDirection: "row",
-    marginHorizontal: 16,
-    marginTop: 14,
-    gap: 10,
-  },
-  retakeBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    height: 54,
-    paddingHorizontal: 14,
-    borderRadius: 27,
-    borderWidth: 1.5,
-    borderColor: "#CBD5E0",
-    backgroundColor: "#FFFFFF",
-    gap: 6,
-  },
-  retakeBtnText: {
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-    color: "#4A5568",
-  },
-  confirmBtn: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: "#1A5276",
-    shadowColor: "#1A5276",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  confirmBtnText: {
+  titleRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  foodName: { fontSize: 19, fontFamily: "Inter_700Bold", lineHeight: 25 },
+  foodPortion: { fontSize: 13, fontFamily: "Inter_500Medium", marginTop: 2 },
+  iconBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  warnBox: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "flex-start",
+    backgroundColor: "#FEF3C7",
+    borderRadius: 12,
+    padding: 10,
+  },
+  warnText: { flex: 1, fontSize: 12.5, fontFamily: "Inter_500Medium", color: "#92400E", lineHeight: 17 },
+  kcalRow: { flexDirection: "row", alignItems: "baseline", gap: 6 },
+  kcalValue: { fontSize: 40, fontFamily: "Inter_700Bold", letterSpacing: -1 },
+  kcalUnit: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  leftText: { fontSize: 12.5, fontFamily: "Inter_600SemiBold" },
+  macroRow: { flexDirection: "row", gap: 8 },
+  macroCell: { flex: 1, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 10 },
+  macroDot: { width: 8, height: 8, borderRadius: 4, marginBottom: 6 },
+  macroValue: { fontSize: 17, fontFamily: "Inter_700Bold" },
+  macroUnit: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  macroLabel: { fontSize: 11.5, fontFamily: "Inter_500Medium", marginTop: 1 },
+  per100: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  card: { marginHorizontal: 16, marginTop: 12, borderRadius: 16, borderWidth: 1, padding: 14, gap: 10 },
+  cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  variantCard: { marginHorizontal: 16, marginTop: 12, borderWidth: 1, shadowOpacity: 0, elevation: 0 },
+  fieldLabel: { fontSize: 12, fontFamily: "Inter_500Medium", marginBottom: -4 },
+  input: {
+    minHeight: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
     fontSize: 15,
-    fontFamily: "Inter_700Bold",
-    color: "#FFFFFF",
+    fontFamily: "Inter_500Medium",
   },
+  multiline: { height: 76, paddingTop: 10, textAlignVertical: "top" },
+  editGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  editCell: { flexBasis: "46%", flexGrow: 1, gap: 8 },
+  smallPrimary: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    height: 44,
+    borderRadius: 22,
+  },
+  smallPrimaryText: { color: "#FFFFFF", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  stepperRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  stepBtn: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
+  stepCenter: { flex: 1, alignItems: "center" },
+  stepValue: { fontSize: 22, fontFamily: "Inter_700Bold" },
+  stepSub: { fontSize: 12, fontFamily: "Inter_500Medium", marginTop: 1 },
+  chipsRow: { gap: 8, paddingVertical: 2 },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, borderWidth: 1 },
+  chipText: { fontSize: 13.5, fontFamily: "Inter_600SemiBold" },
+  customRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  customBtn: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  adviceRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
+  adviceIcon: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  adviceText: { flex: 1, fontSize: 13.5, fontFamily: "Inter_500Medium", lineHeight: 19 },
+  adviceBtn: { borderWidth: 1.5, borderRadius: 22, height: 42, alignItems: "center", justifyContent: "center" },
+  adviceBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  adviceDone: { flexDirection: "row", alignItems: "center", gap: 6 },
+  adviceDoneText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  extrasHead: { flexDirection: "row", alignItems: "center" },
+  linkBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
+  linkText: { fontSize: 13.5, fontFamily: "Inter_600SemiBold" },
+  hintText: { fontSize: 12.5, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  extraRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
+  extraName: { flex: 1, fontSize: 13.5, fontFamily: "Inter_500Medium" },
+  extraCal: { fontSize: 13.5, fontFamily: "Inter_600SemiBold" },
+  retake: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 18 },
+  retakeText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  footer: { paddingHorizontal: 16, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
+  confirmBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    height: 54,
+    borderRadius: 27,
+  },
+  confirmText: { color: "#FFFFFF", fontSize: 16, fontFamily: "Inter_700Bold" },
 });
 
 const vp = StyleSheet.create({
