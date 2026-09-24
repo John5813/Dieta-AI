@@ -80,7 +80,7 @@ export default function LoadingScreen() {
       ]}
     >
       <Image
-        source={require("../../assets/images/logo.png")}
+        source={require("../../assets/images/logo-mark.png")}
         style={styles.logo}
         contentFit="contain"
       />
@@ -126,7 +126,7 @@ export default function LoadingScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, paddingHorizontal: 24, alignItems: "center" },
-  logo: { width: 140, height: 140, marginBottom: 12 },
+  logo: { width: 88, height: 92, marginBottom: 20, marginTop: 16 },
   percent: { fontSize: 52, fontFamily: "Inter_700Bold", marginBottom: 8 },
   title: { fontSize: 24, fontFamily: "Inter_700Bold", textAlign: "center", lineHeight: 32 },
   subtitle: { fontSize: 14, fontFamily: "Inter_400Regular", marginTop: 4, marginBottom: 20 },

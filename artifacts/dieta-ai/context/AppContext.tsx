@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from "r
 import { AppState, type AppStateStatus, Platform } from "react-native";
 import {
   loadCachedOffset,
+  normalizeDateKey,
   refreshLocationTimezone,
   todayStr,
   yesterdayStr,
@@ -88,6 +89,16 @@ export interface DiaryEntry {
   portion?: string;
 }
 
+export type DiaryEntryPatch = Partial<
+  Pick<DiaryEntry, "name" | "cal" | "protein" | "carbs" | "fat" | "portion">
+>;
+
+export interface WeightEntry {
+  /** "YYYY-MM-DD" — at most one entry per day. */
+  date: string;
+  kg: number;
+}
+
 const DEFAULT_SUB: Subscription = {
   status: "none",
   scansToday: 0,
@@ -110,9 +121,14 @@ interface AppContextType {
   clearTourPending: () => void;
   registerScan: () => { allowed: boolean; reason?: "trial_expired" | "daily_limit" | "locked" };
   canScan: () => { allowed: boolean; reason?: "trial_expired" | "daily_limit" | "locked"; remaining: number };
-  addEntry: (entry: Omit<DiaryEntry, "id" | "time" | "date">) => void;
-  addEntries: (entries: Array<Omit<DiaryEntry, "id" | "time" | "date">>) => void;
+  /** `date` defaults to today; pass a past "YYYY-MM-DD" to log a forgotten meal. */
+  addEntry: (entry: Omit<DiaryEntry, "id" | "time" | "date">, date?: string) => void;
+  addEntries: (entries: Array<Omit<DiaryEntry, "id" | "time" | "date">>, date?: string) => void;
+  updateEntry: (id: string, patch: DiaryEntryPatch) => void;
   removeEntry: (id: string) => void;
+  weightLog: WeightEntry[];
+  logWeight: (kg: number) => void;
+  removeWeightEntry: (date: string) => void;
   addBurned: (cal: number) => void;
   resetBurnedToday: () => void;
   exercisePlan: StoredExercisePlan | null;
@@ -145,7 +161,11 @@ const AppContext = createContext<AppContextType>({
   canScan: () => ({ allowed: false, reason: "locked", remaining: 0 }),
   addEntry: () => {},
   addEntries: () => {},
+  updateEntry: () => {},
   removeEntry: () => {},
+  weightLog: [],
+  logWeight: () => {},
+  removeWeightEntry: () => {},
   addBurned: () => {},
   resetBurnedToday: () => {},
   exercisePlan: null,
@@ -164,6 +184,14 @@ function nowTime(): string {
   return new Date().toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" });
 }
 
+function sortWeights(list: WeightEntry[]): WeightEntry[] {
+  return [...list].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+}
+
+function upsertWeight(list: WeightEntry[], date: string, kg: number): WeightEntry[] {
+  return sortWeights([...list.filter((w) => w.date !== date), { date, kg }]);
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [profile, setProfileState] = useState<Partial<UserProfile>>({});
@@ -171,6 +199,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [entries, setEntriesState] = useState<DiaryEntry[]>([]);
   const [burnedByDate, setBurnedByDate] = useState<Record<string, number>>({});
   const [exercisePlan, setExercisePlanState] = useState<StoredExercisePlan | null>(null);
+  const [weightLog, setWeightLogState] = useState<WeightEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [tourPending, setTourPendingState] = useState(false);
   const [addFoodModalVisible, setAddFoodModalVisible] = useState(false);
@@ -188,6 +217,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           entriesRaw,
           burnedRaw,
           exPlanRaw,
+          weightRaw,
         ] = await AsyncStorage.multiGet([
           "onboarding_complete",
           "user_profile",
@@ -195,13 +225,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           "diary_entries",
           "burned_by_date",
           "exercise_plan",
+          "weight_log",
         ]);
 
         if (obRaw[1] === "true") setOnboardingComplete(true);
 
+        let loadedProfile: Partial<UserProfile> = {};
         if (profileRaw[1]) {
-          try { setProfileState(JSON.parse(profileRaw[1])); } catch {}
+          try {
+            loadedProfile = JSON.parse(profileRaw[1]);
+            setProfileState(loadedProfile);
+          } catch {}
         }
+
+        let loadedWeights: WeightEntry[] = [];
+        if (weightRaw[1]) {
+          try {
+            const parsed = JSON.parse(weightRaw[1]) as WeightEntry[];
+            loadedWeights = parsed
+              .filter((w) => w && typeof w.date === "string" && Number.isFinite(w.kg) && w.kg > 0)
+              .map((w) => ({ date: normalizeDateKey(w.date), kg: w.kg }));
+          } catch {}
+        }
+        // Users who onboarded before weight tracking existed have no log yet —
+        // start it from their current profile weight so the chart isn't empty.
+        if (
+          loadedWeights.length === 0 &&
+          obRaw[1] === "true" &&
+          Number.isFinite(loadedProfile.currentWeight) &&
+          (loadedProfile.currentWeight ?? 0) > 0
+        ) {
+          loadedWeights = [{ date: todayStr(), kg: loadedProfile.currentWeight! }];
+          AsyncStorage.setItem("weight_log", JSON.stringify(loadedWeights)).catch(() => {});
+        }
+        setWeightLogState(sortWeights(loadedWeights));
         if (subRaw[1]) {
           try { setSubscriptionState(JSON.parse(subRaw[1])); } catch {}
         }
@@ -211,6 +268,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setEntriesState(
               parsed.map((e) => ({
                 ...e,
+                // Eski qurilmalarda nol qo'shilmagan sana kalitlari
+                // ("2026-9-5") saqlanib qolgan bo'lishi mumkin — statistika
+                // va bosh sahifa bilan mos kelishi uchun normallashtiramiz.
+                date: normalizeDateKey(e.date),
                 cal: Number.isFinite(e.cal) ? e.cal : 0,
                 protein: Number.isFinite(e.protein) ? e.protein : 0,
                 carbs: Number.isFinite(e.carbs) ? e.carbs : 0,
@@ -220,7 +281,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           } catch {}
         }
         if (burnedRaw[1]) {
-          try { setBurnedByDate(JSON.parse(burnedRaw[1])); } catch {}
+          try {
+            const parsed = JSON.parse(burnedRaw[1]) as Record<string, number>;
+            const normalized: Record<string, number> = {};
+            for (const [k, v] of Object.entries(parsed)) {
+              const nk = normalizeDateKey(k);
+              normalized[nk] = (normalized[nk] ?? 0) + (Number.isFinite(v) ? v : 0);
+            }
+            setBurnedByDate(normalized);
+          } catch {}
         }
         if (exPlanRaw[1]) {
           try { setExercisePlanState(JSON.parse(exPlanRaw[1])); } catch {}
@@ -231,9 +300,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  const persistBurned = (next: Record<string, number>) => {
-    setBurnedByDate(next);
-    AsyncStorage.setItem("burned_by_date", JSON.stringify(next)).catch(() => {});
+  const persistBurned = (updater: (prev: Record<string, number>) => Record<string, number>) => {
+    setBurnedByDate((prev) => {
+      const next = updater(prev);
+      if (next === prev) return prev;
+      AsyncStorage.setItem("burned_by_date", JSON.stringify(next)).catch(() => {});
+      return next;
+    });
   };
 
   const persistExPlan = (next: StoredExercisePlan | null) => {
@@ -276,9 +349,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     persistExPlan(null);
   };
 
-  const persistEntries = (next: DiaryEntry[]) => {
-    setEntriesState(next);
-    AsyncStorage.setItem("diary_entries", JSON.stringify(next)).catch(() => {});
+  const persistEntries = (updater: (prev: DiaryEntry[]) => DiaryEntry[]) => {
+    setEntriesState((prev) => {
+      const next = updater(prev);
+      AsyncStorage.setItem("diary_entries", JSON.stringify(next)).catch(() => {});
+      return next;
+    });
   };
 
   const persistSub = (next: Subscription) => {
@@ -376,8 +452,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, profile]);
 
+  const persistWeights = (updater: (prev: WeightEntry[]) => WeightEntry[]) => {
+    setWeightLogState((prev) => {
+      const next = updater(prev);
+      if (next === prev) return prev;
+      AsyncStorage.setItem("weight_log", JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  };
+
+  const logWeight = (kg: number) => {
+    if (!Number.isFinite(kg) || kg <= 0) return;
+    const rounded = Math.round(kg * 10) / 10;
+    const today = todayStr();
+    persistWeights((prev) => upsertWeight(prev, today, rounded));
+  };
+
+  const removeWeightEntry = (date: string) => {
+    persistWeights((prev) => {
+      const next = prev.filter((w) => w.date !== date);
+      return next.length === prev.length ? prev : next;
+    });
+  };
+
   const completeOnboarding = async () => {
     setOnboardingComplete(true);
+    // Onboarding weight is the starting point of the progress chart.
+    const startKg = profile.currentWeight;
+    if (startKg && startKg > 0) {
+      const today = todayStr();
+      persistWeights((prev) => (prev.length > 0 ? prev : upsertWeight(prev, today, startKg)));
+    }
     try {
       await AsyncStorage.setItem("onboarding_complete", "true");
     } catch {}
@@ -405,6 +510,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       "burned_by_date",
       "ratsion_plan",
       "exercise_plan",
+      "weight_log",
     ]);
     if (FileSystem.documentDirectory) {
       FileSystem.deleteAsync(`${FileSystem.documentDirectory}food_images`, {
@@ -417,6 +523,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setEntriesState([]);
     setBurnedByDate({});
     setExercisePlanState(null);
+    setWeightLogState([]);
   };
 
   const startTrial = () => {
@@ -482,48 +589,56 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return { allowed: true };
   };
 
-  const addEntry = (entry: Omit<DiaryEntry, "id" | "time" | "date">) => {
+  const addEntry = (entry: Omit<DiaryEntry, "id" | "time" | "date">, date?: string) => {
     const e: DiaryEntry = {
       ...entry,
       id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       time: nowTime(),
-      date: todayStr(),
+      date: date ?? todayStr(),
     };
-    persistEntries([e, ...entries]);
+    persistEntries((prev) => [e, ...prev]);
   };
 
-  const addEntries = (list: Array<Omit<DiaryEntry, "id" | "time" | "date">>) => {
+  const addEntries = (list: Array<Omit<DiaryEntry, "id" | "time" | "date">>, date?: string) => {
     const t = nowTime();
-    const d = todayStr();
+    const d = date ?? todayStr();
     const newOnes: DiaryEntry[] = list.map((entry, i) => ({
       ...entry,
       id: `e-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
       time: t,
       date: d,
     }));
-    persistEntries([...newOnes, ...entries]);
+    persistEntries((prev) => [...newOnes, ...prev]);
+  };
+
+  const updateEntry = (id: string, patch: DiaryEntryPatch) => {
+    persistEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
   };
 
   const removeEntry = (id: string) => {
-    const target = entries.find((e) => e.id === id);
-    if (target?.imageUri && target.imageUri.startsWith("file://")) {
-      FileSystem.deleteAsync(target.imageUri, { idempotent: true }).catch(() => {});
-    }
-    persistEntries(entries.filter((e) => e.id !== id));
+    persistEntries((prev) => {
+      const target = prev.find((e) => e.id === id);
+      if (target?.imageUri && target.imageUri.startsWith("file://")) {
+        FileSystem.deleteAsync(target.imageUri, { idempotent: true }).catch(() => {});
+      }
+      return prev.filter((e) => e.id !== id);
+    });
   };
 
   const addBurned = (cal: number) => {
     if (!Number.isFinite(cal) || cal <= 0) return;
     const key = todayStr();
-    persistBurned({ ...burnedByDate, [key]: (burnedByDate[key] ?? 0) + Math.round(cal) });
+    persistBurned((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + Math.round(cal) }));
   };
 
   const resetBurnedToday = () => {
     const key = todayStr();
-    if (!(key in burnedByDate)) return;
-    const next = { ...burnedByDate };
-    delete next[key];
-    persistBurned(next);
+    persistBurned((prev) => {
+      if (!(key in prev)) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   };
 
   return (
@@ -546,7 +661,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         canScan,
         addEntry,
         addEntries,
+        updateEntry,
         removeEntry,
+        weightLog,
+        logWeight,
+        removeWeightEntry,
         addBurned,
         resetBurnedToday,
         exercisePlan,

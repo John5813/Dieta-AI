@@ -37,17 +37,57 @@ function localDate(base: Date = new Date()): Date {
   return new Date(utcMs + cachedOffsetMinutes * 60000);
 }
 
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
 export function todayStr(): string {
   const d = localDate();
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
 export function yesterdayStr(): string {
   const d = localDate();
   d.setDate(d.getDate() - 1);
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
 export function getCachedOffsetMinutes(): number | null {
   return cachedOffsetMinutes;
+}
+
+/** Moves a "YYYY-MM-DD" key by `days` (negative = into the past). */
+export function shiftDateKey(key: string, days: number): string {
+  const [y, m, d] = key.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + days);
+  return `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
+}
+
+const UZ_MONTHS_FULL = [
+  "yanvar", "fevral", "mart", "aprel", "may", "iyun",
+  "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr",
+];
+
+/** "18 sentabr" for a "YYYY-MM-DD" key. */
+export function formatDateKeyUz(key: string): string {
+  const [, m, d] = key.split("-").map(Number);
+  return `${d} ${UZ_MONTHS_FULL[m - 1] ?? ""}`.trim();
+}
+
+/**
+ * Normalizes a "YYYY-M-D" or "YYYY-MM-DD" date key to the zero-padded
+ * "YYYY-MM-DD" form used everywhere. Diary entries / burned-calorie keys
+ * saved before todayStr()/yesterdayStr() were zero-padded are stored on
+ * existing devices as e.g. "2026-9-5" — normalizing on read lets those
+ * legacy values keep matching stats/home-screen lookups without a
+ * separate migration step.
+ */
+export function normalizeDateKey(raw: string): string {
+  const parts = raw.split("-");
+  if (parts.length !== 3) return raw;
+  const [y, m, d] = parts;
+  const mNum = Number(m);
+  const dNum = Number(d);
+  if (!y || !Number.isFinite(mNum) || !Number.isFinite(dNum)) return raw;
+  return `${y}-${pad2(mNum)}-${pad2(dNum)}`;
 }

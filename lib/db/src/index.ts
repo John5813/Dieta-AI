@@ -84,6 +84,7 @@ export async function ensureSchema(): Promise<void> {
   await db.execute(sql`ALTER TABLE payments ADD COLUMN IF NOT EXISTS paid_amount integer NOT NULL DEFAULT 0;`);
   await db.execute(sql`ALTER TABLE payments ADD COLUMN IF NOT EXISTS original_amount integer;`);
   await db.execute(sql`ALTER TABLE payments ADD COLUMN IF NOT EXISTS promo_code text;`);
+  await db.execute(sql`ALTER TABLE payments ADD COLUMN IF NOT EXISTS restore_count integer NOT NULL DEFAULT 0;`);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS bot_users (
       chat_id text PRIMARY KEY,

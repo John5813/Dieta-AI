@@ -159,7 +159,7 @@ const uz: TranslationMap = {
   "ai.send": "Yuborish",
   "ai.typing": "Yozmoqda...",
   "ai.error": "Xato yuz berdi. Qayta urinib ko'ring.",
-  "ai.greeting": "Salom! Men Bir Burda AI yordamchisiman. Kaloriya, ovqatlanish yoki dietangiz haqida savol bering!",
+  "ai.greeting": "Salom! Men UzDieta AI yordamchisiman. Kaloriya, ovqatlanish yoki dietangiz haqida savol bering!",
   "ai.clear": "Tozalash",
   "ai.clear_confirm": "Chat tarixi o'chirilsinmi?",
 
@@ -561,7 +561,7 @@ const ru: TranslationMap = {
   "ai.send": "Отправить",
   "ai.typing": "Печатает...",
   "ai.error": "Произошла ошибка. Попробуйте снова.",
-  "ai.greeting": "Привет! Я ИИ-ассистент Bir Burda. Задавайте вопросы о питании, калориях или вашей диете!",
+  "ai.greeting": "Привет! Я ИИ-ассистент UzDieta AI. Задавайте вопросы о питании, калориях или вашей диете!",
   "ai.clear": "Очистить",
   "ai.clear_confirm": "Очистить историю чата?",
 

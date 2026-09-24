@@ -1,4 +1,4 @@
-# Bir Burda / Dieta AI
+# UzDieta AI
 
 O‘zbek tilidagi ovqatlanish va sog‘lom hayot ilovasi: kaloriya hisoblash, AI maslahatlari va Telegram orqali premium to‘lovlarni boshqarish.
 

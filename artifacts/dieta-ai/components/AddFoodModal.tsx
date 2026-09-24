@@ -2019,7 +2019,25 @@ function AiConfirmStep({
 
             <TouchableOpacity
               style={[ac.actionCell, showEdit && ac.actionCellActive]}
-              onPress={() => { setShowEdit((v) => !v); setShowPortion(false); setShowIngredient(false); }}
+              onPress={() => {
+                setShowEdit((v) => {
+                  const next = !v;
+                  if (next) {
+                    // Tahrirlash oynasini joriy porsiya (extralarsiz) qiymatlaridan
+                    // qayta boshlaymiz — aks holda tanlangan porsiya ko'paytmasi
+                    // (masalan 2x) saqlashda jim tashlab ketiladi.
+                    setEditName(food.name);
+                    setEditPortionText(food.portion);
+                    setEditCal(String(baseCal));
+                    setEditProtein(String(baseProtein));
+                    setEditCarbs(String(baseCarbs));
+                    setEditFat(String(baseFat));
+                  }
+                  return next;
+                });
+                setShowPortion(false);
+                setShowIngredient(false);
+              }}
               activeOpacity={0.75}
             >
               <View style={[ac.actionIcon, { backgroundColor: "#EBF5FB" }]}>

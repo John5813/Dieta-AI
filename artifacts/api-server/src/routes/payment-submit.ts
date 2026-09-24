@@ -2,7 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import { randomUUID, randomBytes } from "crypto";
 import { db, paymentsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, lt, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import * as tg from "../lib/telegram";
 import { adminKeyboard, buildAdminCaption } from "../lib/bot";
@@ -15,6 +15,10 @@ const upload = multer({
 });
 
 const DEFAULT_AMOUNT = 260_000;
+// How many times already-redeemed credentials may re-activate premium on a
+// new install. Covers phone changes/reinstalls without letting one purchase
+// be shared across unlimited devices.
+const MAX_RESTORES = 5;
 
 function makeLinkToken() {
   // 12-char URL-safe token
@@ -187,7 +191,9 @@ router.post("/payment/:id/submit", upload.single("receipt"), async (req, res) =>
 /**
  * POST /api/payment/:id/redeem
  * Body: { login, password }
- * Verifies the one-time credentials and activates yearly premium.
+ * First use activates yearly premium. Later uses of the same credentials
+ * (new phone / reinstall) restore the existing premiumUntil, up to
+ * MAX_RESTORES times. The :id is not used to find the payment.
  */
 router.post("/payment/:id/redeem", async (req, res) => {
   try {
@@ -213,39 +219,56 @@ router.post("/payment/:id/redeem", async (req, res) => {
       return;
     }
 
+    // Login is globally unique, so look it up directly instead of by the
+    // :id in the URL — a reinstalled app or a new phone has a fresh payment
+    // session id that the original credentials were never attached to.
     const rows = await db
       .select()
       .from(paymentsTable)
-      .where(eq(paymentsTable.id, String(req.params.id)));
-    const p = rows[0];
-    if (!p) {
-      res.status(404).json({ error: "Toʻlov topilmadi" });
-      return;
-    }
-
-    // Strict: credentials MUST belong to THIS payment id. No cross-payment fallback.
-    const target = p;
+      .where(eq(paymentsTable.login, normLogin));
+    const target = rows[0];
 
     if (
-      !target.login ||
-      target.login !== normLogin ||
+      !target ||
       !target.passwordHash ||
-      !target.passwordSalt
+      !target.passwordSalt ||
+      !verifyPassword(normPass, target.passwordHash, target.passwordSalt)
     ) {
       res.status(401).json({ error: "Login yoki parol notoʻgʻri" });
       return;
     }
-    if (target.passwordUsed || target.status === "redeemed") {
-      res.status(409).json({ error: "Bu parol allaqachon ishlatilgan" });
-      return;
-    }
-    if (target.status !== "approved") {
-      res.status(409).json({ error: "Toʻlov hali tasdiqlanmagan" });
+
+    if (target.status === "redeemed" || target.passwordUsed) {
+      const until = target.premiumUntil;
+      if (!until || until.getTime() <= Date.now()) {
+        res.status(409).json({ error: "Premium muddati tugagan. Yangi toʻlov qiling." });
+        return;
+      }
+      const restored = await db
+        .update(paymentsTable)
+        .set({
+          restoreCount: sql`${paymentsTable.restoreCount} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(paymentsTable.id, target.id),
+            lt(paymentsTable.restoreCount, MAX_RESTORES),
+          ),
+        )
+        .returning({ id: paymentsTable.id });
+      if (restored.length === 0) {
+        res.status(409).json({
+          error: "Tiklash chegarasi tugadi. Telegram bot orqali admin bilan bogʻlaning.",
+        });
+        return;
+      }
+      res.json({ success: true, restored: true, premiumUntil: until.toISOString() });
       return;
     }
 
-    if (!verifyPassword(normPass, target.passwordHash, target.passwordSalt)) {
-      res.status(401).json({ error: "Login yoki parol notoʻgʻri" });
+    if (target.status !== "approved") {
+      res.status(409).json({ error: "Toʻlov hali tasdiqlanmagan" });
       return;
     }
 
@@ -296,7 +319,7 @@ router.post("/payment/:id/redeem", async (req, res) => {
       if (target.telegramChatId) {
         await tg.sendMessage(
           target.telegramChatId,
-          `🎉 <b>Yillik Premium faollashtirildi!</b>\n\nBir Burda'dan toʻliq foydalaning. Sogʻlom hayotni boshlash vaqti keldi! 💪`,
+          `🎉 <b>Yillik Premium faollashtirildi!</b>\n\nUzDieta AI'dan toʻliq foydalaning. Sogʻlom hayotni boshlash vaqti keldi! 💪`,
         );
       }
     }

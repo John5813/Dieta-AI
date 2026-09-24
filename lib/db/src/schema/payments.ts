@@ -27,6 +27,7 @@ export const paymentsTable = pgTable("payments", {
   passwordHash: text("password_hash"),
   passwordSalt: text("password_salt"),
   passwordUsed: boolean("password_used").notNull().default(false),
+  restoreCount: integer("restore_count").notNull().default(0),
 
   approvedAt: timestamp("approved_at"),
   rejectedAt: timestamp("rejected_at"),

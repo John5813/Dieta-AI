@@ -46,8 +46,8 @@ export default function TransformationScreen() {
     : "Sizda maqsadingizga erishish uchun ajoyib salohiyat bor";
 
   const infoText = isMaintain
-    ? "Sizning vazningiz ideal! Bir Burda sizga sog'lom ovqatlanish odatlarini saqlab qolish va energiyangizni yuqori darajada ushlab turishda yordam beradi."
-    : `Sizning ${speed.toFixed(1)} kg/hafta sur'atingizda Bir Burda tarixiy ma'lumotlariga ko'ra, dastlabki natijalar 7-10 kunda ko'rinadi va ${totalLabel} ichida to'liq maqsadga erishasiz.`;
+    ? "Sizning vazningiz ideal! UzDieta AI sizga sog'lom ovqatlanish odatlarini saqlab qolish va energiyangizni yuqori darajada ushlab turishda yordam beradi."
+    : `Sizning ${speed.toFixed(1)} kg/hafta sur'atingizda UzDieta AI tarixiy ma'lumotlariga ko'ra, dastlabki natijalar 7-10 kunda ko'rinadi va ${totalLabel} ichida to'liq maqsadga erishasiz.`;
 
   return (
     <OnboardingLayout

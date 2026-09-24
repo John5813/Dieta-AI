@@ -9,7 +9,7 @@ router.get("/", (_req, res) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hisobni o'chirish — Bir Burda</title>
+  <title>Hisobni o'chirish — UzDieta AI</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 680px; margin: 0 auto; padding: 32px 16px; color: #1a1a1a; line-height: 1.7; }
     h1 { color: #c0392b; }
@@ -22,7 +22,7 @@ router.get("/", (_req, res) => {
 </head>
 <body>
   <h1>Hisobni o'chirish</h1>
-  <p>Bir Burda ilovasidagi hisobingizni va barcha shaxsiy ma'lumotlaringizni o'chirish uchun quyidagi ko'rsatmalarga amal qiling.</p>
+  <p>UzDieta AI ilovasidagi hisobingizni va barcha shaxsiy ma'lumotlaringizni o'chirish uchun quyidagi ko'rsatmalarga amal qiling.</p>
 
   <h2>Hisob o'chirish tartibi</h2>
 
