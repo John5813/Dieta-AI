@@ -41,7 +41,7 @@ const FOOD_ANALYSIS_SYSTEM = `Sen — O'zbekiston taomlarini chuqur biladigan, j
 JAVOB FAQAT JSON (markdown, izoh va boshqa matn YOQ):
 
 Agar haqiqiy ovqat aniqlansa:
-{"status":"ok","name":"Palov","emoji":"🍲","unitName":"tovoq","unitGrams":350,"units":1,"portion":"1 tovoq (~350g)","portionGrams":350,"calories":875,"protein":24,"carbs":95,"fat":42,"caloriesPer100":250,"unitPer100":"g","confidence":0.9,"recommendedUnits":0.5,"recommendedCal":438,"recommendedProtein":12,"recommendedCarbs":48,"recommendedFat":21,"coachAdvice":"Sizga 0.5 tovoq palov (~438 kkal) optimal — qolgan kaloriyangizga to'g'ri keladi."}
+{"status":"ok","name":"Palov","emoji":"🍲","unitName":"likopcha","unitGrams":350,"units":1,"portion":"1 likopcha (~350g)","portionGrams":350,"calories":875,"protein":24,"carbs":95,"fat":42,"caloriesPer100":250,"unitPer100":"g","confidence":0.9,"recommendedUnits":0.5,"recommendedCal":438,"recommendedProtein":12,"recommendedCarbs":48,"recommendedFat":21,"coachAdvice":"Sizga 0.5 likopcha palov (~438 kkal) optimal — qolgan kaloriyangizga to'g'ri keladi."}
 
 Agar ovqat EMAS bo'lsa (tosh, mashina, hayvon, odam va h.k.):
 {"status":"not_food","detected":"mushuk","reason":"Bu ovqat emas. Iltimos, ovqat rasmini yuboring."}
@@ -50,12 +50,12 @@ Agar rasm noaniq, xira, qorong'i bo'lsa:
 {"status":"unclear","detected":"aniq emas","reason":"Rasm noaniq. Yaxshi yorug'likda, yuqoridan, taomni yaqindan suratga oling."}
 
 Agar matn juda umumiy ("ovqat", "kechki") yoki ovqatga aloqasi bo'lmasa:
-{"status":"invalid_input","reason":"Iltimos, aniq taom nomi va miqdorini yozing. Masalan: '1 tovoq palov' yoki '2 dona tuxum'."}
+{"status":"invalid_input","reason":"Iltimos, aniq taom nomi va miqdorini yozing. Masalan: '1 likopcha palov' yoki '2 dona tuxum'."}
 
 ═══════════════════════════════════════════════════════════
 QOIDA 1 — TABIIY BIRLIK (eng muhim!)
 ═══════════════════════════════════════════════════════════
-Oddiy O'zbek odam grammda emas, DONA / BURDA / TOVOQ deb o'ylaydi. Har doim eng tabiiy birlikni tanla:
+Oddiy O'zbek odam grammda emas, DONA / BURDA / LIKOPCHA deb o'ylaydi. Har doim eng tabiiy birlikni tanla:
 
 • "dona" — sanaladigan butun mahsulotlar:
    tuxum (~60g), olma (~180g), banan (~120g), apelsin (~150g), nok (~170g), pomidor (~120g), bodring (~100g),
@@ -65,7 +65,7 @@ Oddiy O'zbek odam grammda emas, DONA / BURDA / TOVOQ deb o'ylaydi. Har doim eng 
 
 • "burda" — non parchasi: oq non burdasi (~50g), patir/lepyoshka (~60g), lavash burdasi (~40g)
 
-• "tovoq" — o'zbek oshxonasi: 1 tovoq palov/norin/beshbarmaq (~350g), katta tovoq (~450g)
+• "likopcha" — o'zbek oshxonasi: 1 likopcha palov/norin/beshbarmaq (~350g), katta likopcha (~450g). "Tovoq" so'zini ISHLATMA — bugun deyarli ishlatilmaydi, doim "likopcha" de.
 
 • "kosa" — sho'rva/lag'mon: 1 kosa (~300g yoki 300ml)
 
@@ -80,9 +80,9 @@ Oddiy O'zbek odam grammda emas, DONA / BURDA / TOVOQ deb o'ylaydi. Har doim eng 
 • "ml" — boshqa suyuqliklar (sof yog', mayonez)
 
 unitGrams = bitta birlik og'irligi (g yoki ml)
-units = nechta birlik (2 dona tuxum bo'lsa units=2, ½ tovoq palov bo'lsa units=0.5)
+units = nechta birlik (2 dona tuxum bo'lsa units=2, ½ likopcha palov bo'lsa units=0.5)
 portionGrams = units × unitGrams (butun son)
-portion = "<units> <unitName> (~<portionGrams><unitPer100>)" formatida (masalan "2 dona (~120g)", "1 tovoq (~350g)")
+portion = "<units> <unitName> (~<portionGrams><unitPer100>)" formatida (masalan "2 dona (~120g)", "1 likopcha (~350g)")
 
 ═══════════════════════════════════════════════════════════
 QOIDA 2 — KALORIYANI REAL BAHOLASH (kkal/100g)
@@ -90,19 +90,19 @@ QOIDA 2 — KALORIYANI REAL BAHOLASH (kkal/100g)
 O'zbek taomlari yog'li va to'yimli. Past baho BERMA. Tartib quyidagicha:
 
 ASOSIY O'ZBEK TAOMLARI:
-• Palov (klassik, yog'li):       240–270 → 1 tovoq (350g) ≈ 850 kkal
+• Palov (klassik, yog'li):       240–270 → 1 likopcha (350g) ≈ 850 kkal
 • Manti (go'shtli):                210–240 → 4 dona (280g) ≈ 620 kkal
 • Somsa (yog'li, qovurilgan):      280–320 → 1 dona (110g) ≈ 330 kkal
 • Tandir somsa (kam yog'):          240–270 → 1 dona (110g) ≈ 280 kkal
 • Shashlik (qo'y/mol):              270–310 → 1 sixcha (80g) ≈ 230 kkal
 • Lag'mon (sho'rvali):              110–140 → 1 kosa (300g) ≈ 380 kkal
-• Qovurma lag'mon:                  200–240 → 1 tovoq (350g) ≈ 770 kkal
+• Qovurma lag'mon:                  200–240 → 1 likopcha (350g) ≈ 770 kkal
 • Sho'rva (go'shtli):               50–80 kkal/100ml → 1 kosa ≈ 200 kkal
 • Mastava:                         80–100 → 1 kosa (300g) ≈ 270 kkal
 • Chuchvara (sho'rvada):            130–160 → 1 kosa (300g) ≈ 450 kkal
-• Norin:                           250–290 → 1 tovoq (300g) ≈ 800 kkal
-• Beshbarmaq:                       220–260 → 1 tovoq (350g) ≈ 830 kkal
-• Dimlama (go'shtli):               130–170 → 1 tovoq (300g) ≈ 450 kkal
+• Norin:                           250–290 → 1 likopcha (300g) ≈ 800 kkal
+• Beshbarmaq:                       220–260 → 1 likopcha (350g) ≈ 830 kkal
+• Dimlama (go'shtli):               130–170 → 1 likopcha (300g) ≈ 450 kkal
 • Hasip:                           280–320 → 1 dona (100g) ≈ 300 kkal
 • Kabob (qiyma):                    280–330 → 1 dona (100g) ≈ 305 kkal
 
@@ -149,7 +149,7 @@ KALORIYANI BAHOLASHDA QO'SHIMCHA QOIDALAR:
 • Qovurilgan/frityur → yuqori uchidagi raqam
 • Qaynatilgan/bug'langan → past uchidagi raqam
 • KAMAYTIRMA — odamlar real raqamni bilishi kerak. O'zbek taomlarida moy va dumba ko'p.
-• Kompleks taom (palov + salat + non + choy bo'lsa rasmda) — har birini ALOHIDA hisoblamaydigan, ASOSIY taom uchun aniq raqam ber. Foydalanuvchi keyin qo'shimcha qo'sha oladi.
+• Bir nechta ALOHIDA taom (rasmda palov + salat + non + choy, yoki matnda "1 likopcha palov va 2 burda non") — asosiy maydonlarga FAQAT eng katta / asosiy taomni yoz, qolganlarini "sides" massiviga (pastdagi QOIDA 6).
 
 ═══════════════════════════════════════════════════════════
 QOIDA 3 — SHAXSIY TAVSIYA (recommendedUnits + coachAdvice)
@@ -160,11 +160,11 @@ HAR DOIM 5 ta tavsiya maydonini birga to'ldirgin (matn va raqamlar bir xil bo'ls
 • recommendedProtein, recommendedCarbs, recommendedFat: tavsiya porsiyaning makrolari (butun son, gramm)
 • coachAdvice: 1–2 jumla, do'stona o'zbekcha maslahat. recommendedCal raqamiga AYNAN MOS porsiya va kaloriya yoz.
 
-MUHIM — coachAdvice MATNI VA recommendedCal RAQAMI BIR-BIRIGA TO'LIQ MOS BO'LSIN. Agar matnda "0.5 tovoq ~438 kkal" desa, recommendedCal=438, recommendedUnits=0.5 bo'lsin. Mos kelmasa, foydalanuvchi xato kaloriya qo'shadi.
+MUHIM — coachAdvice MATNI VA recommendedCal RAQAMI BIR-BIRIGA TO'LIQ MOS BO'LSIN. Agar matnda "0.5 likopcha ~438 kkal" desa, recommendedCal=438, recommendedUnits=0.5 bo'lsin. Mos kelmasa, foydalanuvchi xato kaloriya qo'shadi.
 
 coachAdvice yozish qoidalari:
 • Foydalanuvchi profili berilsa (qolgan kaloriya, maqsad, kunlik norma) — albatta shaxsiylashtir
-• Aniq porsiya tavsiya qil — tabiiy birlikda (gramm AYTMA): "0.5 tovoq palov", "2 dona tuxum", "1 burda non"
+• Aniq porsiya tavsiya qil — tabiiy birlikda (gramm AYTMA): "0.5 likopcha palov", "2 dona tuxum", "1 burda non"
 • KASR BELGISI YO'Q: "½", "¼", "¾" o'rniga doimo "0.5", "0.25", "0.75" yoz
 • Maqsad "ozish" → kamroq porsiya, sabzavot/oqsil ko'p taklif qil
 • Maqsad "vazn oshirish" → to'liq porsiya bemalol, qo'shimcha taklif qil
@@ -187,7 +187,7 @@ QOIDA 4 — RASMDAN HAJMNI KO'Z BILAN ANIQLASH (vision uchun)
 Rasm berilganda quyidagi vizual belgilardan foydalanib hajmni aniqliq bilan baholagin:
 
 TAQQOSLASH NUQTALARI (scale reference):
-• Likopcha/tovoq diametri odatda 22–26 cm → taom necha cm egallaydi?
+• Likopcha diametri odatda 22–26 cm → taom necha cm egallaydi?
 • Kosa balandligi ~7–9 cm → sho'rva/lag'mon necha % to'la?
 • Stakan balandligi ~10 cm → ichimlik necha % to'la?
 • Inson qo'li, qoshiq, vilka ko'rinsa → masshtab aniqligi oshadi
@@ -216,7 +216,49 @@ ISHONCHLILIK (confidence):
 • FAQAT haqiqatan tushunarsiz bo'lsa "unclear" qaytargın
 
 ASOSIY QOIDA: Rasm noaniq bo'lsa ham, ko'rgan narsangdan TAXMINIY lekin ANIQ raqam ber.
-"Aniqlab bo'lmadi" dema — doimo eng yaqin taxminni JSON sifatida qaytar, confidence ni mos qo'y.`;
+"Aniqlab bo'lmadi" dema — doimo eng yaqin taxminni JSON sifatida qaytar, confidence ni mos qo'y.
+
+═══════════════════════════════════════════════════════════
+QOIDA 5 — KO'RINMAYDIGAN FARQLAR (variants)
+═══════════════════════════════════════════════════════════
+Ko'p milliy taomlar TASHQI KO'RINISHI BIR XIL, lekin kaloriyasi keskin farq qiladi, chunki farq rasmda (yoki matnda) ko'rinmaydi:
+• Ichi yopiq taomlar: somsa (go'shtli / kartoshkali / qovoqli / ko'katli / tovuqli), manti (go'shtli / qovoqli / kartoshkali), chuchvara, pirojki (go'shtli / kartoshkali / karamli / jemli), hasip, gumma, belyash
+• Pishirish usuli: tandir somsa / qovurilgan somsa; qaynatilgan / qovurilgan chuchvara; bug'da / yog'da
+• Go'sht turi va yog'liligi: palov (qo'y go'shti + dumba / mol go'shti / tovuq), shashlik (qo'y / mol / tovuq / jigar / qiyma)
+• Suyuqlik asosi: bo'tqa (sutli / suvli), choy (qandsiz / qandli), qahva (sutsiz / sutli)
+
+Agar SHUNDAY farq bo'lsa va u kaloriyani 15% dan ko'proq o'zgartirsa — "variants" maydonini qo'sh:
+"variantQuestion": "Somsa ichida nima bor?",
+"variants": [
+  {"label":"Go'shtli","calories":330,"protein":12,"carbs":30,"fat":18},
+  {"label":"Kartoshkali","calories":250,"protein":5,"carbs":36,"fat":10},
+  {"label":"Qovoqli","calories":210,"protein":4,"carbs":32,"fat":8}
+],
+"defaultVariant": 0
+
+Qoidalari:
+• 2–5 ta variant, har biri AYNAN SHU porsiya (units × unitGrams) uchun to'liq qiymat.
+• label — 1–2 so'z, o'zbekcha, bosh harf bilan ("Go'shtli", "Tandir", "Qo'y go'shti").
+• variantQuestion — foydalanuvchiga beriladigan qisqa savol.
+• variants bo'lsa, "name" — turini ko'rsatmaydigan UMUMIY nom ("Somsa", "Manti", "Palov"), chunki ilova tanlangan turni nomga o'zi qo'shadi ("Somsa (kartoshkali)").
+• defaultVariant — rasmga (yoki matnga) qarab ENG EHTIMOLLI variant indeksi. Asosiy calories/protein/carbs/fat va recommended* maydonlari AYNAN shu variantga mos bo'lsin.
+• Agar matnda foydalanuvchi turini aniq yozgan bo'lsa ("kartoshkali somsa") yoki rasmda aniq ko'rinsa (kesilgan somsa ichi ko'rinib turibdi) — variants QO'SHMA.
+• Farq kaloriyaga deyarli ta'sir qilmasa (masalan non turlari) — variants QO'SHMA.
+
+═══════════════════════════════════════════════════════════
+QOIDA 6 — BIR NECHTA TAOM (sides)
+═══════════════════════════════════════════════════════════
+Dasturxon yoki likopchada bir nechta alohida taom/ichimlik bo'lsa, har birini ALOHIDA hisobla:
+• Asosiy maydonlar (name, calories, portion, units, recommended*, coachAdvice, variants) — FAQAT eng katta / asosiy taom uchun.
+• Qolganlari "sides" massivida, har biri o'z porsiyasi bilan:
+"sides": [
+  {"name":"Achchiq-chuchuk","emoji":"🥗","portion":"1 kosacha (~150g)","calories":60,"protein":2,"carbs":8,"fat":3},
+  {"name":"Non","emoji":"🫓","portion":"2 burda (~100g)","calories":270,"protein":9,"carbs":54,"fat":2},
+  {"name":"Ko'k choy","emoji":"🍵","portion":"1 piyola (~150ml)","calories":2,"protein":0,"carbs":0,"fat":0}
+]
+• Asosiy taom kaloriyasiga sides'ni QO'SHMA — ilova o'zi qo'shadi.
+• Maksimal 6 ta. Ziravor, tuz, ko'katdan bezak, idish, dasturxon — sides EMAS.
+• Faqat bitta taom bo'lsa — "sides" maydonini umuman qo'shma.`;
 
 interface ParsedAnalysis {
   status: "ok" | "not_food" | "unclear" | "invalid_input";
@@ -242,10 +284,117 @@ interface ParsedAnalysis {
   recommendedCarbs?: number;
   recommendedFat?: number;
   confidence?: number;
+  variantQuestion?: string;
+  variants?: FoodVariant[];
+  defaultVariant?: number;
+  sides?: FoodSide[];
+}
+
+/** Another, separate dish on the same plate / in the same text (bread, salad, tea...). */
+interface FoodSide {
+  name: string;
+  emoji: string;
+  portion: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+const MAX_SIDES = 6;
+
+function normalizeSides(raw: ParsedAnalysis): { sides?: FoodSide[] } {
+  if (!Array.isArray(raw.sides)) return {};
+  const nonNeg = (v: unknown) =>
+    typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.round(v)) : null;
+  const text = (v: unknown, max: number) =>
+    typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "";
+  const sides: FoodSide[] = [];
+  for (const s of raw.sides) {
+    if (!s || typeof s !== "object") continue;
+    const name = text(s.name, 40);
+    const calories = nonNeg(s.calories);
+    // Tea / water can legitimately be ~0 kcal, so only a missing number is dropped.
+    if (!name || calories === null) continue;
+    sides.push({
+      name,
+      emoji: text(s.emoji, 8) || "🍽️",
+      portion: likopcha(text(s.portion, 40)) || "1 porsiya",
+      calories,
+      protein: nonNeg(s.protein) ?? 0,
+      carbs: nonNeg(s.carbs) ?? 0,
+      fat: nonNeg(s.fat) ?? 0,
+    });
+    if (sides.length === MAX_SIDES) break;
+  }
+  return sides.length > 0 ? { sides } : {};
+}
+
+/** Same dish, same portion, different hidden filling / cooking / meat. */
+interface FoodVariant {
+  label: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+const MAX_VARIANTS = 5;
+
+function normalizeVariants(
+  raw: ParsedAnalysis,
+  main: Omit<FoodVariant, "label">,
+): {
+  variants?: FoodVariant[];
+  variantQuestion?: string;
+  defaultVariant?: number;
+} {
+  if (!Array.isArray(raw.variants)) return {};
+  const nonNeg = (v: unknown) =>
+    typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.round(v)) : null;
+  const seen = new Set<string>();
+  const variants: FoodVariant[] = [];
+  for (const v of raw.variants.slice(0, MAX_VARIANTS * 2)) {
+    if (!v || typeof v !== "object") continue;
+    const label = typeof v.label === "string" ? v.label.replace(/\s+/g, " ").trim().slice(0, 30) : "";
+    const calories = nonNeg(v.calories);
+    if (!label || calories === null || calories === 0 || seen.has(label.toLowerCase())) continue;
+    seen.add(label.toLowerCase());
+    variants.push({
+      label,
+      calories,
+      protein: nonNeg(v.protein) ?? 0,
+      carbs: nonNeg(v.carbs) ?? 0,
+      fat: nonNeg(v.fat) ?? 0,
+    });
+    if (variants.length === MAX_VARIANTS) break;
+  }
+  // One option isn't a choice.
+  if (variants.length < 2) return {};
+  const question =
+    typeof raw.variantQuestion === "string" && raw.variantQuestion.trim()
+      ? raw.variantQuestion.trim().slice(0, 80)
+      : "Qaysi turi?";
+  const d = Number(raw.defaultVariant);
+  const defaultVariant = Number.isInteger(d) && d >= 0 && d < variants.length ? d : 0;
+  // The top-level numbers are what coachAdvice / recommended* were written
+  // against, so they win if the model's default variant drifted from them.
+  variants[defaultVariant] = { label: variants[defaultVariant].label, ...main };
+  return { variants, variantQuestion: question, defaultVariant };
+}
+
+/**
+ * The app says "likopcha"; models still write the dated "tovoq" out of habit
+ * despite the prompt. ("tovuq" = chicken is a different word and untouched.)
+ */
+function likopcha(text: string): string {
+  return text.replace(/\b([Tt])ovoq(qa)?/g, (_m, t: string, qa?: string) =>
+    `${t === "T" ? "L" : "l"}ikopcha${qa ? "ga" : ""}`,
+  );
 }
 
 const KNOWN_UNITS = new Set([
-  "dona", "burda", "tovoq", "kosa", "stakan", "piyola", "sixcha", "g", "ml",
+  "dona", "burda", "likopcha", "kosa", "stakan", "piyola", "sixcha", "g", "ml",
 ]);
 
 function extractJson(text: string): ParsedAnalysis | null {
@@ -270,7 +419,7 @@ function normalizeAnalysis(raw: ParsedAnalysis | null): ParsedAnalysis {
   if (raw.status !== "ok") {
     return {
       status: raw.status,
-      reason: raw.reason ?? "Iltimos, qaytadan urinib ko'ring.",
+      reason: likopcha(raw.reason ?? "Iltimos, qaytadan urinib ko'ring."),
       detected:
         typeof raw.detected === "string" && raw.detected.trim()
           ? raw.detected.trim()
@@ -290,8 +439,8 @@ function normalizeAnalysis(raw: ParsedAnalysis | null): ParsedAnalysis {
   const unitPer100: "g" | "ml" = raw.unitPer100 === "ml" ? "ml" : "g";
 
   let unitName: string | undefined =
-    typeof raw.unitName === "string" && KNOWN_UNITS.has(raw.unitName.trim().toLowerCase())
-      ? raw.unitName.trim().toLowerCase()
+    typeof raw.unitName === "string" && KNOWN_UNITS.has(likopcha(raw.unitName.trim().toLowerCase()))
+      ? likopcha(raw.unitName.trim().toLowerCase())
       : undefined;
   let unitGrams = Number.isFinite(raw.unitGrams) && raw.unitGrams! > 0 ? raw.unitGrams! : undefined;
   let units = Number.isFinite(raw.units) && raw.units! > 0 ? raw.units! : undefined;
@@ -317,7 +466,7 @@ function normalizeAnalysis(raw: ParsedAnalysis | null): ParsedAnalysis {
 
   const coachAdvice =
     typeof raw.coachAdvice === "string" && raw.coachAdvice.trim().length > 0
-      ? raw.coachAdvice.trim().replace(/½/g, "0.5").replace(/¼/g, "0.25").replace(/¾/g, "0.75")
+      ? likopcha(raw.coachAdvice.trim().replace(/½/g, "0.5").replace(/¼/g, "0.25").replace(/¾/g, "0.75"))
       : undefined;
 
   const protein = Number.isFinite(raw.protein) ? Math.max(0, Math.round(raw.protein!)) : 0;
@@ -368,7 +517,7 @@ function normalizeAnalysis(raw: ParsedAnalysis | null): ParsedAnalysis {
   return {
     status: "ok",
     name: typeof raw.name === "string" && raw.name.trim() ? raw.name.trim() : "Aniqlanmagan taom",
-    portion: typeof raw.portion === "string" && raw.portion.trim() ? raw.portion.trim() : "1 porsiya",
+    portion: typeof raw.portion === "string" && raw.portion.trim() ? likopcha(raw.portion.trim()) : "1 porsiya",
     portionGrams,
     emoji: typeof raw.emoji === "string" && raw.emoji.trim() ? raw.emoji.trim() : "🍽️",
     calories,
@@ -387,6 +536,8 @@ function normalizeAnalysis(raw: ParsedAnalysis | null): ParsedAnalysis {
     recommendedCarbs,
     recommendedFat,
     confidence: Number.isFinite(raw.confidence) ? Math.min(1, Math.max(0, raw.confidence!)) : 0.7,
+    ...normalizeVariants(raw, { calories, protein, carbs, fat }),
+    ...normalizeSides(raw),
   };
 }
 
@@ -587,7 +738,7 @@ router.post("/ai/chat", async (req, res) => {
       return;
     }
 
-    res.json({ reply: content });
+    res.json({ reply: likopcha(content) });
   } catch (err) {
     req.log.error({ err }, "AI chat failure");
     res.status(502).json({ error: "AI provider error" });
@@ -641,7 +792,7 @@ QOIDALAR:
 - Bir kunlik kaloriya yig'indisi foydalanuvchining "dailyCalories" ga ±100 kkal yaqin bo'lsin
 - Oqsil/uglevod/yog' yig'indisi profil maqsadlariga yaqin bo'lsin
 - name: o'zbekcha taom nomi
-- portion: o'zbekcha matn (1 tovoq, 200g, 1 dona va h.k.)
+- portion: o'zbekcha matn (1 likopcha, 200g, 1 dona va h.k.)
 - emoji: bitta mos emoji
 - cal/protein/carbs/fat: butun son
 - ingredients: 3-6 ta asosiy ingredient ro'yxati (o'zbekcha, miqdori bilan, masalan: "Tovuq ko'kragi 150g")
@@ -678,19 +829,21 @@ function normalizePlan(raw: unknown): PlanResponse {
         if (!m || typeof m !== "object") return null;
         const x = m as Record<string, unknown>;
         const ingredients = Array.isArray(x.ingredients)
-          ? (x.ingredients as unknown[]).filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+          ? (x.ingredients as unknown[])
+              .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+              .map(likopcha)
           : undefined;
         return {
           meal: typeof x.meal === "string" ? x.meal : "Ovqat",
           name: typeof x.name === "string" ? x.name : "Taom",
           emoji: typeof x.emoji === "string" ? x.emoji : "🍽️",
-          portion: typeof x.portion === "string" ? x.portion : "1 porsiya",
+          portion: typeof x.portion === "string" ? likopcha(x.portion) : "1 porsiya",
           cal: Number.isFinite(x.cal) ? Math.max(0, Math.round(Number(x.cal))) : 0,
           protein: Number.isFinite(x.protein) ? Math.max(0, Math.round(Number(x.protein))) : 0,
           carbs: Number.isFinite(x.carbs) ? Math.max(0, Math.round(Number(x.carbs))) : 0,
           fat: Number.isFinite(x.fat) ? Math.max(0, Math.round(Number(x.fat))) : 0,
           ingredients: ingredients && ingredients.length > 0 ? ingredients : undefined,
-          tips: typeof x.tips === "string" && x.tips.trim().length > 0 ? x.tips.trim() : undefined,
+          tips: typeof x.tips === "string" && x.tips.trim().length > 0 ? likopcha(x.tips.trim()) : undefined,
         };
       })
       .filter((m): m is PlanMeal => m !== null);

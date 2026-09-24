@@ -33,12 +33,12 @@ export const CATEGORIES: { id: FoodCategory; label: string; emoji: string }[] = 
 
 export const FOOD_DB: FoodItem[] = [
   // Og'ir taomlar (heavy)
-  { id: "h1", name: "Osh (palov)", emoji: "🍚", category: "heavy", portion: "1 tovoq (300g)", cal: 615, protein: 18, carbs: 70, fat: 28 },
-  { id: "h2", name: "Mol go'shtli osh", emoji: "🍚", category: "heavy", portion: "1 tovoq (300g)", cal: 660, protein: 22, carbs: 68, fat: 32 },
-  { id: "h3", name: "Tovuq go'shtli osh", emoji: "🍚", category: "heavy", portion: "1 tovoq (300g)", cal: 580, protein: 24, carbs: 70, fat: 22 },
-  { id: "h4", name: "Norin", emoji: "🍝", category: "heavy", portion: "1 tovoq (300g)", cal: 480, protein: 28, carbs: 55, fat: 16 },
+  { id: "h1", name: "Osh (palov)", emoji: "🍚", category: "heavy", portion: "1 likopcha (300g)", cal: 615, protein: 18, carbs: 70, fat: 28 },
+  { id: "h2", name: "Mol go'shtli osh", emoji: "🍚", category: "heavy", portion: "1 likopcha (300g)", cal: 660, protein: 22, carbs: 68, fat: 32 },
+  { id: "h3", name: "Tovuq go'shtli osh", emoji: "🍚", category: "heavy", portion: "1 likopcha (300g)", cal: 580, protein: 24, carbs: 70, fat: 22 },
+  { id: "h4", name: "Norin", emoji: "🍝", category: "heavy", portion: "1 likopcha (300g)", cal: 480, protein: 28, carbs: 55, fat: 16 },
   { id: "h5", name: "Lag'mon (qaynatma)", emoji: "🍜", category: "heavy", portion: "1 kosa (400g)", cal: 520, protein: 22, carbs: 65, fat: 18 },
-  { id: "h6", name: "Qovurma lag'mon", emoji: "🍜", category: "heavy", portion: "1 tovoq (350g)", cal: 610, protein: 24, carbs: 60, fat: 28 },
+  { id: "h6", name: "Qovurma lag'mon", emoji: "🍜", category: "heavy", portion: "1 likopcha (350g)", cal: 610, protein: 24, carbs: 60, fat: 28 },
   { id: "h7", name: "Manti (go'shtli)", emoji: "🥟", category: "heavy", portion: "4 dona", cal: 480, protein: 22, carbs: 48, fat: 22 },
   { id: "h8", name: "Manti (qovoqli)", emoji: "🥟", category: "heavy", portion: "4 dona", cal: 360, protein: 12, carbs: 52, fat: 12 },
   { id: "h9", name: "Chuchvara (qaynatma)", emoji: "🥟", category: "heavy", portion: "1 kosa (250g)", cal: 380, protein: 18, carbs: 42, fat: 14 },
@@ -48,7 +48,7 @@ export const FOOD_DB: FoodItem[] = [
   { id: "h13", name: "Tovuq shashlik", emoji: "🍢", category: "heavy", portion: "1 sixcha (90g)", cal: 200, protein: 24, carbs: 2, fat: 11 },
   { id: "h14", name: "Jigar shashlik", emoji: "🍢", category: "heavy", portion: "1 sixcha (90g)", cal: 220, protein: 25, carbs: 4, fat: 11 },
   { id: "h15", name: "Beshbarmoq", emoji: "🍝", category: "heavy", portion: "1 porsiya (350g)", cal: 540, protein: 30, carbs: 50, fat: 22 },
-  { id: "h16", name: "Damlama", emoji: "🍲", category: "heavy", portion: "1 tovoq (350g)", cal: 480, protein: 22, carbs: 35, fat: 26 },
+  { id: "h16", name: "Damlama", emoji: "🍲", category: "heavy", portion: "1 likopcha (350g)", cal: 480, protein: 22, carbs: 35, fat: 26 },
   { id: "h17", name: "Qovurma (go'shtli)", emoji: "🍳", category: "heavy", portion: "1 porsiya (250g)", cal: 520, protein: 28, carbs: 12, fat: 38 },
   { id: "h18", name: "Tovuq tabaka", emoji: "🍗", category: "heavy", portion: "1 porsiya (250g)", cal: 470, protein: 35, carbs: 5, fat: 32 },
   { id: "h19", name: "Halim", emoji: "🥣", category: "heavy", portion: "1 kosa (300g)", cal: 320, protein: 14, carbs: 42, fat: 10 },
@@ -57,11 +57,11 @@ export const FOOD_DB: FoodItem[] = [
   { id: "h22", name: "Sho'rva (qo'y go'shtli)", emoji: "🥣", category: "heavy", portion: "1 kosa (350g)", cal: 360, protein: 18, carbs: 22, fat: 21 },
 
   // Yengil taomlar (light)
-  { id: "l1", name: "Achchiq-chuchuk salat", emoji: "🥗", category: "light", portion: "1 tovoq (150g)", cal: 60, protein: 1.5, carbs: 8, fat: 2.5 },
-  { id: "l2", name: "Vinegret salat", emoji: "🥗", category: "light", portion: "1 tovoq (200g)", cal: 180, protein: 4, carbs: 22, fat: 9 },
-  { id: "l3", name: "Oliviye salat", emoji: "🥗", category: "light", portion: "1 tovoq (200g)", cal: 320, protein: 8, carbs: 18, fat: 24 },
-  { id: "l4", name: "Tashkent salat", emoji: "🥗", category: "light", portion: "1 tovoq (200g)", cal: 280, protein: 18, carbs: 6, fat: 21 },
-  { id: "l5", name: "Sezar salat", emoji: "🥗", category: "light", portion: "1 tovoq (200g)", cal: 340, protein: 22, carbs: 10, fat: 24 },
+  { id: "l1", name: "Achchiq-chuchuk salat", emoji: "🥗", category: "light", portion: "1 likopcha (150g)", cal: 60, protein: 1.5, carbs: 8, fat: 2.5 },
+  { id: "l2", name: "Vinegret salat", emoji: "🥗", category: "light", portion: "1 likopcha (200g)", cal: 180, protein: 4, carbs: 22, fat: 9 },
+  { id: "l3", name: "Oliviye salat", emoji: "🥗", category: "light", portion: "1 likopcha (200g)", cal: 320, protein: 8, carbs: 18, fat: 24 },
+  { id: "l4", name: "Tashkent salat", emoji: "🥗", category: "light", portion: "1 likopcha (200g)", cal: 280, protein: 18, carbs: 6, fat: 21 },
+  { id: "l5", name: "Sezar salat", emoji: "🥗", category: "light", portion: "1 likopcha (200g)", cal: 340, protein: 22, carbs: 10, fat: 24 },
   { id: "l6", name: "Suzma", emoji: "🥛", category: "light", portion: "100g", cal: 130, protein: 14, carbs: 5, fat: 6 },
   { id: "l7", name: "Qatiq", emoji: "🥛", category: "light", portion: "1 stakan (200ml)", cal: 110, protein: 8, carbs: 10, fat: 4 },
   { id: "l8", name: "Chalop", emoji: "🍵", category: "light", portion: "1 kosa (300g)", cal: 140, protein: 7, carbs: 14, fat: 6 },
