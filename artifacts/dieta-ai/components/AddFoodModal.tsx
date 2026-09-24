@@ -26,6 +26,7 @@ import {
   aiAnalyzeImage,
   aiAnalyzeText,
   type AiNutritionResponse,
+  type FoodSide,
   type FoodVariant,
 } from "@/lib/api-client";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -87,13 +88,37 @@ interface AiResult {
     AiResult,
     "coachAdvice" | "recommendedCal" | "recommendedProtein" | "recommendedCarbs" | "recommendedFat"
   >;
+  /** Other dishes found on the same plate; each is saved as its own diary entry if included. */
+  sides?: SideItem[];
+}
+
+type SideItem = FoodSide & { included: boolean };
+
+type ConfirmTotals = {
+  cal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  portionLabel: string;
+  extrasSummary?: string;
+};
+
+function sumSides(sides: SideItem[] | undefined) {
+  const on = (sides ?? []).filter((s) => s.included);
+  return {
+    cal: on.reduce((t, s) => t + s.calories, 0),
+    protein: on.reduce((t, s) => t + s.protein, 0),
+    carbs: on.reduce((t, s) => t + s.carbs, 0),
+    fat: on.reduce((t, s) => t + s.fat, 0),
+    count: on.length,
+  };
 }
 
 function variantName(base: string, v: FoodVariant): string {
   return `${base} (${v.label.toLowerCase()})`;
 }
 
-interface AddedFood {
+export interface AddedFood {
   name: string;
   cal: number;
   source: Source;
@@ -123,7 +148,8 @@ interface AiUserContext {
 interface AddFoodModalProps {
   visible: boolean;
   onClose: () => void;
-  onAdd: (food: AddedFood) => void;
+  /** One call per confirm; a photo of a full plate yields several foods. */
+  onAdd: (foods: AddedFood[]) => void;
   remainingCal?: number;
   dailyCalories?: number;
   userContext?: AiUserContext;
@@ -252,16 +278,18 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
   const handleConfirmCatalog = () => {
     if (!pickedFood) return;
     triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
-    onAdd({
-      name: pickedFood.name,
-      cal: pickedFood.cal,
-      protein: pickedFood.protein,
-      carbs: pickedFood.carbs,
-      fat: pickedFood.fat,
-      portion: pickedFood.portion,
-      emoji: pickedFood.emoji,
-      source: "catalog",
-    });
+    onAdd([
+      {
+        name: pickedFood.name,
+        cal: pickedFood.cal,
+        protein: pickedFood.protein,
+        carbs: pickedFood.carbs,
+        fat: pickedFood.fat,
+        portion: pickedFood.portion,
+        emoji: pickedFood.emoji,
+        source: "catalog",
+      },
+    ]);
     onClose();
   };
 
@@ -306,6 +334,9 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
         variantQuestion: variants ? analysis.variantQuestion ?? "Qaysi turi?" : undefined,
         selectedVariant: variants ? defaultVariant : undefined,
         defaultVariant: variants ? defaultVariant : undefined,
+        sides: analysis.sides?.length
+          ? analysis.sides.map((s) => ({ ...s, included: true }))
+          : undefined,
         aiAdviceSnapshot: variants
           ? {
               coachAdvice: analysis.coachAdvice,
@@ -455,20 +486,14 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
     }
   };
 
-  const handleConfirmAiFinal = (totals: {
-    cal: number;
-    protein: number;
-    carbs: number;
-    fat: number;
-    portionLabel: string;
-    extrasSummary?: string;
-  }) => {
+  /** `totals` is the main dish only (portion + extras); included sides become their own entries. */
+  const handleConfirmAiFinal = (totals: ConfirmTotals) => {
     if (!aiResult) return;
     triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
     const displayName = totals.extrasSummary
       ? `${aiResult.name} (+${totals.extrasSummary})`
       : aiResult.name;
-    onAdd({
+    const main: AddedFood = {
       name: displayName,
       cal: Math.max(0, Math.round(totals.cal)),
       protein: Math.max(0, Math.round(totals.protein)),
@@ -478,7 +503,20 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
       emoji: aiResult.emoji,
       source: aiResult.source,
       imageUri: aiResult.imageUri,
-    });
+    };
+    const sides: AddedFood[] = (aiResult.sides ?? [])
+      .filter((s) => s.included)
+      .map((s) => ({
+        name: s.name,
+        cal: s.calories,
+        protein: s.protein,
+        carbs: s.carbs,
+        fat: s.fat,
+        portion: s.portion,
+        emoji: s.emoji,
+        source: aiResult.source,
+      }));
+    onAdd([main, ...sides]);
     setAiResult(null);
     setTextInput("");
     onClose();
@@ -502,6 +540,18 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
       }
       return next;
     });
+  };
+
+  const handleToggleSide = (idx: number) => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    setAiResult((prev) =>
+      prev?.sides
+        ? {
+            ...prev,
+            sides: prev.sides.map((s, i) => (i === idx ? { ...s, included: !s.included } : s)),
+          }
+        : prev,
+    );
   };
 
   const handleSelectVariant = (idx: number) => {
@@ -548,14 +598,17 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
         `Asosiy taom (palov, manti va h.k.) HAQIDA o'ylash kerak emas — faqat shu qo'shimchaning ` +
         `o'zining qiymatlarini qaytar. Masalan: "30g sariyog'" → ~220 kkal, oqsil 0g, uglevod 0g, yog' 24g.`;
       const res = await aiAnalyzeText({ text: prompt, userContext: buildCtx() });
+      // "30g sariyog' va smetana" may come back split into a main item plus
+      // sides — the extra is all of it together.
+      const withSides = sumSides(res.sides?.map((s) => ({ ...s, included: true })));
       const newExtra: ExtraItem =
         res.status === "ok"
           ? {
               note,
-              cal: Math.max(0, Math.round(res.calories ?? 0)),
-              protein: Math.max(0, Math.round(res.protein ?? 0)),
-              carbs: Math.max(0, Math.round(res.carbs ?? 0)),
-              fat: Math.max(0, Math.round(res.fat ?? 0)),
+              cal: Math.max(0, Math.round((res.calories ?? 0) + withSides.cal)),
+              protein: Math.max(0, Math.round((res.protein ?? 0) + withSides.protein)),
+              carbs: Math.max(0, Math.round((res.carbs ?? 0) + withSides.carbs)),
+              fat: Math.max(0, Math.round((res.fat ?? 0) + withSides.fat)),
             }
           : { note, cal: 0, protein: 0, carbs: 0, fat: 0 };
       setAiResult((prev) =>
@@ -668,6 +721,7 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
                   onReject={handleRejectAi}
                   onUpdateFood={handleUpdateAiFood}
                   onSelectVariant={handleSelectVariant}
+                  onToggleSide={handleToggleSide}
                   onAddIngredient={handleAddIngredient}
                   onRemoveIngredient={handleRemoveIngredient}
                   recomputing={loading === "text" || loading === "camera"}
@@ -684,6 +738,7 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
                   onConfirm={handleConfirmAiFinal}
                   onReject={handleRejectAi}
                   onSelectVariant={handleSelectVariant}
+                  onToggleSide={handleToggleSide}
                 />
               ) : step === "error" ? (
                 <ErrorStep
@@ -775,6 +830,73 @@ function VariantPicker({
           );
         })}
       </View>
+    </View>
+  );
+}
+
+/** Other dishes on the plate — each checked one is saved as its own diary entry. */
+function SidesList({
+  food,
+  colors,
+  onToggle,
+  style,
+}: {
+  food: AiResult;
+  colors: ColorPalette;
+  onToggle: (idx: number) => void;
+  style?: object;
+}) {
+  if (!food.sides || food.sides.length === 0) return null;
+  return (
+    <View style={[sl.card, { backgroundColor: colors.card, borderColor: colors.border }, style]}>
+      <Text style={[sl.title, { color: colors.text }]}>
+        {food.source === "text" ? "Yana yozganingiz" : "Rasmda yana topildi"}
+      </Text>
+      <Text style={[sl.hint, { color: colors.mutedForeground }]}>
+        Har biri kundalikka alohida yoziladi. Yemaganingizni belgidan chiqaring.
+      </Text>
+      {food.sides.map((s, i) => (
+        <Pressable
+          key={`${s.name}-${i}`}
+          onPress={() => onToggle(i)}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: s.included }}
+          accessibilityLabel={`${s.name}, ${s.calories} kaloriya`}
+          style={({ pressed }) => [sl.row, { borderTopColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+        >
+          <View
+            style={[
+              sl.box,
+              s.included
+                ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                : { backgroundColor: colors.card, borderColor: colors.mutedForeground },
+            ]}
+          >
+            {s.included ? <Feather name="check" size={14} color="#FFFFFF" /> : null}
+          </View>
+          <Text style={sl.emoji}>{s.emoji}</Text>
+          <View style={{ flex: 1 }}>
+            <Text
+              style={[sl.name, { color: s.included ? colors.text : colors.mutedForeground }]}
+              numberOfLines={1}
+            >
+              {s.name}
+            </Text>
+            <Text style={[sl.portion, { color: colors.mutedForeground }]} numberOfLines={1}>
+              {s.portion}
+            </Text>
+          </View>
+          <Text
+            style={[
+              sl.cal,
+              { color: s.included ? colors.text : colors.mutedForeground },
+              !s.included && sl.struck,
+            ]}
+          >
+            {s.calories} kkal
+          </Text>
+        </Pressable>
+      ))}
     </View>
   );
 }
@@ -1323,20 +1445,15 @@ function TextConfirmStep({
   onConfirm,
   onReject,
   onSelectVariant,
+  onToggleSide,
 }: {
   colors: ColorPalette;
   food: AiResult;
   onBack: () => void;
-  onConfirm: (totals: {
-    cal: number;
-    protein: number;
-    carbs: number;
-    fat: number;
-    portionLabel: string;
-    extrasSummary?: string;
-  }) => void;
+  onConfirm: (totals: ConfirmTotals) => void;
   onReject: () => void;
   onSelectVariant: (idx: number) => void;
+  onToggleSide: (idx: number) => void;
 }) {
   const baseCal = Math.max(0, Math.round(food.cal));
   const baseProtein = Math.max(0, Math.round(food.protein));
@@ -1375,6 +1492,7 @@ function TextConfirmStep({
   const editedFat = parseNum(editFat, baseFat);
 
   const cal = Math.round(editedCal * portion);
+  const sides = sumSides(food.sides);
   const protein = Math.round(editedProtein * portion);
   const carbs = Math.round(editedCarbs * portion);
   const fat = Math.round(editedFat * portion);
@@ -1584,6 +1702,13 @@ function TextConfirmStep({
         style={{ marginTop: 12, borderWidth: 1, borderColor: colors.border }}
       />
 
+      <SidesList food={food} colors={colors} onToggle={onToggleSide} style={{ marginTop: 12 }} />
+      {sides.count > 0 ? (
+        <Text style={[styles.plateTotal, { color: colors.text }]}>
+          Jami {sides.count + 1} ta taom: {cal + sides.cal} kkal
+        </Text>
+      ) : null}
+
       <View style={{ flexDirection: "row", gap: 12, marginTop: 16 }}>
         <Pressable
           onPress={onReject}
@@ -1636,6 +1761,7 @@ function AiConfirmStep({
   onReject,
   onUpdateFood,
   onSelectVariant,
+  onToggleSide,
   onAddIngredient,
   onRemoveIngredient,
   recomputing,
@@ -1647,17 +1773,11 @@ function AiConfirmStep({
   colors: ColorPalette;
   food: AiResult;
   onBack: () => void;
-  onConfirmFinal: (totals: {
-    cal: number;
-    protein: number;
-    carbs: number;
-    fat: number;
-    portionLabel: string;
-    extrasSummary?: string;
-  }) => void;
+  onConfirmFinal: (totals: ConfirmTotals) => void;
   onReject: () => void;
   onUpdateFood: (patch: Partial<AiResult>) => void;
   onSelectVariant: (idx: number) => void;
+  onToggleSide: (idx: number) => void;
   onAddIngredient: (note: string) => void;
   onRemoveIngredient: (index: number) => void;
   recomputing: boolean;
@@ -1906,7 +2026,13 @@ function AiConfirmStep({
     setShowIngredient(false);
   };
 
-  const kcalLeftAfter = remainingCal != null ? remainingCal - displayCal : null;
+  // Whole plate = main dish (portion + extras) + the other dishes still checked.
+  const sides = sumSides(food.sides);
+  const plateCal = displayCal + sides.cal;
+  const plateProtein = displayProtein + sides.protein;
+  const plateCarbs = displayCarbs + sides.carbs;
+  const plateFat = displayFat + sides.fat;
+  const kcalLeftAfter = remainingCal != null ? remainingCal - plateCal : null;
   const lowConfidence = food.confidence != null && food.confidence < 0.6;
   const portionIsRecommended = Math.abs(acceptMult - portion) < 0.01;
   const recommendedLabel = isCountUnit
@@ -2024,7 +2150,7 @@ function AiConfirmStep({
           ) : null}
 
           <View style={ac.kcalRow}>
-            <Text style={[ac.kcalValue, { color: colors.text }]}>{displayCal}</Text>
+            <Text style={[ac.kcalValue, { color: colors.text }]}>{plateCal}</Text>
             <Text style={[ac.kcalUnit, { color: colors.mutedForeground }]}>kkal</Text>
             <View style={{ flex: 1 }} />
             {kcalLeftAfter != null ? (
@@ -2042,10 +2168,16 @@ function AiConfirmStep({
           </View>
 
           <View style={ac.macroRow}>
-            {macro("Oqsil", displayProtein, colors.chartRed)}
-            {macro("Uglevod", displayCarbs, colors.accent)}
-            {macro("Yog'", displayFat, "#3B82F6")}
+            {macro("Oqsil", plateProtein, colors.chartRed)}
+            {macro("Uglevod", plateCarbs, colors.accent)}
+            {macro("Yog'", plateFat, "#3B82F6")}
           </View>
+
+          {sides.count > 0 ? (
+            <Text style={[ac.per100, { color: colors.mutedForeground }]}>
+              Jami {sides.count + 1} ta taom: {food.baseName ?? food.name} {displayCal} kkal + yana {sides.cal} kkal
+            </Text>
+          ) : null}
 
           {per100Cal != null && per100Cal > 0 ? (
             <Text style={[ac.per100, { color: colors.mutedForeground }]}>
@@ -2110,7 +2242,9 @@ function AiConfirmStep({
 
         {/* ── Portion ── */}
         <View style={[ac.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[ac.cardTitle, { color: colors.text }]}>Porsiya</Text>
+          <Text style={[ac.cardTitle, { color: colors.text }]} numberOfLines={1}>
+            Porsiya{food.sides?.length ? ` — ${food.baseName ?? food.name}` : ""}
+          </Text>
           <View style={ac.stepperRow}>
             <Pressable
               onPress={() => stepPortion(-1)}
@@ -2195,6 +2329,8 @@ function AiConfirmStep({
           onSelect={onSelectVariant}
           style={[ac.variantCard, { borderColor: colors.border }]}
         />
+
+        <SidesList food={food} colors={colors} onToggle={onToggleSide} style={ac.sidesCard} />
 
         {/* ── AI advice: applies as a portion, never as a second "add" button ── */}
         <View style={[ac.card, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
@@ -2312,7 +2448,7 @@ function AiConfirmStep({
         >
           <Feather name="check" size={20} color="#FFFFFF" />
           <Text style={ac.confirmText} numberOfLines={1}>
-            Kundalikka qo'shish · {displayCal} kkal
+            {sides.count > 0 ? `${sides.count + 1} ta taomni qo'shish` : "Kundalikka qo'shish"} · {plateCal} kkal
           </Text>
         </Pressable>
       </View>
@@ -2579,6 +2715,7 @@ function ConfirmMacro({
 }
 
 const styles = StyleSheet.create({
+  plateTotal: { fontSize: 14, fontFamily: "Inter_700Bold", textAlign: "right", marginTop: 10 },
   flex1: { flex: 1 },
   backdrop: {
     flex: 1,
@@ -2948,6 +3085,7 @@ const ac = StyleSheet.create({
   card: { marginHorizontal: 16, marginTop: 12, borderRadius: 16, borderWidth: 1, padding: 14, gap: 10 },
   cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold" },
   variantCard: { marginHorizontal: 16, marginTop: 12, borderWidth: 1, shadowOpacity: 0, elevation: 0 },
+  sidesCard: { marginHorizontal: 16, marginTop: 12 },
   fieldLabel: { fontSize: 12, fontFamily: "Inter_500Medium", marginBottom: -4 },
   input: {
     minHeight: 44,
@@ -3027,4 +3165,23 @@ const vp = StyleSheet.create({
   chip: { borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, minWidth: 92 },
   chipLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   chipCal: { fontSize: 11.5, fontFamily: "Inter_500Medium", marginTop: 1 },
+});
+
+const sl = StyleSheet.create({
+  card: { borderRadius: 16, borderWidth: 1, padding: 14 },
+  title: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  hint: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2, marginBottom: 6, lineHeight: 17 },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  box: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+  emoji: { fontSize: 20 },
+  name: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  portion: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
+  cal: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  struck: { textDecorationLine: "line-through" },
 });

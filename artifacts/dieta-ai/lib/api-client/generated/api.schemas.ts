@@ -110,6 +110,18 @@ export interface AiNutritionResponse {
   variantQuestion?: string;
   variants?: FoodVariant[];
   defaultVariant?: number;
+  /** Other separate dishes on the same plate / in the same text; not included in the top-level numbers. */
+  sides?: FoodSide[];
+}
+
+export interface FoodSide {
+  name: string;
+  emoji: string;
+  portion: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
 }
 
 /** Same dish and portion as the parent result, with a different hidden filling / cooking / meat. */

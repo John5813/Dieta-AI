@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, LinearGradient as SvgLinGrad, Stop } from "react-native-svg";
-import { AddFoodModal } from "@/components/AddFoodModal";
+import { AddFoodModal, type AddedFood } from "@/components/AddFoodModal";
 import { EditEntryModal } from "@/components/EditEntryModal";
 import { SuccessToast } from "@/components/SuccessToast";
 import { MacroCard } from "@/components/MacroCard";
@@ -108,7 +108,7 @@ export default function HomeScreen() {
   const {
     profile,
     entries,
-    addEntry,
+    addEntries,
     updateEntry,
     removeEntry,
     burnedByDate,
@@ -185,37 +185,27 @@ export default function HomeScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 100 : insets.bottom + 90;
 
-  const handleAdd = (food: {
-    name: string;
-    cal: number;
-    source: "camera" | "gallery" | "text" | "catalog";
-    protein?: number;
-    carbs?: number;
-    fat?: number;
-    portion?: string;
-    emoji?: string;
-    imageUri?: string;
-  }) => {
-    const protein = food.protein ?? Math.round((food.cal * 0.25) / 4);
-    const carbs = food.carbs ?? Math.round((food.cal * 0.5) / 4);
-    const fat = food.fat ?? Math.round((food.cal * 0.25) / 9);
-    addEntry(
-      {
+  const handleAdd = (foods: AddedFood[]) => {
+    if (foods.length === 0) return;
+    addEntries(
+      foods.map((food) => ({
         name: food.name,
         cal: food.cal,
         source: food.source,
-        protein,
-        carbs,
-        fat,
+        protein: food.protein ?? Math.round((food.cal * 0.25) / 4),
+        carbs: food.carbs ?? Math.round((food.cal * 0.5) / 4),
+        fat: food.fat ?? Math.round((food.cal * 0.25) / 9),
         portion: food.portion,
         emoji: food.emoji,
         imageUri: food.imageUri,
-      },
+      })),
       isToday ? undefined : selectedKey,
     );
+    const totalAdded = Math.round(foods.reduce((t, f) => t + f.cal, 0));
+    const what = foods.length === 1 ? foods[0].name : `${foods[0].name} va yana ${foods.length - 1} ta taom`;
     setToast({
       visible: true,
-      message: `${food.name} qo'shildi${isToday ? "" : ` (${dayLabel})`} · +${Math.round(food.cal)} kkal`,
+      message: `${what} qo'shildi${isToday ? "" : ` (${dayLabel})`} · +${totalAdded} kkal`,
     });
   };
 

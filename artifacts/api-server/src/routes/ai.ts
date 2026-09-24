@@ -149,7 +149,7 @@ KALORIYANI BAHOLASHDA QO'SHIMCHA QOIDALAR:
 • Qovurilgan/frityur → yuqori uchidagi raqam
 • Qaynatilgan/bug'langan → past uchidagi raqam
 • KAMAYTIRMA — odamlar real raqamni bilishi kerak. O'zbek taomlarida moy va dumba ko'p.
-• Kompleks taom (palov + salat + non + choy bo'lsa rasmda) — har birini ALOHIDA hisoblamaydigan, ASOSIY taom uchun aniq raqam ber. Foydalanuvchi keyin qo'shimcha qo'sha oladi.
+• Bir nechta ALOHIDA taom (rasmda palov + salat + non + choy, yoki matnda "1 tovoq palov va 2 burda non") — asosiy maydonlarga FAQAT eng katta / asosiy taomni yoz, qolganlarini "sides" massiviga (pastdagi QOIDA 6).
 
 ═══════════════════════════════════════════════════════════
 QOIDA 3 — SHAXSIY TAVSIYA (recommendedUnits + coachAdvice)
@@ -243,7 +243,22 @@ Qoidalari:
 • variants bo'lsa, "name" — turini ko'rsatmaydigan UMUMIY nom ("Somsa", "Manti", "Palov"), chunki ilova tanlangan turni nomga o'zi qo'shadi ("Somsa (kartoshkali)").
 • defaultVariant — rasmga (yoki matnga) qarab ENG EHTIMOLLI variant indeksi. Asosiy calories/protein/carbs/fat va recommended* maydonlari AYNAN shu variantga mos bo'lsin.
 • Agar matnda foydalanuvchi turini aniq yozgan bo'lsa ("kartoshkali somsa") yoki rasmda aniq ko'rinsa (kesilgan somsa ichi ko'rinib turibdi) — variants QO'SHMA.
-• Farq kaloriyaga deyarli ta'sir qilmasa (masalan non turlari) — variants QO'SHMA.`;
+• Farq kaloriyaga deyarli ta'sir qilmasa (masalan non turlari) — variants QO'SHMA.
+
+═══════════════════════════════════════════════════════════
+QOIDA 6 — BIR NECHTA TAOM (sides)
+═══════════════════════════════════════════════════════════
+Dasturxon yoki likopchada bir nechta alohida taom/ichimlik bo'lsa, har birini ALOHIDA hisobla:
+• Asosiy maydonlar (name, calories, portion, units, recommended*, coachAdvice, variants) — FAQAT eng katta / asosiy taom uchun.
+• Qolganlari "sides" massivida, har biri o'z porsiyasi bilan:
+"sides": [
+  {"name":"Achchiq-chuchuk","emoji":"🥗","portion":"1 kosacha (~150g)","calories":60,"protein":2,"carbs":8,"fat":3},
+  {"name":"Non","emoji":"🫓","portion":"2 burda (~100g)","calories":270,"protein":9,"carbs":54,"fat":2},
+  {"name":"Ko'k choy","emoji":"🍵","portion":"1 piyola (~150ml)","calories":2,"protein":0,"carbs":0,"fat":0}
+]
+• Asosiy taom kaloriyasiga sides'ni QO'SHMA — ilova o'zi qo'shadi.
+• Maksimal 6 ta. Ziravor, tuz, ko'katdan bezak, idish, dasturxon — sides EMAS.
+• Faqat bitta taom bo'lsa — "sides" maydonini umuman qo'shma.`;
 
 interface ParsedAnalysis {
   status: "ok" | "not_food" | "unclear" | "invalid_input";
@@ -272,6 +287,47 @@ interface ParsedAnalysis {
   variantQuestion?: string;
   variants?: FoodVariant[];
   defaultVariant?: number;
+  sides?: FoodSide[];
+}
+
+/** Another, separate dish on the same plate / in the same text (bread, salad, tea...). */
+interface FoodSide {
+  name: string;
+  emoji: string;
+  portion: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+const MAX_SIDES = 6;
+
+function normalizeSides(raw: ParsedAnalysis): { sides?: FoodSide[] } {
+  if (!Array.isArray(raw.sides)) return {};
+  const nonNeg = (v: unknown) =>
+    typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.round(v)) : null;
+  const text = (v: unknown, max: number) =>
+    typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "";
+  const sides: FoodSide[] = [];
+  for (const s of raw.sides) {
+    if (!s || typeof s !== "object") continue;
+    const name = text(s.name, 40);
+    const calories = nonNeg(s.calories);
+    // Tea / water can legitimately be ~0 kcal, so only a missing number is dropped.
+    if (!name || calories === null) continue;
+    sides.push({
+      name,
+      emoji: text(s.emoji, 8) || "🍽️",
+      portion: text(s.portion, 40) || "1 porsiya",
+      calories,
+      protein: nonNeg(s.protein) ?? 0,
+      carbs: nonNeg(s.carbs) ?? 0,
+      fat: nonNeg(s.fat) ?? 0,
+    });
+    if (sides.length === MAX_SIDES) break;
+  }
+  return sides.length > 0 ? { sides } : {};
 }
 
 /** Same dish, same portion, different hidden filling / cooking / meat. */
@@ -471,6 +527,7 @@ function normalizeAnalysis(raw: ParsedAnalysis | null): ParsedAnalysis {
     recommendedFat,
     confidence: Number.isFinite(raw.confidence) ? Math.min(1, Math.max(0, raw.confidence!)) : 0.7,
     ...normalizeVariants(raw, { calories, protein, carbs, fat }),
+    ...normalizeSides(raw),
   };
 }
 
