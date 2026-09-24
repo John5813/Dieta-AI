@@ -9,7 +9,7 @@ router.get("/", (_req, res) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Maxfiylik Siyosati — Bir Burda</title>
+  <title>Maxfiylik Siyosati — UzDieta AI</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 24px 16px; color: #1a1a1a; line-height: 1.7; }
     h1 { color: #2d7a2d; }
@@ -27,13 +27,13 @@ router.get("/", (_req, res) => {
   <p class="date">So'nggi yangilanish: 2025-yil 1-iyul</p>
 
   <div class="meta">
-    <p><strong>Ilova nomi:</strong> Bir Burda - Kaloriya Hisobi</p>
+    <p><strong>Ilova nomi:</strong> UzDieta AI - Kaloriya Hisobi</p>
     <p><strong>Dasturchi:</strong> Muydinov Javlonbek</p>
     <p><strong>Aloqa:</strong> <a href="mailto:moydinovjavlonbek5813@gmail.com">moydinovjavlonbek5813@gmail.com</a></p>
   </div>
 
   <p>
-    Ushbu siyosat <strong>Bir Burda - Kaloriya Hisobi</strong> ilovasiga tegishli bo'lib,
+    Ushbu siyosat <strong>UzDieta AI - Kaloriya Hisobi</strong> ilovasiga tegishli bo'lib,
     uni <strong>Muydinov Javlonbek</strong> ishlab chiqargan.
     Ilovamizdan foydalanish orqali siz ushbu Maxfiylik Siyosatiga rozilik bildirasiz.
   </p>
@@ -98,7 +98,7 @@ router.get("/", (_req, res) => {
 
   <h2>7. Bolalar maxfiyligi</h2>
   <p>
-    Bir Burda 13 yoshdan kichik bolalar uchun mo'ljallanmagan.
+    UzDieta AI 13 yoshdan kichik bolalar uchun mo'ljallanmagan.
     Biz ataylab 13 yoshdan kichik foydalanuvchilardan ma'lumot to'plamaymiz.
   </p>
 

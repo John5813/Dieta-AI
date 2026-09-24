@@ -1,14 +1,14 @@
 /**
- * Bir Burda — yagona bilim manbasi.
+ * UzDieta AI — yagona bilim manbasi.
  * AI faqat shu fayldagi ma'lumotlarga tayanib javob beradi.
  * Boshqa joydan ma'lumot olmaydi.
  */
 
 export const APP_KNOWLEDGE = `
-BIR BURDA — ILOVA BILIM BAZASI
+UZDIETA AI — ILOVA BILIM BAZASI
 
 ==== ILOVA HAQIDA ====
-"Bir Burda" — sun'iy intellekt yordamida kaloriya va makro nutrientlarni hisoblaydigan o'zbek tilidagi mobil ilova.
+"UzDieta AI" — sun'iy intellekt yordamida kaloriya va makro nutrientlarni hisoblaydigan o'zbek tilidagi mobil ilova.
 Maqsad: foydalanuvchiga vazn yo'qotish, oshirish yoki saqlashda yordam berish.
 
 ==== BO'LIMLAR (4 ta tab) ====

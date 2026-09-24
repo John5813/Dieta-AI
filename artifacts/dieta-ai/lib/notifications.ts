@@ -125,7 +125,7 @@ export async function requestPermissionWithRationale(): Promise<boolean> {
     return new Promise((resolve) => {
       Alert.alert(
         "Eslatmalarni yoqish",
-        "Bir Burda ovqatlanish va suv ichish eslatmalarini yuborishi uchun ruxsat bering. Bu sog'lom rejimni saqlashga yordam beradi.",
+        "UzDieta AI ovqatlanish va suv ichish eslatmalarini yuborishi uchun ruxsat bering. Bu sog'lom rejimni saqlashga yordam beradi.",
         [
           {
             text: "Ruxsat berish",
@@ -271,7 +271,7 @@ export async function sendTestNotification(): Promise<boolean> {
     await Notifications.scheduleNotificationAsync({
       content: {
         title: "✅ Eslatmalar faol!",
-        body: "Bir Burda eslatmalari muvaffaqiyatli sozlandi.",
+        body: "UzDieta AI eslatmalari muvaffaqiyatli sozlandi.",
         sound: true,
       },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 1 },

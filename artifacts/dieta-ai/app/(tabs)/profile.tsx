@@ -667,7 +667,7 @@ export default function ProfileScreen() {
                 <Feather name="info" size={14} color={colors.mutedForeground} />
                 <Text style={[styles.batteryHintText, { color: colors.mutedForeground }]}>
                   Xiaomi, Samsung yoki Huawei qurilmalarida eslatma kelmasa,
-                  Sozlamalar → Ilovalar → Bir Burda → Batareya bo'limidan
+                  Sozlamalar → Ilovalar → UzDieta AI → Batareya bo'limidan
                   &quot;Cheklanmagan&quot; rejimini yoqing.
                 </Text>
               </View>
@@ -1127,7 +1127,7 @@ function PrivacyModal({
             Ilova va Dasturchi haqida
           </Text>
           <Text style={[styles.privacyText, { color: colors.mutedForeground }]}>
-            Ilova nomi: Bir Burda - Kaloriya Hisobi{"\n"}
+            Ilova nomi: UzDieta AI - Kaloriya Hisobi{"\n"}
             Dasturchi: Muydinov Javlonbek
           </Text>
 
@@ -1135,7 +1135,7 @@ function PrivacyModal({
             Maxfiylik siyosati
           </Text>
           <Text style={[styles.privacyText, { color: colors.mutedForeground }]}>
-            Ushbu siyosat Bir Burda - Kaloriya Hisobi ilovasiga tegishli bo'lib, uni
+            Ushbu siyosat UzDieta AI - Kaloriya Hisobi ilovasiga tegishli bo'lib, uni
             Muydinov Javlonbek ishlab chiqargan.{"\n\n"}
             Ilovamiz sizning maxfiyligingizni qadrlaydi. Foydalanuvchilarning shaxsiy
             va sog'liq ma'lumotlari (yosh, vazn, ovqatlanish tarixi) serverlarimizda

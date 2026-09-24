@@ -106,7 +106,7 @@ function ComparisonChart() {
       </View>
 
       <View style={[styles.endLabelOur, { backgroundColor: colors.primary }]}>
-        <Text style={styles.endLabelText}>Bir Burda</Text>
+        <Text style={styles.endLabelText}>UzDieta AI</Text>
       </View>
 
       <View style={[styles.endLabelOther, { backgroundColor: colors.chartRed }]}>
@@ -134,7 +134,7 @@ export default function ComparisonScreen() {
     <OnboardingLayout
       step={4}
       total={18}
-      title="Bir Burda va boshqa ilovalarni farqi"
+      title="UzDieta AI va boshqa ilovalarni farqi"
       onNext={() => router.push("/onboarding/birthdate")}
       onBack={() => router.back()}
     >
@@ -143,7 +143,7 @@ export default function ComparisonScreen() {
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
           <Text style={[styles.legendText, { color: colors.text }]}>
-            Bir Burda — barqaror o'sish
+            UzDieta AI — barqaror o'sish
           </Text>
         </View>
         <View style={styles.legendItem}>
@@ -155,7 +155,7 @@ export default function ComparisonScreen() {
       </View>
       <Text style={[styles.description, { color: colors.mutedForeground }]}>
         Boshqa ilovalarda foydalanuvchilar boshida tez ozadi, lekin 2-3 oy o'tgach eski vazniga
-        qaytib qoladi. Bir Burda esa ozganingizdan keyin natijani ushlab turishga yordam beradi.
+        qaytib qoladi. UzDieta AI esa ozganingizdan keyin natijani ushlab turishga yordam beradi.
       </Text>
     </OnboardingLayout>
   );
