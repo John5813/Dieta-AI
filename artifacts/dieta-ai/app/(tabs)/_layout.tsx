@@ -42,19 +42,22 @@ export default function TabLayout() {
   const colors = useColors();
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
-  const { setAddFoodModalVisible, subscription, canScan } = useApp();
+  const { setAddFoodModalVisible, subscription, canScan, loading } = useApp();
   const { t } = useTranslation();
   const router = useRouter();
   const isDark = colorScheme === "dark";
 
   // Trial tugagach yoki obuna yo'q bo'lsa premium ekraniga yo'naltirish
   useEffect(() => {
+    // Until storage is loaded, subscription is the "none" default — checking
+    // it then would bounce paying users to the paywall on a deep link.
+    if (loading) return;
     if (subscription.status === "active") return;
     const result = canScan();
     if (!result.allowed && (result.reason === "trial_expired" || result.reason === "locked")) {
       router.replace("/onboarding/premium" as never);
     }
-  }, [subscription.status, subscription.trialStartedAt]);
+  }, [loading, subscription.status, subscription.trialStartedAt]);
 
   // Tab bar pastroqqa tushiriladi: native va web bir xil ko'rinadi.
   // Bottom inset (home indicator) hisobga olinadi va qo'shimcha 14px joy beriladi.

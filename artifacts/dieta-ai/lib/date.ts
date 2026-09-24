@@ -56,6 +56,24 @@ export function getCachedOffsetMinutes(): number | null {
   return cachedOffsetMinutes;
 }
 
+/** Moves a "YYYY-MM-DD" key by `days` (negative = into the past). */
+export function shiftDateKey(key: string, days: number): string {
+  const [y, m, d] = key.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + days);
+  return `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
+}
+
+const UZ_MONTHS_FULL = [
+  "yanvar", "fevral", "mart", "aprel", "may", "iyun",
+  "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr",
+];
+
+/** "18 sentabr" for a "YYYY-MM-DD" key. */
+export function formatDateKeyUz(key: string): string {
+  const [, m, d] = key.split("-").map(Number);
+  return `${d} ${UZ_MONTHS_FULL[m - 1] ?? ""}`.trim();
+}
+
 /**
  * Normalizes a "YYYY-M-D" or "YYYY-MM-DD" date key to the zero-padded
  * "YYYY-MM-DD" form used everywhere. Diary entries / burned-calorie keys

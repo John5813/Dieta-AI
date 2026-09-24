@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { calculatePlan } from "@/lib/nutrition";
+import { WeightProgressCard } from "@/components/WeightProgressCard";
 import {
   getMealSchedule,
   getWaterSchedule,
@@ -110,7 +111,8 @@ function SettingRow({
 }
 
 export default function ProfileScreen() {
-  const { profile, setProfile, resetApp, entries, removeEntry } = useApp();
+  const { profile, setProfile, resetApp, entries, removeEntry, weightLog, logWeight, removeWeightEntry } =
+    useApp();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [editField, setEditField] = useState<EditField>(null);
@@ -293,6 +295,7 @@ export default function ProfileScreen() {
       carbs: newPlan.carbs,
       fat: newPlan.fat,
     });
+    if (field === "currentWeight") logWeight(value);
     setEditField(null);
   };
 
@@ -386,6 +389,16 @@ export default function ProfileScreen() {
             icon="info"
             onPress={() => setBmiOpen(true)}
             colors={colors}
+          />
+        </View>
+
+        <View style={styles.weightCardWrap}>
+          <WeightProgressCard
+            weightLog={weightLog}
+            targetWeight={profile.targetWeight}
+            goal={profile.goal}
+            onAddWeight={() => setEditField("currentWeight")}
+            onRemoveEntry={removeWeightEntry}
           />
         </View>
 
@@ -1693,6 +1706,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   flex1: { flex: 1 },
   content: { paddingHorizontal: 20 },
+  weightCardWrap: { marginBottom: 24 },
   profileHeader: { alignItems: "center", gap: 8, marginBottom: 24 },
   avatar: {
     width: 88,

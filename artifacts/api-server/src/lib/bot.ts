@@ -270,7 +270,7 @@ async function approvePayment(paymentId: string, durationMs = 365 * 24 * 60 * 60
       `${durationLabel} kirish uchun quyidagi <b>login va parolni</b> ilovaning faollashtirish bo'limiga kiriting.\n\n` +
       `🔑 <b>Login:</b>\n<code>${login}</code>\n\n` +
       `🔒 <b>Parol:</b>\n<code>${password}</code>\n\n` +
-      `⚠️ <i>Parol faqat <b>1 marta</b> ishlaydi.</i>`,
+      `⚠️ <i>Login va parolni saqlab qo'ying — telefon almashtirsangiz yoki ilovani qayta o'rnatsangiz, premiumni shu bilan tiklaysiz.</i>`,
     );
   }
 

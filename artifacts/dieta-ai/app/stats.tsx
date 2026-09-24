@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { WeightProgressCard } from "@/components/WeightProgressCard";
 
 type Range = "week" | "month";
 
@@ -76,7 +77,7 @@ function buildBuckets(
 }
 
 export default function StatsScreen() {
-  const { entries, burnedByDate, profile, todayKey, setAddFoodModalVisible } = useApp();
+  const { entries, burnedByDate, profile, todayKey, setAddFoodModalVisible, weightLog } = useApp();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -340,6 +341,13 @@ export default function StatsScreen() {
             tint={colors.accent}
           />
         </View>
+
+        <WeightProgressCard
+          weightLog={weightLog}
+          targetWeight={profile.targetWeight}
+          goal={profile.goal}
+          onAddWeight={() => router.navigate("/profile")}
+        />
 
         <View
           style={[

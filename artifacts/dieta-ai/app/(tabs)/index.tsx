@@ -1,8 +1,8 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Modal } from "react-native";
 import {
   Platform,
@@ -15,11 +15,16 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, LinearGradient as SvgLinGrad, Stop } from "react-native-svg";
 import { AddFoodModal } from "@/components/AddFoodModal";
+import { EditEntryModal } from "@/components/EditEntryModal";
 import { SuccessToast } from "@/components/SuccessToast";
 import { MacroCard } from "@/components/MacroCard";
 import { TourOverlay } from "@/components/TourOverlay";
-import { useApp } from "@/context/AppContext";
+import { useApp, type DiaryEntry } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { formatDateKeyUz, shiftDateKey } from "@/lib/date";
+
+/** How far back the home screen lets you browse / log forgotten meals. */
+const MAX_DAYS_BACK = 30;
 function HomeRing({ value, goal }: { value: number; goal: number }) {
   const size = 210;
   const stroke = 16;
@@ -104,6 +109,7 @@ export default function HomeScreen() {
     profile,
     entries,
     addEntry,
+    updateEntry,
     removeEntry,
     burnedByDate,
     addBurned,
@@ -146,13 +152,29 @@ export default function HomeScreen() {
     }
   }, [tourPending, clearTourPending]);
 
-  const dayEntries = entries.filter((e) => e.date === todayKey);
+  // Days back from today (0 = today). Stored as an offset rather than a date
+  // so that "today" keeps following the clock across midnight.
+  const [dayOffset, setDayOffset] = useState(0);
+  const [editingEntry, setEditingEntry] = useState<DiaryEntry | null>(null);
+  const isToday = dayOffset === 0;
+  const selectedKey = isToday ? todayKey : shiftDateKey(todayKey, -dayOffset);
+  const dayLabel = isToday ? "Bugun" : dayOffset === 1 ? "Kecha" : formatDateKeyUz(selectedKey);
+
+  // Leaving the home tab returns it to today, so the camera button on other
+  // tabs never silently logs food into a past day.
+  useFocusEffect(
+    useCallback(() => {
+      return () => setDayOffset(0);
+    }, []),
+  );
+
+  const dayEntries = entries.filter((e) => e.date === selectedKey);
 
   const rawCal = dayEntries.reduce((s, e) => s + (Number.isFinite(e.cal) ? e.cal : 0), 0);
   const totalProtein = dayEntries.reduce((s, e) => s + (Number.isFinite(e.protein) ? e.protein : 0), 0);
   const totalCarbs = dayEntries.reduce((s, e) => s + (Number.isFinite(e.carbs) ? e.carbs : 0), 0);
   const totalFat = dayEntries.reduce((s, e) => s + (Number.isFinite(e.fat) ? e.fat : 0), 0);
-  const burnedToday = burnedByDate[todayKey] ?? 0;
+  const burnedToday = burnedByDate[selectedKey] ?? 0;
   const totalCal = Math.max(0, rawCal - burnedToday);
 
   const goal = profile.dailyCalories ?? 1993;
@@ -177,20 +199,23 @@ export default function HomeScreen() {
     const protein = food.protein ?? Math.round((food.cal * 0.25) / 4);
     const carbs = food.carbs ?? Math.round((food.cal * 0.5) / 4);
     const fat = food.fat ?? Math.round((food.cal * 0.25) / 9);
-    addEntry({
-      name: food.name,
-      cal: food.cal,
-      source: food.source,
-      protein,
-      carbs,
-      fat,
-      portion: food.portion,
-      emoji: food.emoji,
-      imageUri: food.imageUri,
-    });
+    addEntry(
+      {
+        name: food.name,
+        cal: food.cal,
+        source: food.source,
+        protein,
+        carbs,
+        fat,
+        portion: food.portion,
+        emoji: food.emoji,
+        imageUri: food.imageUri,
+      },
+      isToday ? undefined : selectedKey,
+    );
     setToast({
       visible: true,
-      message: `${food.name} qo'shildi · +${Math.round(food.cal)} kkal`,
+      message: `${food.name} qo'shildi${isToday ? "" : ` (${dayLabel})`} · +${Math.round(food.cal)} kkal`,
     });
   };
 
@@ -247,6 +272,48 @@ export default function HomeScreen() {
             </View>
           </LinearGradient>
         </Pressable>
+
+        {/* Day navigator — browse and fill in past days */}
+        <View style={[styles.dayNav, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Pressable
+            onPress={() => setDayOffset((o) => Math.min(o + 1, MAX_DAYS_BACK))}
+            disabled={dayOffset >= MAX_DAYS_BACK}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Oldingi kun"
+            style={({ pressed }) => [
+              styles.dayNavBtn,
+              { opacity: dayOffset >= MAX_DAYS_BACK ? 0.3 : pressed ? 0.6 : 1 },
+            ]}
+          >
+            <Feather name="chevron-left" size={22} color={colors.primary} />
+          </Pressable>
+          <Pressable
+            onPress={() => setDayOffset(0)}
+            disabled={isToday}
+            accessibilityRole="button"
+            accessibilityLabel={isToday ? "Bugun" : "Bugunga qaytish"}
+            style={styles.dayNavCenter}
+          >
+            <Text style={[styles.dayNavTitle, { color: colors.text }]}>{dayLabel}</Text>
+            <Text style={[styles.dayNavSub, { color: colors.mutedForeground }]}>
+              {isToday ? formatDateKeyUz(selectedKey) : "Bugunga qaytish uchun bosing"}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setDayOffset((o) => Math.max(o - 1, 0))}
+            disabled={isToday}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Keyingi kun"
+            style={({ pressed }) => [
+              styles.dayNavBtn,
+              { opacity: isToday ? 0.3 : pressed ? 0.6 : 1 },
+            ]}
+          >
+            <Feather name="chevron-right" size={22} color={colors.primary} />
+          </Pressable>
+        </View>
 
         {/* Glowing Calorie Ring */}
         <View ref={ringWrapRef} style={styles.ringWrap}>
@@ -318,7 +385,7 @@ export default function HomeScreen() {
           </View>
         ) : null}
 
-        {(() => {
+        {isToday && (() => {
           const overCal = Math.max(totalCal - goal, 0);
           const overP = Math.max(totalProtein - goalProtein, 0);
           const overC = Math.max(totalCarbs - goalCarbs, 0);
@@ -448,7 +515,9 @@ export default function HomeScreen() {
         })()}
 
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Yaqinda iste'mol qilindi</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            {isToday ? "Yaqinda iste'mol qilindi" : `${dayLabel} ovqatlari`}
+          </Text>
           <Pressable
             onPress={() => router.push("/stats")}
             hitSlop={8}
@@ -471,21 +540,24 @@ export default function HomeScreen() {
             style={[styles.emptyCard, { backgroundColor: colors.secondary, borderColor: colors.border }]}
           >
             <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              Hozircha ma'lumot yo'q!
+              {isToday ? "Hozircha ma'lumot yo'q!" : `${dayLabel} uchun yozuv yo'q`}
             </Text>
             <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-              Bugungi ovqatlaringizni tez suratga olib kuzatishni boshlang
+              {isToday
+                ? "Bugungi ovqatlaringizni tez suratga olib kuzatishni boshlang"
+                : "Unutilgan ovqatni shu kunga qo'shish uchun pastdagi kamera tugmasini bosing"}
             </Text>
           </View>
         ) : (
           dayEntries.map((e) => (
             <Pressable
               key={e.id}
+              onPress={() => setEditingEntry(e)}
               onLongPress={() => handleDeleteEntry(e.id, e.name)}
               delayLongPress={400}
               accessibilityRole="button"
               accessibilityLabel={`${e.name}, ${e.cal} kaloriya`}
-              accessibilityHint="Yozuvni o'chirish uchun bosib turing"
+              accessibilityHint="Tahrirlash uchun bosing, o'chirish uchun bosib turing"
               style={({ pressed }) => [
                 styles.entryCard,
                 {
@@ -558,6 +630,21 @@ export default function HomeScreen() {
         visible={toast.visible}
         message={toast.message}
         onHide={() => setToast({ visible: false, message: "" })}
+      />
+
+      <EditEntryModal
+        visible={editingEntry !== null}
+        entry={editingEntry}
+        onClose={() => setEditingEntry(null)}
+        onSave={(patch) => {
+          if (editingEntry) updateEntry(editingEntry.id, patch);
+          setEditingEntry(null);
+          setToast({ visible: true, message: "Yozuv yangilandi" });
+        }}
+        onDelete={() => {
+          if (editingEntry) removeEntry(editingEntry.id);
+          setEditingEntry(null);
+        }}
       />
 
       <AddFoodModal
@@ -1164,6 +1251,19 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
   },
   ringWrap: { alignItems: "center", marginVertical: 16 },
+  dayNav: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    marginTop: 4,
+  },
+  dayNavBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  dayNavCenter: { flex: 1, alignItems: "center" },
+  dayNavTitle: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  dayNavSub: { fontSize: 11.5, fontFamily: "Inter_400Regular", marginTop: 1 },
   alertBox: {
     borderRadius: 16,
     borderWidth: 1.5,

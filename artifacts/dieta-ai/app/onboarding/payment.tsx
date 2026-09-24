@@ -134,10 +134,6 @@ export default function PaymentScreen() {
   };
 
   const redeemCredentials = async () => {
-    if (!init) {
-      setCredErr("Sessiya yuklanmoqda, bir oz kuting");
-      return;
-    }
     setCredErr(null);
     if (!login.trim() || !password.trim()) {
       setCredErr("Login va parolni kiriting");
@@ -145,7 +141,9 @@ export default function PaymentScreen() {
     }
     setRedeeming(true);
     try {
-      const r = await fetch(`${API_BASE}/api/payment/${init?.paymentId ?? "master"}/redeem`, {
+      // Server finds the payment by login, so an old purchase can be restored
+      // even before (or without) a new payment session being created.
+      const r = await fetch(`${API_BASE}/api/payment/${init?.paymentId ?? "restore"}/redeem`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ login: login.trim(), password: password.trim() }),
@@ -277,7 +275,8 @@ export default function PaymentScreen() {
             2-qadam — Login va parolni kiriting
           </Text>
           <Text style={[styles.sectionDesc, { color: colors.mutedForeground }]}>
-            Telegram bot tomonidan yuborilgan bir martalik login va parolni kiriting.
+            Telegram bot tomonidan yuborilgan login va parolni kiriting. Avval premium sotib
+            olgan bo'lsangiz, o'sha login va parol bilan premiumingiz tiklanadi.
           </Text>
 
           <Text style={[styles.label, { color: colors.text }]}>Login</Text>
@@ -332,7 +331,8 @@ export default function PaymentScreen() {
         <View style={[styles.helpNote, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
           <Feather name="info" size={14} color={colors.mutedForeground} style={{ marginTop: 2 }} />
           <Text style={[styles.helpText, { color: colors.mutedForeground }]}>
-            Login va parol faqat bir marta ishlatiladi. Muammolar bo'lsa, Telegram botda yordam so'rang.
+            Login va parolni saqlab qo'ying — telefon almashtirsangiz yoki ilovani qayta
+            o'rnatsangiz, premiumni shu bilan tiklaysiz. Muammolar bo'lsa, Telegram botda yordam so'rang.
           </Text>
         </View>
       </ScrollView>
