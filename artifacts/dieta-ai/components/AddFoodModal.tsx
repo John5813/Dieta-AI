@@ -1015,19 +1015,19 @@ interface Tip {
 
 const CAMERA_TIPS: Tip[] = [
   { emoji: "💡", title: "Yaxshi yorug'lik", desc: "Tabiiy kunduzgi yorug'lik eng aniq natija beradi" },
-  { emoji: "📐", title: "Yuqoridan oling", desc: "Kamerani tovoqqa to'g'ri (90°) tushadigan qiling" },
-  { emoji: "🍽️", title: "Bitta ovqat", desc: "Bir vaqtda bitta tovoqni rasmga oling" },
+  { emoji: "📐", title: "Yuqoridan oling", desc: "Kamerani likopchaga to'g'ri (90°) tushadigan qiling" },
+  { emoji: "🍽️", title: "Bitta ovqat", desc: "Bir vaqtda bitta likopchani rasmga oling" },
   { emoji: "📏", title: "Yaqin keling", desc: "Ovqat kadrning kamida 70%ini egallasin" },
 ];
 
 const GALLERY_TIPS: Tip[] = [
   { emoji: "✅", title: "Yangi rasm", desc: "Yaqinda olingan, yaxshi yoritilgan rasm", good: true },
-  { emoji: "✅", title: "Aniq tovoq", desc: "Bitta ovqat, ranglari aniq ko'rinadi", good: true },
+  { emoji: "✅", title: "Aniq likopcha", desc: "Bitta ovqat, ranglari aniq ko'rinadi", good: true },
   { emoji: "❌", title: "Yaroqsiz", desc: "Qorong'i, blur, ekrandan olingan yoki ko'p ovqat", good: false },
 ];
 
 const TEXT_TIPS: Tip[] = [
-  { emoji: "✅", title: "1 tovoq osh", desc: "Porsiya bilan: tovoq, kosa, stakan", good: true },
+  { emoji: "✅", title: "1 likopcha osh", desc: "Porsiya bilan: likopcha, kosa, stakan", good: true },
   { emoji: "✅", title: "200g guruch", desc: "Aniq gramm yoki millilitr ko'rsating", good: true },
   { emoji: "❌", title: "ovqat / kechki", desc: "Juda noaniq — AI miqdorni bila olmaydi", good: false },
 ];
@@ -1157,7 +1157,7 @@ function InstructionsStep({
         <TextInput
           value={textInput}
           onChangeText={setTextInput}
-          placeholder="Masalan: 1 tovoq osh"
+          placeholder="Masalan: 1 likopcha osh"
           placeholderTextColor={colors.mutedForeground}
           style={[
             styles.textField,
@@ -1836,8 +1836,8 @@ function AiConfirmStep({
       ? Math.round((food.cal / food.portionGrams) * 100)
       : null);
 
-  // Tabiiy birlik (dona/burda/tovoq/kosa/stakan/piyola/sixcha) yoki gramm/ml
-  const COUNT_UNITS = new Set(["dona", "burda", "tovoq", "kosa", "stakan", "piyola", "sixcha"]);
+  // Tabiiy birlik (dona/burda/likopcha/kosa/stakan/piyola/sixcha) yoki gramm/ml
+  const COUNT_UNITS = new Set(["dona", "burda", "likopcha", "kosa", "stakan", "piyola", "sixcha"]);
   const isCountUnit = food.unitName != null && COUNT_UNITS.has(food.unitName);
   const baseUnits = food.units && food.units > 0 ? food.units : 1;
   const unitNamePlural = food.unitName ?? unit;
@@ -2206,7 +2206,7 @@ function AiConfirmStep({
               value={editPortionText}
               onChangeText={setEditPortionText}
               style={[ac.input, { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
-              placeholder="masalan: 1 tovoq (350g)"
+              placeholder="masalan: 1 likopcha (350g)"
               placeholderTextColor={colors.mutedForeground}
             />
             <View style={ac.editGrid}>
