@@ -245,7 +245,7 @@ export default function HomeScreen() {
       >
         {/* Logo */}
         <Image
-          source={require("../../assets/images/logo.png")}
+          source={require("../../assets/images/logo-mark.png")}
           style={styles.headerLogo}
           contentFit="contain"
         />
@@ -1205,7 +1205,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Inter_600SemiBold",
   },
-  headerLogo: { width: 120, height: 120, alignSelf: "center", marginBottom: 4 },
+  // logo-mark.png is the bare rounded icon (330x344) with a transparent
+  // background, so it sits directly on the screen gradient.
+  headerLogo: { width: 72, height: 75, alignSelf: "center", marginBottom: 14 },
   aiBannerWrap: { marginBottom: 4 },
   aiBanner: {
     flexDirection: "row",
