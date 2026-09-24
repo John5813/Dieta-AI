@@ -1,11 +1,11 @@
 {
   "expo": {
     "name": "UzDieta AI - Kaloriya Hisobi",
-    "slug": "bir-burda",
-    "version": "1.0.8",
+    "slug": "uzdieta-ai",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "birburda",
+    "scheme": "uzdieta",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "splash": {
@@ -15,10 +15,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "uz.birburda.app"
+      "bundleIdentifier": "uz.uzdieta.app"
     },
     "android": {
-      "package": "uz.birburda.app",
+      "package": "uz.uzdieta.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#E8F5E9"
@@ -31,7 +31,7 @@
         "android.permission.RECORD_AUDIO"
       ],
       "newArchEnabled": true,
-      "versionCode": 14
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -56,11 +56,6 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    },
-    "extra": {
-      "eas": {
-        "projectId": "49924f1c-4f62-4ba9-8858-a91d759d6e41"
-      }
     },
     "owner": "javlon5813"
   }
