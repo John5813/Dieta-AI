@@ -34,6 +34,7 @@ import { router } from "expo-router";
 import { TRIAL_DAILY_SCAN_LIMIT, useApp, type ScanBlockReason } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { MEAL_INFO, MEAL_ORDER, mealForTime, type MealType } from "@/lib/meals";
+import { CustomFoodEditor } from "@/components/CustomFoodEditor";
 import { QuickAddStrip } from "@/components/QuickAddStrip";
 import { foodKey, useTracker, type SavedFood } from "@/context/TrackerContext";
 
@@ -236,6 +237,7 @@ export function AddFoodModal({
   const [errorDetected, setErrorDetected] = useState<string | null>(null);
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
   const [meal, setMeal] = useState<MealType>(() => initialMeal ?? mealForTime());
+  const [creatingFood, setCreatingFood] = useState(false);
   const onAdd = (foods: AddedFood[]) => onAddProp(foods.map((f) => ({ ...f, meal: f.meal ?? meal })));
 
   const fade = useRef(new Animated.Value(0)).current;
@@ -791,6 +793,7 @@ export function AddFoodModal({
                       isFavorite={isFavorite}
                       onToggleFavorite={(f) => toggleFavorite(savedFoodFields(f))}
                       onAdd={handleQuickAdd}
+                      onCreateMine={() => setCreatingFood(true)}
                     />
                   }
                   scanNote={
@@ -876,6 +879,7 @@ export function AddFoodModal({
           </Animated.View>
         </Animated.View>
       </KeyboardAvoidingView>
+      <CustomFoodEditor visible={creatingFood} onClose={() => setCreatingFood(false)} />
     </Modal>
   );
 }

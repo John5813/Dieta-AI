@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EditEntryModal } from "@/components/EditEntryModal";
+import { MyFoodsModal } from "@/components/profile/MyFoodsModal";
 import { NotificationsModal } from "@/components/profile/NotificationsModal";
 import { PremiumCard } from "@/components/profile/PremiumCard";
 import {
@@ -32,6 +33,7 @@ import {
   type Goal,
   type UserProfile,
 } from "@/context/AppContext";
+import { useTracker } from "@/context/TrackerContext";
 import { useColors } from "@/hooks/useColors";
 import { confirmAction } from "@/lib/confirm";
 import { calculateAge, calculatePlan, macrosForCalories } from "@/lib/nutrition";
@@ -181,6 +183,8 @@ export default function ProfileScreen() {
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [myFoodsOpen, setMyFoodsOpen] = useState(false);
+  const { customFoods, favorites } = useTracker();
   const [permStatus, setPermStatus] = useState<PermissionStatus>("undetermined");
 
   // Re-check on focus: the user may have toggled permission in system settings.
@@ -424,6 +428,16 @@ export default function ProfileScreen() {
 
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Ma'lumotlar</Text>
         <SettingRow
+          icon="book"
+          label="Mening taomlarim"
+          value={
+            customFoods.length + favorites.length > 0
+              ? `${customFoods.length} taom · ${favorites.length} sevimli`
+              : undefined
+          }
+          onPress={() => setMyFoodsOpen(true)}
+        />
+        <SettingRow
           icon="clock"
           label="Ovqatlanish tarixi"
           value={entries.length > 0 ? `${entries.length} yozuv` : undefined}
@@ -590,6 +604,8 @@ export default function ProfileScreen() {
         setProfile={setProfile}
         onPermissionChange={setPermStatus}
       />
+
+      <MyFoodsModal visible={myFoodsOpen} onClose={() => setMyFoodsOpen(false)} />
 
       <PrivacyModal
         visible={privacyOpen}
