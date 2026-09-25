@@ -22,6 +22,8 @@ import { TourOverlay } from "@/components/TourOverlay";
 import { useApp, type DiaryEntry } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { MealSections } from "@/components/home/MealSections";
+import { WaterCard } from "@/components/home/WaterCard";
+import { calculatePlan } from "@/lib/nutrition";
 import { confirmAction } from "@/lib/confirm";
 import { formatDateKeyUz, shiftDateKey } from "@/lib/date";
 import { MEAL_INFO, type MealType } from "@/lib/meals";
@@ -370,6 +372,8 @@ export default function HomeScreen() {
             color="#3B82F6"
           />
         </View>
+
+        <WaterCard dateKey={selectedKey} goalMl={calculatePlan(profile).waterMl} />
 
         {showCelebration ? (
           <View
