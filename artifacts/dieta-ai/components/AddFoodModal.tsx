@@ -34,6 +34,20 @@ import { router } from "expo-router";
 import { TRIAL_DAILY_SCAN_LIMIT, useApp, type ScanBlockReason } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { MEAL_INFO, MEAL_ORDER, mealForTime, type MealType } from "@/lib/meals";
+import { QuickAddStrip } from "@/components/QuickAddStrip";
+import { foodKey, useTracker, type SavedFood } from "@/context/TrackerContext";
+
+function savedFoodFields(f: SavedFood): Omit<SavedFood, "id"> {
+  return {
+    name: f.name,
+    emoji: f.emoji,
+    portion: f.portion,
+    cal: f.cal,
+    protein: f.protein,
+    carbs: f.carbs,
+    fat: f.fat,
+  };
+}
 import {
   CATEGORIES,
   FOOD_DB,
@@ -186,7 +200,30 @@ export function AddFoodModal({
   };
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { subscription, canScan, registerScan } = useApp();
+  const { subscription, canScan, registerScan, entries } = useApp();
+  const { favorites, customFoods, isFavorite, toggleFavorite } = useTracker();
+  // Latest distinct foods the user logged, newest first (entries are stored newest first).
+  const recentFoods = React.useMemo(() => {
+    const seen = new Set<string>();
+    const out: SavedFood[] = [];
+    for (const e of entries) {
+      const k = foodKey(e.name);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push({
+        id: e.id,
+        name: e.name,
+        emoji: e.emoji,
+        portion: e.portion,
+        cal: e.cal,
+        protein: e.protein,
+        carbs: e.carbs,
+        fat: e.fat,
+      });
+      if (out.length >= 15) break;
+    }
+    return out;
+  }, [entries]);
   const [step, setStep] = useState<Step>("choose");
   const [activeSource, setActiveSource] = useState<Source | null>(null);
   const [textInput, setTextInput] = useState("");
@@ -259,6 +296,23 @@ export function AddFoodModal({
         useNativeDriver: true,
       }).start();
     });
+  };
+
+  const handleQuickAdd = (f: SavedFood) => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    onAdd([
+      {
+        name: f.name,
+        cal: f.cal,
+        protein: f.protein,
+        carbs: f.carbs,
+        fat: f.fat,
+        portion: f.portion,
+        emoji: f.emoji,
+        source: "catalog",
+      },
+    ]);
+    onClose();
   };
 
   const handlePickVariant = (src: Source) => {
@@ -729,6 +783,16 @@ export function AddFoodModal({
                   onClose={onClose}
                   meal={meal}
                   onMealChange={setMeal}
+                  quickAdd={
+                    <QuickAddStrip
+                      recent={recentFoods}
+                      favorites={favorites}
+                      mine={customFoods}
+                      isFavorite={isFavorite}
+                      onToggleFavorite={(f) => toggleFavorite(savedFoodFields(f))}
+                      onAdd={handleQuickAdd}
+                    />
+                  }
                   scanNote={
                     subscription.status === "trial"
                       ? `Sinov: bugun ${canScan().remaining} / ${TRIAL_DAILY_SCAN_LIMIT} ta rasm tahlili qoldi`
@@ -965,17 +1029,26 @@ function ChooseStep({
   scanNote,
   meal,
   onMealChange,
+  quickAdd,
 }: {
   colors: ColorPalette;
   onPick: (s: Source) => void;
   onClose: () => void;
   meal: MealType;
   onMealChange: (m: MealType) => void;
+  quickAdd?: React.ReactNode;
   /** Trial allowance line shown under the photo options. */
   scanNote?: string;
 }) {
+  // Recent/favorite cards make this step taller than small phones — let it scroll.
+  const { height } = useWindowDimensions();
   return (
-    <View style={styles.stepWrap}>
+    <ScrollView
+      style={{ maxHeight: height * 0.86 }}
+      contentContainerStyle={styles.stepWrap}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={[styles.title, { color: colors.text }]}>Ovqat qo'shish</Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
         Qaysi ovqatga va qaysi yo'l bilan qo'shasiz?
@@ -1009,6 +1082,8 @@ function ChooseStep({
           );
         })}
       </View>
+
+      {quickAdd}
 
       <View style={styles.tileList}>
         <Tile
@@ -1054,7 +1129,7 @@ function ChooseStep({
       <TouchableOpacity onPress={onClose} style={styles.cancelBtn} accessibilityRole="button">
         <Text style={[styles.cancelText, { color: colors.mutedForeground }]}>Bekor qilish</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 

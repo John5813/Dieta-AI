@@ -14,6 +14,7 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { DiaryEntry, DiaryEntryPatch } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { useTracker } from "@/context/TrackerContext";
 import { confirmAction } from "@/lib/confirm";
 import { entryMeal, MEAL_INFO, MEAL_ORDER, type MealType } from "@/lib/meals";
 
@@ -46,6 +47,7 @@ export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Pr
   const [carbs, setCarbs] = useState("");
   const [fat, setFat] = useState("");
   const [meal, setMeal] = useState<MealType>("tushlik");
+  const { isFavorite, toggleFavorite } = useTracker();
 
   useEffect(() => {
     if (!visible || !entry) return;
@@ -59,6 +61,7 @@ export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Pr
   }, [visible, entry]);
 
   if (!entry) return null;
+  const fav = isFavorite(entry.name);
 
   const applyMult = (m: number) => {
     setMult(m);
@@ -154,6 +157,28 @@ export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Pr
                     {entry.portion ? ` · ${entry.portion}` : ""}
                   </Text>
                 </View>
+                <Pressable
+                  onPress={() =>
+                    toggleFavorite({
+                      name: entry.name,
+                      emoji: entry.emoji,
+                      portion: entry.portion,
+                      cal: entry.cal,
+                      protein: entry.protein,
+                      carbs: entry.carbs,
+                      fat: entry.fat,
+                    })
+                  }
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={fav ? "Sevimlilardan olib tashlash" : "Sevimliga qo'shish"}
+                  style={[
+                    styles.favBtn,
+                    { backgroundColor: fav ? "#FEF3C7" : colors.secondary },
+                  ]}
+                >
+                  <Feather name="star" size={18} color={fav ? "#F59E0B" : colors.mutedForeground} />
+                </Pressable>
               </View>
 
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Nomi</Text>
@@ -285,6 +310,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
   },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  favBtn: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, borderWidth: 1 },
   chipText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 },

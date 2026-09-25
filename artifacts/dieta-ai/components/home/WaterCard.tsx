@@ -16,7 +16,7 @@ export function WaterCard({ dateKey, goalMl }: { dateKey: string; goalMl: number
   const colors = useColors();
   const { waterByDate, addWater } = useTracker();
   const drunk = waterByDate[dateKey] ?? 0;
-  const glassesGoal = Math.min(14, Math.max(4, Math.round(goalMl / GLASS_ML)));
+  const glassesGoal = Math.min(12, Math.max(4, Math.round(goalMl / GLASS_ML)));
   const filled = Math.floor(drunk / GLASS_ML);
   const pct = Math.min(1, drunk / Math.max(goalMl, 1));
   const done = drunk >= goalMl;
@@ -68,7 +68,7 @@ export function WaterCard({ dateKey, goalMl }: { dateKey: string; goalMl: number
           >
             <MaterialCommunityIcons
               name={i < filled ? "cup-water" : "cup-outline"}
-              size={24}
+              size={22}
               color={i < filled ? WATER : colors.border}
             />
           </Pressable>
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   btnPrimary: { backgroundColor: WATER, borderColor: WATER },
-  glasses: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
+  glasses: { flexDirection: "row", justifyContent: "space-between" },
   track: { height: 6, borderRadius: 3, overflow: "hidden" },
   fill: { height: 6, borderRadius: 3, backgroundColor: WATER },
   hint: { fontSize: 11, fontFamily: "Inter_400Regular" },
