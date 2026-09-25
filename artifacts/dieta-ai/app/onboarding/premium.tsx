@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useApp } from "@/context/AppContext";
+import { isPremiumExpired, useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { calculatePlan } from "@/lib/nutrition";
 
@@ -88,7 +88,8 @@ export default function PremiumScreen() {
     subscription.status === "trial" &&
     subscription.trialStartedAt != null &&
     (Date.now() - subscription.trialStartedAt) / (1000 * 60 * 60 * 24) >= 1;
-  const isLocked = isExpired;
+  const premiumEnded = isPremiumExpired(subscription);
+  const isLocked = isExpired || premiumEnded;
   const insets = useSafeAreaInsets();
   const [showTrialOffer, setShowTrialOffer] = useState(false);
 
@@ -154,7 +155,9 @@ export default function PremiumScreen() {
         )}
         {isLocked && <View style={styles.closeBtn} />}
 
-        <Text style={[styles.title, { color: colors.text }]}>Shaxsiy reja tayyor</Text>
+        <Text style={[styles.title, { color: colors.text }]}>
+          {premiumEnded ? "Premium muddati tugadi" : "Shaxsiy reja tayyor"}
+        </Text>
 
         <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.chartLabels}>

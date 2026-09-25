@@ -1,9 +1,10 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
-import { Alert, type LayoutChangeEvent, Pressable, StyleSheet, Text, View } from "react-native";
+import { type LayoutChangeEvent, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 import type { Goal, WeightEntry } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { confirmAction } from "@/lib/confirm";
 import { formatDateKeyUz } from "@/lib/date";
 
 const CHART_H = 150;
@@ -108,19 +109,17 @@ export function WeightProgressCard({ weightLog, targetWeight, goal, onAddWeight,
 
   const recent = weightLog.slice(-5).reverse();
 
-  const confirmRemove = (w: WeightEntry) => {
+  const confirmRemove = async (w: WeightEntry) => {
     if (!onRemoveEntry) return;
-    Alert.alert("O'lchovni o'chirish", `${formatDateKeyUz(w.date)} · ${fmtKg(w.kg)} kg o'chirilsinmi?`, [
-      { text: "Bekor qilish", style: "cancel" },
-      {
-        text: "O'chirish",
-        style: "destructive",
-        onPress: () => {
-          setSelected(null);
-          onRemoveEntry(w.date);
-        },
-      },
-    ]);
+    const ok = await confirmAction({
+      title: "O'lchovni o'chirish",
+      message: `${formatDateKeyUz(w.date)} · ${fmtKg(w.kg)} kg o'chirilsinmi?`,
+      confirmText: "O'chirish",
+      destructive: true,
+    });
+    if (!ok) return;
+    setSelected(null);
+    onRemoveEntry(w.date);
   };
 
   return (

@@ -52,12 +52,11 @@ export default function TabLayout() {
     // Until storage is loaded, subscription is the "none" default — checking
     // it then would bounce paying users to the paywall on a deep link.
     if (loading) return;
-    if (subscription.status === "active") return;
     const result = canScan();
-    if (!result.allowed && (result.reason === "trial_expired" || result.reason === "locked")) {
+    if (!result.allowed && result.reason !== "daily_limit") {
       router.replace("/onboarding/premium" as never);
     }
-  }, [loading, subscription.status, subscription.trialStartedAt]);
+  }, [loading, subscription.status, subscription.trialStartedAt, subscription.premiumUntil]);
 
   // Tab bar pastroqqa tushiriladi: native va web bir xil ko'rinadi.
   // Bottom inset (home indicator) hisobga olinadi va qo'shimcha 14px joy beriladi.
