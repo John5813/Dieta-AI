@@ -88,6 +88,12 @@ export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Pr
       fat: fatN!,
     };
     if (meal !== entryMeal(entry)) patch.meal = meal;
+    // Sugar and sodium follow the calorie change (portion multiplier or typed value).
+    if (entry.cal > 0 && calN !== entry.cal) {
+      const ratio = calN! / entry.cal;
+      if (entry.sugar != null) patch.sugar = Math.round(entry.sugar * ratio);
+      if (entry.sodiumMg != null) patch.sodiumMg = Math.round(entry.sodiumMg * ratio);
+    }
     if (mult !== 1) {
       const base = (entry.portion ?? "porsiya").replace(/^[\d.]+×\s*/, "");
       patch.portion = `${fmtMult(mult)}× ${base}`;

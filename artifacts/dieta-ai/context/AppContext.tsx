@@ -108,7 +108,7 @@ export interface DiaryEntry {
 }
 
 export type DiaryEntryPatch = Partial<
-  Pick<DiaryEntry, "name" | "cal" | "protein" | "carbs" | "fat" | "portion" | "meal">
+  Pick<DiaryEntry, "name" | "cal" | "protein" | "carbs" | "fat" | "portion" | "meal" | "sugar" | "sodiumMg">
 >;
 
 export interface WeightEntry {

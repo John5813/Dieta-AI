@@ -79,6 +79,9 @@ interface AiResult {
   protein: number;
   carbs: number;
   fat: number;
+  /** Whole-portion sugar (g) and sodium (mg) from the AI, when given. */
+  sugar?: number;
+  sodium?: number;
   caloriesPer100?: number;
   unitPer100?: "g" | "ml";
   unitName?: string;
@@ -400,6 +403,8 @@ export function AddFoodModal({
         protein: analysis.protein ?? 0,
         carbs: analysis.carbs ?? 0,
         fat: analysis.fat ?? 0,
+        sugar: analysis.sugar,
+        sodium: analysis.sodium,
         caloriesPer100: analysis.caloriesPer100,
         unitPer100: analysis.unitPer100 ?? "g",
         unitName: analysis.unitName,
@@ -597,6 +602,10 @@ export function AddFoodModal({
       source: aiResult.source,
       imageUri: aiResult.imageUri,
     };
+    // Sugar/sodium come for the full AI portion; follow the portion the user settled on.
+    const ratio = aiResult.cal > 0 ? totals.cal / aiResult.cal : 1;
+    if (aiResult.sugar != null) main.sugar = Math.round(aiResult.sugar * ratio);
+    if (aiResult.sodium != null) main.sodiumMg = Math.round(aiResult.sodium * ratio);
     const sides: AddedFood[] = (aiResult.sides ?? [])
       .filter((s) => s.included)
       .map((s) => ({

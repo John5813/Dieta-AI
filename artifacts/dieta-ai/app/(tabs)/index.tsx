@@ -22,6 +22,7 @@ import { TourOverlay } from "@/components/TourOverlay";
 import { useApp, type DiaryEntry } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { MealSections } from "@/components/home/MealSections";
+import { SugarSaltRow } from "@/components/home/SugarSaltRow";
 import { WaterCard } from "@/components/home/WaterCard";
 import { calculatePlan } from "@/lib/nutrition";
 import { confirmAction } from "@/lib/confirm";
@@ -377,6 +378,7 @@ export default function HomeScreen() {
           />
         </View>
 
+        <SugarSaltRow entries={dayEntries} />
         <WaterCard dateKey={selectedKey} goalMl={calculatePlan(profile).waterMl} />
 
         {showCelebration ? (

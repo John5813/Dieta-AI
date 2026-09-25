@@ -41,7 +41,7 @@ const FOOD_ANALYSIS_SYSTEM = `Sen — O'zbekiston taomlarini chuqur biladigan, j
 JAVOB FAQAT JSON (markdown, izoh va boshqa matn YOQ):
 
 Agar haqiqiy ovqat aniqlansa:
-{"status":"ok","name":"Palov","emoji":"🍲","unitName":"likopcha","unitGrams":350,"units":1,"portion":"1 likopcha (~350g)","portionGrams":350,"calories":875,"protein":24,"carbs":95,"fat":42,"caloriesPer100":250,"unitPer100":"g","confidence":0.9,"recommendedUnits":0.5,"recommendedCal":438,"recommendedProtein":12,"recommendedCarbs":48,"recommendedFat":21,"coachAdvice":"Sizga 0.5 likopcha palov (~438 kkal) optimal — qolgan kaloriyangizga to'g'ri keladi."}
+{"status":"ok","name":"Palov","emoji":"🍲","unitName":"likopcha","unitGrams":350,"units":1,"portion":"1 likopcha (~350g)","portionGrams":350,"calories":875,"protein":24,"carbs":95,"fat":42,"sugar":6,"sodium":1400,"caloriesPer100":250,"unitPer100":"g","confidence":0.9,"recommendedUnits":0.5,"recommendedCal":438,"recommendedProtein":12,"recommendedCarbs":48,"recommendedFat":21,"coachAdvice":"Sizga 0.5 likopcha palov (~438 kkal) optimal — qolgan kaloriyangizga to'g'ri keladi."}
 
 Agar ovqat EMAS bo'lsa (tosh, mashina, hayvon, odam va h.k.):
 {"status":"not_food","detected":"mushuk","reason":"Bu ovqat emas. Iltimos, ovqat rasmini yuboring."}
@@ -177,6 +177,8 @@ QOLGAN MAYDONLAR:
 • name: o'zbekcha taom nomi (Palov, Manti, Somsa, Tuxum, Olma)
 • emoji: bitta mos emoji
 • calories, protein, carbs, fat: butun son, BUTUN porsiya uchun
+• sugar: qand miqdori (gramm, butun son), BUTUN porsiya uchun — shirinlik, ichimlik, meva, sousdagi qand ham
+• sodium: natriy (milligramm, butun son), BUTUN porsiya uchun — tuz, sho'r, kolbasa, sous, non hisobga olinsin
 • caloriesPer100: 100g/100ml uchun kaloriya
 • unitPer100: "g" yoki "ml"
 • confidence: 0.0–1.0
@@ -272,6 +274,8 @@ interface ParsedAnalysis {
   protein?: number;
   carbs?: number;
   fat?: number;
+  sugar?: number;
+  sodium?: number;
   caloriesPer100?: number;
   unitPer100?: "g" | "ml";
   unitName?: string;
@@ -524,6 +528,9 @@ function normalizeAnalysis(raw: ParsedAnalysis | null): ParsedAnalysis {
     protein,
     carbs,
     fat,
+    // Per whole portion; the model sometimes omits them for plain dishes.
+    sugar: Number.isFinite(raw.sugar) ? Math.max(0, Math.round(raw.sugar!)) : undefined,
+    sodium: Number.isFinite(raw.sodium) ? Math.max(0, Math.round(raw.sodium!)) : undefined,
     caloriesPer100,
     unitPer100,
     unitName,

@@ -88,6 +88,10 @@ export interface AiNutritionResponse {
   carbs?: number;
   fat?: number;
   fiber?: number;
+  /** Grams of sugar in the whole portion. */
+  sugar?: number;
+  /** Milligrams of sodium in the whole portion. */
+  sodium?: number;
   weight?: number;
   unit?: string;
   portion?: string;
