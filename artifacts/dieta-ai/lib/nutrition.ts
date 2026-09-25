@@ -25,9 +25,26 @@ export function calculateAge(birth?: { year: number; month: number; day: number 
   if (!birth) return 30;
   const now = new Date();
   let age = now.getFullYear() - birth.year;
-  const m = now.getMonth() + 1 - birth.month;
+  // birth.month is 0-based (0 = yanvar), same as Date#getMonth.
+  const m = now.getMonth() - birth.month;
   if (m < 0 || (m === 0 && now.getDate() < birth.day)) age--;
   return Math.max(age, 14);
+}
+
+/** Splits a daily calorie target into grams of protein, carbs and fat. */
+export function macrosForCalories(
+  calories: number,
+  weight: number,
+  goal: UserProfile["goal"] | undefined,
+): { protein: number; carbs: number; fat: number } {
+  // Protein: 2.0 g/kg cut, 1.8 maintain, 1.8 bulk
+  const proteinPerKg = goal === "ozish" ? 2.0 : 1.8;
+  const protein = Math.round(weight * proteinPerKg);
+  // Fat: 25% of calories
+  const fat = Math.round((calories * 0.25) / 9);
+  // Carbs: rest
+  const carbs = Math.max(Math.round((calories - protein * 4 - fat * 9) / 4), 0);
+  return { protein, carbs, fat };
 }
 
 export function calculatePlan(profile: Partial<UserProfile>): NutritionPlan {
@@ -78,17 +95,7 @@ export function calculatePlan(profile: Partial<UserProfile>): NutritionPlan {
   const isCaloriesClamped = rawCalories < minCal;
   calories = Math.round(calories / 10) * 10;
 
-  // Macros
-  // Protein: 2.0 g/kg cut, 1.8 maintain, 1.8 bulk
-  const proteinPerKg = goal === "ozish" ? 2.0 : 1.8;
-  const protein = Math.round(weight * proteinPerKg);
-  // Fat: 25% of calories
-  const fat = Math.round((calories * 0.25) / 9);
-  // Carbs: rest
-  const carbs = Math.max(
-    Math.round((calories - protein * 4 - fat * 9) / 4),
-    0,
-  );
+  const { protein, carbs, fat } = macrosForCalories(calories, weight, goal);
 
   const proteinKcal = protein * 4;
   const fatKcal = fat * 9;

@@ -1,7 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -15,6 +14,7 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { DiaryEntry, DiaryEntryPatch } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { confirmAction } from "@/lib/confirm";
 
 const MULTIPLIERS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
@@ -88,11 +88,14 @@ export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Pr
     onSave(patch);
   };
 
-  const confirmDelete = () => {
-    Alert.alert("Yozuvni o'chirish", `"${entry.name}" yozuvini o'chirmoqchimisiz?`, [
-      { text: "Bekor qilish", style: "cancel" },
-      { text: "O'chirish", style: "destructive", onPress: onDelete },
-    ]);
+  const confirmDelete = async () => {
+    const ok = await confirmAction({
+      title: "Yozuvni o'chirish",
+      message: `"${entry.name}" yozuvini o'chirmoqchimisiz?`,
+      confirmText: "O'chirish",
+      destructive: true,
+    });
+    if (ok) onDelete();
   };
 
   const numField = (

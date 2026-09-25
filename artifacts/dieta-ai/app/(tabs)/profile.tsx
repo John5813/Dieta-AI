@@ -1,38 +1,56 @@
 import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
   Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useApp } from "@/context/AppContext";
-import { useColors } from "@/hooks/useColors";
-import { calculatePlan } from "@/lib/nutrition";
+import { EditEntryModal } from "@/components/EditEntryModal";
+import { NotificationsModal } from "@/components/profile/NotificationsModal";
+import { PremiumCard } from "@/components/profile/PremiumCard";
+import {
+  BirthDateSheet,
+  CaloriesSheet,
+  ChoiceSheet,
+  MONTHS_UZ,
+  NumberSheet,
+  TextSheet,
+  type ChoiceOption,
+} from "@/components/profile/ProfileSheets";
 import { WeightProgressCard } from "@/components/WeightProgressCard";
 import {
+  useApp,
+  type DiaryEntryPatch,
+  type Gender,
+  type Goal,
+  type UserProfile,
+} from "@/context/AppContext";
+import { useColors } from "@/hooks/useColors";
+import { confirmAction } from "@/lib/confirm";
+import { calculateAge, calculatePlan, macrosForCalories } from "@/lib/nutrition";
+import {
   getMealSchedule,
-  getWaterSchedule,
-  getDailySummaryTime,
-  getMorningTime,
   getPermissionStatus,
-  openSystemSettings,
-  requestPermissionWithRationale,
-  sendTestNotification,
   type PermissionStatus,
 } from "@/lib/notifications";
 
-type EditField = "currentWeight" | "targetWeight" | null;
+type Editor =
+  | "currentWeight"
+  | "targetWeight"
+  | "name"
+  | "gender"
+  | "birthDate"
+  | "height"
+  | "goal"
+  | "calories"
+  | null;
 
 const SPEED_OPTIONS = [
   { value: 0.25, label: "0.25 kg", desc: "Sekin va qulay" },
@@ -62,6 +80,34 @@ const MEAL_OPTIONS = [
   { value: 6, label: "6 mahal", desc: "Sportchilar uchun" },
 ];
 
+const GOAL_OPTIONS: ChoiceOption<Goal>[] = [
+  { value: "ozish", label: "Vazn yo'qotish", desc: "Kaloriya kamomadi bilan ozish", icon: "trending-down" },
+  { value: "saqlash", label: "Vaznni saqlash", desc: "Hozirgi vaznda qolish", icon: "minus" },
+  { value: "oshirish", label: "Vazn oshirish", desc: "Kaloriya ortiqchasi bilan", icon: "trending-up" },
+];
+
+const GENDER_OPTIONS: ChoiceOption<Gender>[] = [
+  { value: "erkak", label: "Erkak", icon: "user" },
+  { value: "ayol", label: "Ayol", icon: "user" },
+];
+
+const GOAL_LABEL: Record<Goal, string> = {
+  ozish: "Vazn yo'qotish",
+  saqlash: "Vaznni saqlash",
+  oshirish: "Vazn oshirish",
+};
+
+/** Goal implied by a target weight: within ±0.5 kg counts as maintaining. */
+function goalForTarget(current: number, target: number): Goal {
+  const diff = target - current;
+  if (Math.abs(diff) < 0.5) return "saqlash";
+  return diff < 0 ? "ozish" : "oshirish";
+}
+
+function fmtKg(kg: number): string {
+  return String(Math.round(kg * 10) / 10);
+}
+
 function formatHm(h: number, m: number) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
@@ -70,12 +116,14 @@ function SettingRow({
   icon,
   label,
   value,
+  valueColor,
   onPress,
   danger,
 }: {
-  icon: string;
+  icon: keyof typeof Feather.glyphMap;
   label: string;
   value?: string;
+  valueColor?: string;
   onPress?: () => void;
   danger?: boolean;
 }) {
@@ -83,252 +131,153 @@ function SettingRow({
   return (
     <TouchableOpacity
       onPress={onPress}
+      disabled={!onPress}
       activeOpacity={0.7}
       style={[styles.settingRow, { backgroundColor: colors.card, borderColor: colors.border }]}
     >
       <View style={[styles.settingIcon, { backgroundColor: danger ? "#FEE2E2" : colors.secondary }]}>
-        <Feather
-          name={icon as keyof typeof Feather.glyphMap}
-          size={18}
-          color={danger ? colors.destructive : colors.primary}
-        />
+        <Feather name={icon} size={18} color={danger ? colors.destructive : colors.primary} />
       </View>
-      <Text
-        style={[
-          styles.settingLabel,
-          { color: danger ? colors.destructive : colors.text },
-        ]}
-      >
+      <Text style={[styles.settingLabel, { color: danger ? colors.destructive : colors.text }]}>
         {label}
       </Text>
-      <View style={{ flex: 1 }} />
-      {value ? (
-        <Text style={[styles.settingValue, { color: colors.mutedForeground }]}>{value}</Text>
+      <View style={styles.settingValueWrap}>
+        {value ? (
+          <Text
+            style={[styles.settingValue, { color: valueColor ?? colors.mutedForeground }]}
+            numberOfLines={1}
+          >
+            {value}
+          </Text>
+        ) : null}
+      </View>
+      {onPress && !danger ? (
+        <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
       ) : null}
-      {!danger && <Feather name="chevron-right" size={16} color={colors.mutedForeground} />}
     </TouchableOpacity>
   );
 }
 
 export default function ProfileScreen() {
-  const { profile, setProfile, resetApp, entries, removeEntry, weightLog, logWeight, removeWeightEntry } =
-    useApp();
+  const {
+    profile,
+    setProfile,
+    subscription,
+    resetApp,
+    entries,
+    updateEntry,
+    removeEntry,
+    weightLog,
+    logWeight,
+    removeWeightEntry,
+  } = useApp();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const [editField, setEditField] = useState<EditField>(null);
+  const [editor, setEditor] = useState<Editor>(null);
   const [bmiOpen, setBmiOpen] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
   const [mealsOpen, setMealsOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-
-  const notifEnabled = profile.notificationsEnabled !== false;
-  const mealEnabled = profile.mealRemindersEnabled !== false;
-  const waterEnabled = profile.waterRemindersEnabled !== false;
-  const summaryEnabled = profile.dailySummaryEnabled !== false;
-  const morningEnabled = profile.morningGreetingEnabled !== false;
-  const mealsCount = profile.mealsPerDay ?? 3;
-  const mealSlots = getMealSchedule(mealsCount);
-  const waterSlots = getWaterSchedule();
-  const summaryTime = getDailySummaryTime();
-  const morningTime = getMorningTime();
-
+  const [notifOpen, setNotifOpen] = useState(false);
   const [permStatus, setPermStatus] = useState<PermissionStatus>("undetermined");
-  const refreshPerm = React.useCallback(async () => {
-    const s = await getPermissionStatus();
-    setPermStatus(s);
-  }, []);
-  useEffect(() => {
-    refreshPerm();
-  }, [refreshPerm, notifEnabled, waterEnabled, summaryEnabled, morningEnabled]);
 
-  const handlePermissionFix = async () => {
-    if (Platform.OS === "web") return;
-    if (permStatus === "denied") {
-      Alert.alert(
-        "Eslatmalar bloklangan",
-        "Ilova sozlamalaridan bildirishnomalarga ruxsat bering. Aks holda eslatmalar yetib bormaydi.",
-        [
-          { text: "Bekor qilish", style: "cancel" },
-          { text: "Sozlamalarni ochish", onPress: () => openSystemSettings() },
-        ],
-      );
-    } else {
-      const ok = await requestPermissionWithRationale();
-      await refreshPerm();
-      if (ok) {
-        // Ruxsat berilgandan so'ng eslatmalar darhol qayta rejalashtirilsin.
-        // setProfile orqali bir qiymatni qayta o'rnatamiz — bu reschedule
-        // effektini qayta ishga tushiradi (notifications.ts endi getPermission
-        // tekshiradi va granted holatida muvaffaqiyatli rejalashtiradi).
-        setProfile({ notificationsEnabled: true });
-      }
-    }
-  };
-
-  const handleTestNotification = async () => {
-    if (Platform.OS === "web") {
-      Alert.alert("Mavjud emas", "Sinov bildirishnomasi faqat haqiqiy qurilmada ishlaydi.");
-      return;
-    }
-    const ok = await sendTestNotification();
-    await refreshPerm();
-    if (ok) {
-      Alert.alert(
-        "Sinov yuborildi",
-        "5 soniyadan so'ng bildirishnoma keladi. Ilovani yopib (yoki orqa fonga olib) kuting.",
-      );
-    } else {
-      Alert.alert(
-        "Yuborilmadi",
-        "Bildirishnomalar uchun ruxsat yo'q. Avval ruxsat bering yoki sozlamalardan oching.",
-        [
-          { text: "Yopish", style: "cancel" },
-          { text: "Sozlamalarni ochish", onPress: () => openSystemSettings() },
-        ],
-      );
-    }
-  };
+  // Re-check on focus: the user may have toggled permission in system settings.
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS === "web") return;
+      getPermissionStatus().then(setPermStatus).catch(() => {});
+    }, []),
+  );
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 100 : insets.bottom + 80;
+  const closeEditor = () => setEditor(null);
 
-  const MONTHS = [
-    "yanvar","fevral","mart","aprel","may","iyun",
-    "iyul","avgust","sentabr","oktabr","noyabr","dekabr",
-  ];
-
-  const doResetAndRedirect = async () => {
-    await resetApp();
-    router.replace("/onboarding/gender");
-  };
-
-  const handleReset = () => {
-    if (Platform.OS === "web") {
-      doResetAndRedirect();
-      return;
-    }
-    Alert.alert(
-      "Ilovani tiklash",
-      "Barcha ma'lumotlar o'chiriladi. Davom etasizmi?",
-      [
-        { text: "Bekor qilish", style: "cancel" },
-        { text: "Ha, o'chirish", style: "destructive", onPress: doResetAndRedirect },
-      ]
-    );
-  };
-
-  const handleLogout = () => {
-    setPrivacyOpen(false);
-    if (Platform.OS === "web") {
-      doResetAndRedirect();
-      return;
-    }
-    Alert.alert(
-      "Akauntdan chiqish",
-      "Akauntingizdan chiqasizmi? Qayta kirish uchun ma'lumotlaringizni qaytadan kiritishingiz kerak bo'ladi.",
-      [
-        { text: "Bekor qilish", style: "cancel" },
-        { text: "Chiqish", style: "destructive", onPress: doResetAndRedirect },
-      ]
-    );
-  };
-
-  const handleDeleteAccount = () => {
-    setPrivacyOpen(false);
-    if (Platform.OS === "web") {
-      doResetAndRedirect();
-      return;
-    }
-    Alert.alert(
-      "Akauntni o'chirish",
-      "DIQQAT! Akauntingiz, barcha ma'lumotlaringiz (ovqat tarixi, mashqlar, sozlamalar) va Premium obuna ham butunlay o'chiriladi. Bu amalni qaytarib bo'lmaydi.",
-      [
-        { text: "Bekor qilish", style: "cancel" },
-        {
-          text: "Ha, o'chirish",
-          style: "destructive",
-          onPress: () => {
-            Alert.alert(
-              "Tasdiqlash",
-              "Rostan ham akauntni va Premium obunani butunlay o'chirmoqchimisiz?",
-              [
-                { text: "Yo'q", style: "cancel" },
-                { text: "Ha, o'chirish", style: "destructive", onPress: doResetAndRedirect },
-              ]
-            );
-          },
-        },
-      ]
-    );
-  };
-
-  const saveActivity = (value: number) => {
-    const next = { ...profile, activityLevel: value };
-    const newPlan = calculatePlan(next);
+  /**
+   * Saves profile changes and re-derives the daily target from them. A manual
+   * calorie target survives; only its macro split follows the new weight/goal.
+   */
+  const applyProfile = (updates: Partial<UserProfile>) => {
+    const next = { ...profile, ...updates };
+    const manual = next.manualCalories === true && !!next.dailyCalories;
+    const plan = calculatePlan(next);
+    const calories = manual ? next.dailyCalories! : plan.calories;
+    const macros = manual
+      ? macrosForCalories(calories, next.currentWeight ?? 75, next.goal)
+      : plan;
     setProfile({
-      activityLevel: value,
-      dailyCalories: newPlan.calories,
-      protein: newPlan.protein,
-      carbs: newPlan.carbs,
-      fat: newPlan.fat,
+      ...updates,
+      dailyCalories: calories,
+      protein: macros.protein,
+      carbs: macros.carbs,
+      fat: macros.fat,
     });
-    setActivityOpen(false);
   };
+
+  const plan = calculatePlan(profile);
+  const autoPlan = calculatePlan({ ...profile, manualCalories: false });
+  const bmi = profile.currentWeight && profile.height ? plan.bmi : null;
+  const bmiCategory = bmi ? plan.bmiCategory : "—";
+  const mealsCount = profile.mealsPerDay ?? 3;
+  const goal = profile.goal ?? "ozish";
+  const displayName = profile.name?.trim() || "";
+  const initial = displayName ? displayName[0]!.toUpperCase() : null;
 
   const activityLabel =
     ACTIVITY_OPTIONS.find((o) => Math.abs(o.value - (profile.activityLevel ?? 1.375)) < 0.001)
       ?.label ?? "Yengil faol";
 
-  const plan = calculatePlan(profile);
-  const bmi = profile.currentWeight && profile.height ? plan.bmi : null;
-  const bmiCategory = bmi ? plan.bmiCategory : "—";
+  const notifLabel =
+    profile.notificationsEnabled === false
+      ? "O'chirilgan"
+      : Platform.OS !== "web" && permStatus === "denied"
+        ? "Ruxsat yo'q"
+        : "Yoqilgan";
 
-  const saveEdit = (field: "currentWeight" | "targetWeight", value: number) => {
-    const next = { ...profile, [field]: value };
-    const newPlan = calculatePlan(next);
-    setProfile({
-      [field]: value,
-      dailyCalories: newPlan.calories,
-      protein: newPlan.protein,
-      carbs: newPlan.carbs,
-      fat: newPlan.fat,
+  const saveWeight = (value: number) => {
+    applyProfile({ currentWeight: value });
+    logWeight(value);
+    closeEditor();
+  };
+
+  const saveTarget = (value: number) => {
+    const current = profile.currentWeight ?? value;
+    applyProfile({ targetWeight: value, goal: goalForTarget(current, value) });
+    closeEditor();
+  };
+
+  const saveGoal = (g: Goal) => {
+    const current = profile.currentWeight ?? 75;
+    let target = profile.targetWeight ?? current;
+    // Keep the target on the right side of the current weight for the new goal.
+    if (g === "saqlash") target = current;
+    else if (g === "ozish" && target >= current) target = Math.round(current - 5);
+    else if (g === "oshirish" && target <= current) target = Math.round(current + 5);
+    applyProfile({ goal: g, targetWeight: target });
+    closeEditor();
+  };
+
+  const handleReset = async () => {
+    setPrivacyOpen(false);
+    const restoreNote = subscription.login
+      ? `Premium yo'qolmaydi: "${subscription.login}" login va botdagi parol bilan qayta tiklaysiz.`
+      : "Premium yo'qolmaydi: botdan olgan login va parol bilan qayta tiklaysiz.";
+    const ok = await confirmAction({
+      title: "Barcha ma'lumotlarni o'chirish",
+      message: `Ovqat tarixi, vazn o'lchovlari, rejalar va sozlamalar shu telefondan butunlay o'chiriladi. Buni qaytarib bo'lmaydi.\n\n${restoreNote}`,
+      confirmText: "Ha, o'chirish",
+      destructive: true,
     });
-    if (field === "currentWeight") logWeight(value);
-    setEditField(null);
+    if (!ok) return;
+    await resetApp();
+    router.replace("/onboarding/gender");
   };
 
-  const saveSpeed = (value: number) => {
-    const next = { ...profile, speedKgPerWeek: value };
-    const newPlan = calculatePlan(next);
-    setProfile({
-      speedKgPerWeek: value,
-      dailyCalories: newPlan.calories,
-      protein: newPlan.protein,
-      carbs: newPlan.carbs,
-      fat: newPlan.fat,
-    });
-    setSpeedOpen(false);
-  };
-
-  const saveMeals = (value: number) => {
-    setProfile({ mealsPerDay: value });
-    setMealsOpen(false);
-  };
-
-  const toggleNotifications = async (value: boolean) => {
-    if (value && Platform.OS !== "web") {
-      // Avval ruxsat — keyin profil yangilanadi (reschedule muvaffaqiyatli ishlasin)
-      await requestPermissionWithRationale();
-      await refreshPerm();
-    }
-    setProfile({ notificationsEnabled: value });
-  };
-  const toggleMeal = (value: boolean) => setProfile({ mealRemindersEnabled: value });
-  const toggleWater = (value: boolean) => setProfile({ waterRemindersEnabled: value });
-  const toggleSummary = (value: boolean) => setProfile({ dailySummaryEnabled: value });
-  const toggleMorning = (value: boolean) => setProfile({ morningGreetingEnabled: value });
+  const birthLabel = profile.birthDate
+    ? `${profile.birthDate.day} ${MONTHS_UZ[profile.birthDate.month]?.slice(0, 3)} ${profile.birthDate.year} · ${calculateAge(profile.birthDate)} yosh`
+    : "Kiritilmagan";
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -340,46 +289,64 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.profileHeader}>
-          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-            <Feather name="user" size={36} color={colors.primaryForeground} />
-          </View>
-          <Text style={[styles.phone, { color: colors.text }]}>
-            {profile.phone ? `+998 ${profile.phone}` : "Foydalanuvchi"}
-          </Text>
-          <View style={[styles.goalBadge, { backgroundColor: colors.secondary }]}>
-            <Text style={[styles.goalText, { color: colors.primary }]}>
-              {profile.goal === "ozish"
-                ? "Ozish"
-                : profile.goal === "oshirish"
-                ? "Vazn oshirish"
-                : "Vaznni saqlash"}
+          <Pressable
+            onPress={() => setEditor("name")}
+            style={[styles.avatar, { backgroundColor: colors.primary }]}
+            accessibilityRole="button"
+            accessibilityLabel="Ismni o'zgartirish"
+          >
+            {initial ? (
+              <Text style={[styles.avatarLetter, { color: colors.primaryForeground }]}>{initial}</Text>
+            ) : (
+              <Feather name="user" size={36} color={colors.primaryForeground} />
+            )}
+          </Pressable>
+          <Pressable onPress={() => setEditor("name")} style={styles.nameRow} hitSlop={6}>
+            <Text style={[styles.name, { color: displayName ? colors.text : colors.mutedForeground }]}>
+              {displayName || "Ismingizni kiriting"}
             </Text>
-          </View>
+            <Feather name="edit-2" size={14} color={colors.mutedForeground} />
+          </Pressable>
+          {profile.phone ? (
+            <Text style={[styles.phone, { color: colors.mutedForeground }]}>+998 {profile.phone}</Text>
+          ) : null}
+          <Pressable
+            onPress={() => setEditor("goal")}
+            style={[styles.goalBadge, { backgroundColor: colors.secondary }]}
+          >
+            <Text style={[styles.goalText, { color: colors.primary }]}>{GOAL_LABEL[goal]}</Text>
+          </Pressable>
         </View>
+
+        <PremiumCard
+          subscription={subscription}
+          onBuy={() => router.push("/onboarding/payment")}
+          onRestore={() => router.push("/onboarding/payment")}
+        />
 
         <View style={styles.statsRow}>
           <StatCard
             label="Hozirgi vazn"
-            value={profile.currentWeight ? `${profile.currentWeight} kg` : "—"}
+            value={profile.currentWeight ? `${fmtKg(profile.currentWeight)} kg` : "—"}
             hint="O'zgartirish"
             icon="edit-2"
-            onPress={() => setEditField("currentWeight")}
+            onPress={() => setEditor("currentWeight")}
             colors={colors}
           />
           <StatCard
             label="Haftalik maqsad"
-            value={`${parseFloat((profile.speedKgPerWeek ?? 0.5).toFixed(2))} kg`}
-            hint="O'zgartirish"
+            value={goal === "saqlash" ? "—" : `${parseFloat((profile.speedKgPerWeek ?? 0.5).toFixed(2))} kg`}
+            hint={goal === "saqlash" ? "Saqlash rejimi" : "O'zgartirish"}
             icon="edit-2"
-            onPress={() => setSpeedOpen(true)}
+            onPress={() => (goal === "saqlash" ? setEditor("goal") : setSpeedOpen(true))}
             colors={colors}
           />
           <StatCard
             label="Yakuniy maqsad"
-            value={profile.targetWeight ? `${profile.targetWeight} kg` : "—"}
+            value={profile.targetWeight ? `${fmtKg(profile.targetWeight)} kg` : "—"}
             hint="O'zgartirish"
             icon="edit-2"
-            onPress={() => setEditField("targetWeight")}
+            onPress={() => setEditor("targetWeight")}
             colors={colors}
           />
           <StatCard
@@ -397,31 +364,27 @@ export default function ProfileScreen() {
             weightLog={weightLog}
             targetWeight={profile.targetWeight}
             goal={profile.goal}
-            onAddWeight={() => setEditField("currentWeight")}
+            onAddWeight={() => setEditor("currentWeight")}
             onRemoveEntry={removeWeightEntry}
           />
         </View>
 
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Ma'lumotlar</Text>
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Shaxsiy ma'lumotlar</Text>
+        <SettingRow icon="user" label="Ism" value={displayName || "Kiritilmagan"} onPress={() => setEditor("name")} />
         <SettingRow
-          icon="user"
+          icon="users"
           label="Jins"
           value={profile.gender === "erkak" ? "Erkak" : profile.gender === "ayol" ? "Ayol" : "—"}
+          onPress={() => setEditor("gender")}
         />
+        <SettingRow icon="calendar" label="Tug'ilgan sana" value={birthLabel} onPress={() => setEditor("birthDate")} />
         <SettingRow
-          icon="calendar"
-          label="Tug'ilgan sana"
-          value={
-            profile.birthDate
-              ? `${MONTHS[profile.birthDate.month]} ${profile.birthDate.day}, ${profile.birthDate.year}`
-              : "—"
-          }
+          icon="maximize-2"
+          label="Bo'y"
+          value={profile.height ? `${profile.height} sm` : "—"}
+          onPress={() => setEditor("height")}
         />
-        <SettingRow
-          icon="zap"
-          label="Kunlik kaloriya"
-          value={`${profile.dailyCalories ?? "—"} kal`}
-        />
+        <SettingRow icon="target" label="Maqsad" value={GOAL_LABEL[goal]} onPress={() => setEditor("goal")} />
         <SettingRow
           icon="activity"
           label="Faollik darajasi"
@@ -429,265 +392,18 @@ export default function ProfileScreen() {
           onPress={() => setActivityOpen(true)}
         />
 
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Eslatmalar</Text>
-
-        {Platform.OS !== "web" && notifEnabled && permStatus === "denied" && (
-          <Pressable
-            onPress={handlePermissionFix}
-            style={[
-              styles.permBanner,
-              { backgroundColor: "#FEF2F2", borderColor: "#FCA5A5" },
-            ]}
-          >
-            <Feather name="alert-triangle" size={18} color="#B91C1C" />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.permTitle, { color: "#991B1B" }]}>
-                Bildirishnomalar bloklangan
-              </Text>
-              <Text style={[styles.permSub, { color: "#991B1B" }]}>
-                Eslatmalar yetib bormaydi. Sozlamalardan ruxsat bering.
-              </Text>
-            </View>
-            <Feather name="chevron-right" size={20} color="#991B1B" />
-          </Pressable>
-        )}
-
-        {Platform.OS !== "web" && notifEnabled && permStatus === "undetermined" && (
-          <Pressable
-            onPress={handlePermissionFix}
-            style={[
-              styles.permBanner,
-              { backgroundColor: colors.secondary, borderColor: colors.primary },
-            ]}
-          >
-            <Feather name="bell" size={18} color={colors.primary} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.permTitle, { color: colors.primary }]}>
-                Eslatmalarga ruxsat bering
-              </Text>
-              <Text style={[styles.permSub, { color: colors.primary }]}>
-                Bosing va ruxsat oynasini tasdiqlang.
-              </Text>
-            </View>
-            <Feather name="chevron-right" size={20} color={colors.primary} />
-          </Pressable>
-        )}
-
-        <View
-          style={[
-            styles.notifCard,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-        >
-          <View style={styles.notifHeader}>
-            <View style={[styles.settingIcon, { backgroundColor: colors.secondary }]}>
-              <Feather name="bell" size={18} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.notifTitle, { color: colors.text }]}>
-                Barcha eslatmalar
-              </Text>
-              <Text style={[styles.notifSub, { color: colors.mutedForeground }]}>
-                {notifEnabled
-                  ? "Asosiy o'chirgich — pastdagi turlarni boshqaring"
-                  : "O'chirilgan — barcha eslatmalar to'xtaydi"}
-              </Text>
-            </View>
-            <Switch
-              value={notifEnabled}
-              onValueChange={toggleNotifications}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-        </View>
-
-        {notifEnabled && (
-          <>
-            <View
-              style={[
-                styles.notifCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-            >
-              <View style={styles.notifHeader}>
-                <View style={[styles.settingIcon, { backgroundColor: colors.secondary }]}>
-                  <Feather name="coffee" size={18} color={colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.notifTitle, { color: colors.text }]}>
-                    Ovqat eslatmalari
-                  </Text>
-                  <Text style={[styles.notifSub, { color: colors.mutedForeground }]}>
-                    {mealEnabled
-                      ? `Kuniga ${mealSlots.length} marta eslatma yuboriladi`
-                      : "O'chirilgan"}
-                  </Text>
-                </View>
-                <Switch
-                  value={mealEnabled}
-                  onValueChange={toggleMeal}
-                  trackColor={{ false: colors.border, true: colors.primary }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-              {mealEnabled && (
-                <View style={styles.timeChips}>
-                  {mealSlots.map((s, i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.timeChip,
-                        { backgroundColor: colors.secondary, borderColor: colors.primary },
-                      ]}
-                    >
-                      <Feather name="clock" size={11} color={colors.primary} />
-                      <Text style={[styles.timeText, { color: colors.primary }]}>
-                        {formatHm(s.hour, s.minute)}
-                      </Text>
-                      <Text style={[styles.timeLabel, { color: colors.primary }]}>
-                        {s.label}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            <View
-              style={[
-                styles.notifCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-            >
-              <View style={styles.notifHeader}>
-                <View style={[styles.settingIcon, { backgroundColor: "#DBEAFE" }]}>
-                  <Feather name="droplet" size={18} color="#2563EB" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.notifTitle, { color: colors.text }]}>
-                    Suv eslatmasi
-                  </Text>
-                  <Text style={[styles.notifSub, { color: colors.mutedForeground }]}>
-                    {waterEnabled
-                      ? `Kuniga ${waterSlots.length} marta — suv ichishni unutmang`
-                      : "O'chirilgan"}
-                  </Text>
-                </View>
-                <Switch
-                  value={waterEnabled}
-                  onValueChange={toggleWater}
-                  trackColor={{ false: colors.border, true: "#2563EB" }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-              {waterEnabled && (
-                <View style={styles.timeChips}>
-                  {waterSlots.map((s, i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.timeChip,
-                        { backgroundColor: "#DBEAFE", borderColor: "#2563EB" },
-                      ]}
-                    >
-                      <Feather name="clock" size={11} color="#2563EB" />
-                      <Text style={[styles.timeText, { color: "#2563EB" }]}>
-                        {formatHm(s.hour, s.minute)}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            <View
-              style={[
-                styles.notifCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-            >
-              <View style={styles.notifHeader}>
-                <View style={[styles.settingIcon, { backgroundColor: "#EDE9FE" }]}>
-                  <Feather name="moon" size={18} color="#7C3AED" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.notifTitle, { color: colors.text }]}>
-                    Kunni yopish
-                  </Text>
-                  <Text style={[styles.notifSub, { color: colors.mutedForeground }]}>
-                    {summaryEnabled
-                      ? `Har kuni ${formatHm(summaryTime.hour, summaryTime.minute)} da`
-                      : "O'chirilgan"}
-                  </Text>
-                </View>
-                <Switch
-                  value={summaryEnabled}
-                  onValueChange={toggleSummary}
-                  trackColor={{ false: colors.border, true: "#7C3AED" }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-            </View>
-
-            <View
-              style={[
-                styles.notifCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-            >
-              <View style={styles.notifHeader}>
-                <View style={[styles.settingIcon, { backgroundColor: "#FEF3C7" }]}>
-                  <Feather name="sun" size={18} color="#E07A1F" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.notifTitle, { color: colors.text }]}>
-                    Ertalabki motivatsiya
-                  </Text>
-                  <Text style={[styles.notifSub, { color: colors.mutedForeground }]}>
-                    {morningEnabled
-                      ? `Har kuni ${formatHm(morningTime.hour, morningTime.minute)} da`
-                      : "O'chirilgan"}
-                  </Text>
-                </View>
-                <Switch
-                  value={morningEnabled}
-                  onValueChange={toggleMorning}
-                  trackColor={{ false: colors.border, true: "#E07A1F" }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-            </View>
-
-            {Platform.OS !== "web" && (
-              <TouchableOpacity
-                onPress={handleTestNotification}
-                activeOpacity={0.85}
-                style={[
-                  styles.testBtn,
-                  { backgroundColor: colors.secondary, borderColor: colors.primary },
-                ]}
-              >
-                <Feather name="zap" size={16} color={colors.primary} />
-                <Text style={[styles.testBtnText, { color: colors.primary }]}>
-                  Sinov bildirishnomasini yuborish (5 soniya)
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {Platform.OS === "android" && (
-              <View style={[styles.batteryHint, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Feather name="info" size={14} color={colors.mutedForeground} />
-                <Text style={[styles.batteryHintText, { color: colors.mutedForeground }]}>
-                  Xiaomi, Samsung yoki Huawei qurilmalarida eslatma kelmasa,
-                  Sozlamalar → Ilovalar → UzDieta AI → Batareya bo'limidan
-                  &quot;Cheklanmagan&quot; rejimini yoqing.
-                </Text>
-              </View>
-            )}
-          </>
-        )}
-
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Kunlik reja</Text>
+        <SettingRow
+          icon="zap"
+          label="Kunlik kaloriya"
+          value={`${profile.dailyCalories ?? plan.calories} kkal · ${profile.manualCalories ? "qo'lda" : "avto"}`}
+          onPress={() => setEditor("calories")}
+        />
+        <SettingRow
+          icon="pie-chart"
+          label="Makrolar"
+          value={`B ${profile.protein ?? plan.protein}g · U ${profile.carbs ?? plan.carbs}g · Y ${profile.fat ?? plan.fat}g`}
+        />
         <SettingRow
           icon="coffee"
           label="Ovqatlanish soni"
@@ -695,44 +411,135 @@ export default function ProfileScreen() {
           onPress={() => setMealsOpen(true)}
         />
 
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Sozlamalar</Text>
-        <SettingRow icon="globe" label="Til" value="O'zbekcha" />
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Ilova</Text>
         <SettingRow
-          icon="shield"
-          label="Maxfiylik va xavfsizlik"
-          onPress={() => setPrivacyOpen(true)}
+          icon="bell"
+          label="Eslatmalar"
+          value={notifLabel}
+          valueColor={notifLabel === "Ruxsat yo'q" ? colors.destructive : undefined}
+          onPress={() => setNotifOpen(true)}
         />
+        <SettingRow icon="globe" label="Til" value="O'zbekcha" />
+        <SettingRow icon="shield" label="Maxfiylik siyosati" onPress={() => setPrivacyOpen(true)} />
 
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Ma'lumotlar tarixi</Text>
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Ma'lumotlar</Text>
         <SettingRow
           icon="clock"
           label="Ovqatlanish tarixi"
           value={entries.length > 0 ? `${entries.length} yozuv` : undefined}
           onPress={() => setHistoryOpen(true)}
         />
-
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Xavfli zona</Text>
-        <SettingRow
-          icon="refresh-ccw"
-          label="Ilovani tiklash"
-          onPress={handleReset}
-          danger
-        />
+        <SettingRow icon="trash-2" label="Barcha ma'lumotlarni o'chirish" onPress={handleReset} danger />
       </ScrollView>
 
-      <NumberEditModal
-        visible={editField !== null}
-        field={editField}
-        currentValue={
-          editField === "currentWeight"
-            ? profile.currentWeight
-            : editField === "targetWeight"
-              ? profile.targetWeight
-              : undefined
-        }
-        onClose={() => setEditField(null)}
-        onSave={saveEdit}
-        colors={colors}
+      <NumberSheet
+        visible={editor === "currentWeight"}
+        onClose={closeEditor}
+        icon="user"
+        title="Hozirgi vazn"
+        desc="Tarozidagi vazningizni kiriting. U grafikka yoziladi va kunlik norma qayta hisoblanadi."
+        unit="kg"
+        min={30}
+        max={250}
+        initial={profile.currentWeight}
+        onSave={saveWeight}
+      />
+      <NumberSheet
+        visible={editor === "targetWeight"}
+        onClose={closeEditor}
+        icon="target"
+        title="Yakuniy maqsad"
+        desc="Yetmoqchi bo'lgan vazningiz. Maqsad turi shunga qarab o'zi tanlanadi."
+        unit="kg"
+        min={30}
+        max={250}
+        initial={profile.targetWeight}
+        hint={(v) => {
+          const current = profile.currentWeight;
+          if (!current) return null;
+          const g = goalForTarget(current, v);
+          if (g === "saqlash") return "Maqsad: vaznni saqlash";
+          const diff = Math.abs(v - current);
+          return `Maqsad: ${GOAL_LABEL[g].toLowerCase()} — ${fmtKg(diff)} kg ${g === "ozish" ? "kamaytirish" : "qo'shish"}`;
+        }}
+        onSave={saveTarget}
+      />
+      <NumberSheet
+        visible={editor === "height"}
+        onClose={closeEditor}
+        icon="maximize-2"
+        title="Bo'y"
+        desc="BMI va kunlik kaloriya bo'yingizga qarab hisoblanadi."
+        unit="sm"
+        min={120}
+        max={230}
+        integer
+        initial={profile.height}
+        onSave={(v) => {
+          applyProfile({ height: v });
+          closeEditor();
+        }}
+      />
+      <TextSheet
+        visible={editor === "name"}
+        onClose={closeEditor}
+        icon="user"
+        title="Ismingiz"
+        desc="AI murabbiy sizga shu ism bilan murojaat qiladi."
+        placeholder="Ismingiz"
+        initial={profile.name}
+        onSave={(v) => {
+          setProfile({ name: v });
+          closeEditor();
+        }}
+      />
+      <ChoiceSheet
+        visible={editor === "gender"}
+        onClose={closeEditor}
+        icon="users"
+        title="Jins"
+        desc="Kunlik kaloriya normasi erkak va ayol uchun turlicha hisoblanadi."
+        options={GENDER_OPTIONS}
+        current={profile.gender}
+        onSelect={(v) => {
+          applyProfile({ gender: v });
+          closeEditor();
+        }}
+      />
+      <ChoiceSheet
+        visible={editor === "goal"}
+        onClose={closeEditor}
+        icon="target"
+        title="Maqsad"
+        desc="Kunlik kaloriya maqsadga qarab qayta hisoblanadi."
+        options={GOAL_OPTIONS}
+        current={goal}
+        onSelect={saveGoal}
+      />
+      <BirthDateSheet
+        visible={editor === "birthDate"}
+        onClose={closeEditor}
+        initial={profile.birthDate}
+        onSave={(v) => {
+          applyProfile({ birthDate: v });
+          closeEditor();
+        }}
+      />
+      <CaloriesSheet
+        visible={editor === "calories"}
+        onClose={closeEditor}
+        autoCalories={autoPlan.calories}
+        current={profile.dailyCalories}
+        manual={profile.manualCalories === true}
+        minCalories={autoPlan.minCalories}
+        onSave={(v) => {
+          applyProfile({ manualCalories: true, dailyCalories: v });
+          closeEditor();
+        }}
+        onUseAuto={() => {
+          applyProfile({ manualCalories: false });
+          closeEditor();
+        }}
       />
 
       <BmiInfoModal
@@ -747,7 +554,10 @@ export default function ProfileScreen() {
         visible={speedOpen}
         current={profile.speedKgPerWeek ?? 0.5}
         onClose={() => setSpeedOpen(false)}
-        onSave={saveSpeed}
+        onSave={(v) => {
+          applyProfile({ speedKgPerWeek: v });
+          setSpeedOpen(false);
+        }}
         colors={colors}
       />
 
@@ -755,7 +565,10 @@ export default function ProfileScreen() {
         visible={mealsOpen}
         current={mealsCount}
         onClose={() => setMealsOpen(false)}
-        onSave={saveMeals}
+        onSave={(v) => {
+          setProfile({ mealsPerDay: v });
+          setMealsOpen(false);
+        }}
         colors={colors}
       />
 
@@ -763,15 +576,25 @@ export default function ProfileScreen() {
         visible={activityOpen}
         current={profile.activityLevel ?? 1.375}
         onClose={() => setActivityOpen(false)}
-        onSave={saveActivity}
+        onSave={(v) => {
+          applyProfile({ activityLevel: v });
+          setActivityOpen(false);
+        }}
         colors={colors}
+      />
+
+      <NotificationsModal
+        visible={notifOpen}
+        onClose={() => setNotifOpen(false)}
+        profile={profile}
+        setProfile={setProfile}
+        onPermissionChange={setPermStatus}
       />
 
       <PrivacyModal
         visible={privacyOpen}
         onClose={() => setPrivacyOpen(false)}
-        onLogout={handleLogout}
-        onDeleteAccount={handleDeleteAccount}
+        onDeleteData={handleReset}
         colors={colors}
       />
 
@@ -779,6 +602,7 @@ export default function ProfileScreen() {
         visible={historyOpen}
         onClose={() => setHistoryOpen(false)}
         entries={entries}
+        onUpdateEntry={updateEntry}
         onRemoveEntry={removeEntry}
         colors={colors}
       />
@@ -790,26 +614,29 @@ function HistoryModal({
   visible,
   onClose,
   entries,
+  onUpdateEntry,
   onRemoveEntry,
   colors,
 }: {
   visible: boolean;
   onClose: () => void;
   entries: import("@/context/AppContext").DiaryEntry[];
+  onUpdateEntry: (id: string, patch: DiaryEntryPatch) => void;
   onRemoveEntry: (id: string) => void;
   colors: ReturnType<typeof useColors>;
 }) {
   const insets = useSafeAreaInsets();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editing = editingId ? entries.find((e) => e.id === editingId) ?? null : null;
 
-  const handleDelete = (id: string, name: string) => {
-    Alert.alert(
-      "Yozuvni o'chirish",
-      `"${name}" yozuvini o'chirmoqchimisiz?`,
-      [
-        { text: "Bekor qilish", style: "cancel" },
-        { text: "O'chirish", style: "destructive", onPress: () => onRemoveEntry(id) },
-      ],
-    );
+  const handleDelete = async (id: string, name: string) => {
+    const ok = await confirmAction({
+      title: "Yozuvni o'chirish",
+      message: `"${name}" yozuvini o'chirmoqchimisiz?`,
+      confirmText: "O'chirish",
+      destructive: true,
+    });
+    if (ok) onRemoveEntry(id);
   };
 
   const grouped = React.useMemo(() => {
@@ -870,7 +697,9 @@ function HistoryModal({
           <View style={{ flex: 1 }}>
             <Text style={[styles.histTitle, { color: colors.text }]}>Ovqatlanish tarixi</Text>
             <Text style={[styles.histSub, { color: colors.mutedForeground }]}>
-              {grouped.length > 0 ? `${grouped.length} kun, jami ${entries.length} yozuv` : "Yozuvlar yo'q"}
+              {grouped.length > 0
+                ? `${grouped.length} kun, jami ${entries.length} yozuv · tahrirlash uchun bosing`
+                : "Yozuvlar yo'q"}
             </Text>
           </View>
           <Feather name="clock" size={22} color={colors.primary} />
@@ -906,11 +735,18 @@ function HistoryModal({
                 </View>
 
                 {group.entries.map((e) => (
-                  <View
+                  <Pressable
                     key={e.id}
-                    style={[
+                    onPress={() => setEditingId(e.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${e.name} — tahrirlash`}
+                    style={({ pressed }) => [
                       styles.histEntryRow,
-                      { backgroundColor: colors.card, borderColor: colors.border },
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                        opacity: pressed ? 0.85 : 1,
+                      },
                     ]}
                   >
                     <View
@@ -955,7 +791,7 @@ function HistoryModal({
                     >
                       <Feather name="trash-2" size={15} color={colors.destructive} />
                     </Pressable>
-                  </View>
+                  </Pressable>
                 ))}
 
                 <View
@@ -975,6 +811,20 @@ function HistoryModal({
             ))}
           </ScrollView>
         )}
+
+        <EditEntryModal
+          visible={editing !== null}
+          entry={editing}
+          onClose={() => setEditingId(null)}
+          onSave={(patch) => {
+            if (editing) onUpdateEntry(editing.id, patch);
+            setEditingId(null);
+          }}
+          onDelete={() => {
+            if (editing) onRemoveEntry(editing.id);
+            setEditingId(null);
+          }}
+        />
       </View>
     </Modal>
   );
@@ -1095,17 +945,49 @@ function ActivityPickerModal({
 function PrivacyModal({
   visible,
   onClose,
-  onLogout,
-  onDeleteAccount,
+  onDeleteData,
   colors,
 }: {
   visible: boolean;
   onClose: () => void;
-  onLogout: () => void;
-  onDeleteAccount: () => void;
+  onDeleteData: () => void;
   colors: ReturnType<typeof useColors>;
 }) {
   const insets = useSafeAreaInsets();
+  const sections: Array<{ title: string; body: string }> = [
+    {
+      title: "Ilova va dasturchi",
+      body: "Ilova nomi: UzDieta AI - Kaloriya Hisobi\nDasturchi: Muydinov Javlonbek",
+    },
+    {
+      title: "Qurilmada saqlanadigan ma'lumotlar",
+      body:
+        "Profilingiz (yosh, jins, bo'y, vazn, maqsad), ovqatlanish tarixi, vazn o'lchovlari va " +
+        "sozlamalar faqat shu telefonda saqlanadi. Biz ularni serverimizga yozmaymiz. Ilova " +
+        "o'chirilsa yoki \"Barcha ma'lumotlarni o'chirish\" bosilsa, ular butunlay yo'qoladi.",
+    },
+    {
+      title: "AI tahlil",
+      body:
+        "Ovqat rasmi yoki yozgan matningiz tahlil uchun serverimiz orqali AI xizmatiga yuboriladi. " +
+        "Aniqroq tavsiya berish uchun so'rov bilan birga yosh, vazn, maqsad va kunlik normangiz ham " +
+        "yuboriladi. Serverimiz rasm va matnlarni saqlamaydi.",
+    },
+    {
+      title: "Premium to'lovi",
+      body:
+        "Premium sotib olayotganda ismingiz, telefon raqamingiz, Telegram akkauntingiz va to'lov " +
+        "cheki serverimizda saqlanadi. Ular to'lovni tasdiqlash va keyinchalik Premiumni login " +
+        "orqali tiklash uchun kerak. Bu ma'lumotlarni o'chirishni Telegram bot orqali so'rashingiz " +
+        "mumkin.",
+    },
+    {
+      title: "Xavfsizlik",
+      body:
+        "Ilova va server o'rtasidagi barcha so'rovlar HTTPS orqali shifrlangan holda yuboriladi. " +
+        "Parolingiz serverda ochiq holda emas, faqat xesh ko'rinishida saqlanadi.",
+    },
+  ];
   return (
     <Modal
       visible={visible}
@@ -1126,9 +1008,7 @@ function PrivacyModal({
           <Pressable onPress={onClose} hitSlop={10} style={{ padding: 4 }}>
             <Feather name="x" size={24} color={colors.text} />
           </Pressable>
-          <Text style={[styles.privacyTitle, { color: colors.text }]}>
-            Maxfiylik va xavfsizlik
-          </Text>
+          <Text style={[styles.privacyTitle, { color: colors.text }]}>Maxfiylik siyosati</Text>
           <View style={{ width: 32 }} />
         </View>
 
@@ -1136,68 +1016,16 @@ function PrivacyModal({
           contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 32 }}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={[styles.privacySection, { color: colors.text }]}>
-            Ilova va Dasturchi haqida
-          </Text>
-          <Text style={[styles.privacyText, { color: colors.mutedForeground }]}>
-            Ilova nomi: UzDieta AI - Kaloriya Hisobi{"\n"}
-            Dasturchi: Muydinov Javlonbek
-          </Text>
-
-          <Text style={[styles.privacySection, { color: colors.text, marginTop: 24 }]}>
-            Maxfiylik siyosati
-          </Text>
-          <Text style={[styles.privacyText, { color: colors.mutedForeground }]}>
-            Ushbu siyosat UzDieta AI - Kaloriya Hisobi ilovasiga tegishli bo'lib, uni
-            Muydinov Javlonbek ishlab chiqargan.{"\n\n"}
-            Ilovamiz sizning maxfiyligingizni qadrlaydi. Foydalanuvchilarning shaxsiy
-            va sog'liq ma'lumotlari (yosh, vazn, ovqatlanish tarixi) serverlarimizda
-            saqlanmaydi. Barcha ma'lumotlar faqat foydalanuvchining o'z qurilmasida
-            (xotirasida) saqlanadi.{"\n\n"}
-            AI tahlili uchun ovqat rasmlari va matn so'rovlari xavfsiz kanal orqali
-            ishlanadi va saqlanmaydi.
-          </Text>
-
-          <Text style={[styles.privacySection, { color: colors.text, marginTop: 24 }]}>
-            Ma'lumotlarni saqlash (Data Retention)
-          </Text>
-          <Text style={[styles.privacyText, { color: colors.mutedForeground }]}>
-            Foydalanuvchilarning shaxsiy va sog'liq ma'lumotlari (yosh, vazn,
-            ovqatlanish tarixi) serverlarimizda saqlanmaydi. Barcha ma'lumotlar faqat
-            foydalanuvchining o'z qurilmasida (xotirasida) saqlanadi va ilova
-            o'chirilganda avtomatik ravishda yo'qoladi.{"\n\n"}
-            Foydalanuvchi akkountini o'chirganda barcha ma'lumotlar darhol
-            qurilmadan o'chiriladi.
-          </Text>
-
-          <Text style={[styles.privacySection, { color: colors.text, marginTop: 24 }]}>
-            Ma'lumotlar xavfsizligi
-          </Text>
-          <Text style={[styles.privacyText, { color: colors.mutedForeground }]}>
-            Ma'lumotlaringiz qurilmangizning shifrlangan xotirasida saqlanadi.
-            Internet orqali yuboriladigan har qanday so'rov HTTPS orqali himoyalangan.
-          </Text>
+          {sections.map((sec, i) => (
+            <View key={sec.title} style={{ marginTop: i === 0 ? 0 : 24 }}>
+              <Text style={[styles.privacySection, { color: colors.text }]}>{sec.title}</Text>
+              <Text style={[styles.privacyText, { color: colors.mutedForeground }]}>{sec.body}</Text>
+            </View>
+          ))}
 
           <View style={{ marginTop: 28, gap: 10 }}>
             <Pressable
-              onPress={onLogout}
-              style={({ pressed }) => [
-                styles.privacyBtn,
-                {
-                  backgroundColor: colors.secondary,
-                  borderColor: colors.border,
-                  opacity: pressed ? 0.85 : 1,
-                },
-              ]}
-            >
-              <Feather name="log-out" size={18} color={colors.text} />
-              <Text style={[styles.privacyBtnText, { color: colors.text }]}>
-                Akauntdan chiqish
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={onDeleteAccount}
+              onPress={onDeleteData}
               style={({ pressed }) => [
                 styles.privacyBtn,
                 {
@@ -1209,13 +1037,13 @@ function PrivacyModal({
             >
               <Feather name="trash-2" size={18} color={colors.destructive} />
               <Text style={[styles.privacyBtnText, { color: colors.destructive }]}>
-                Akauntni butunlay o'chirish
+                Barcha ma'lumotlarni o'chirish
               </Text>
             </Pressable>
 
             <Text style={[styles.privacyHint, { color: colors.mutedForeground }]}>
-              Akauntni o'chirsangiz, barcha ma'lumotlaringiz qaytarib bo'lmas tarzda
-              yo'qoladi va siz boshlang'ich sozlash jarayonidan qaytadan o'tasiz.
+              Telefondagi barcha ma'lumotlar o'chadi va boshlang'ich sozlashdan qaytadan o'tasiz.
+              Premium esa login va parol bilan qayta tiklanadi.
             </Text>
           </View>
         </ScrollView>
@@ -1479,119 +1307,6 @@ function StatCard({
   );
 }
 
-function NumberEditModal({
-  visible,
-  field,
-  currentValue,
-  onClose,
-  onSave,
-  colors,
-}: {
-  visible: boolean;
-  field: EditField;
-  currentValue?: number;
-  onClose: () => void;
-  onSave: (field: "currentWeight" | "targetWeight", value: number) => void;
-  colors: ReturnType<typeof useColors>;
-}) {
-  const [text, setText] = useState("");
-
-  useEffect(() => {
-    if (visible) {
-      setText(currentValue ? String(currentValue) : "");
-    }
-  }, [visible, currentValue]);
-
-  const isWeight = field === "currentWeight";
-  const title = isWeight ? "Hozirgi vazn" : "Maqsadli vazn";
-  const desc = isWeight
-    ? "Tarozidagi haqiqiy vazningizni kiriting. Bu raqam asosida kunlik kaloriya va makro qayta hisoblanadi."
-    : "Yetmoqchi bo'lgan vazningizni kiriting. Maqsadgacha qancha vaqt qolganini aniqlash uchun kerak.";
-  const num = parseFloat(text.replace(",", "."));
-  const valid = !Number.isNaN(num) && num >= 30 && num <= 250;
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
-      <KeyboardAvoidingView
-        behavior="padding"
-        keyboardVerticalOffset={0}
-        style={styles.flex1}
-      >
-        <Pressable style={styles.backdrop} onPress={onClose}>
-          <Pressable
-            style={[styles.editSheet, { backgroundColor: colors.card }]}
-            onPress={() => {}}
-          >
-            <View style={[styles.handle, { backgroundColor: colors.border }]} />
-
-            <View style={styles.editHeader}>
-              <View style={[styles.editIcon, { backgroundColor: colors.primary }]}>
-                <Feather name={isWeight ? "user" : "target"} size={20} color="#FFFFFF" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.editTitle, { color: colors.text }]}>{title}</Text>
-                <Text style={[styles.editDesc, { color: colors.mutedForeground }]}>{desc}</Text>
-              </View>
-            </View>
-
-            <View
-              style={[
-                styles.numField,
-                { backgroundColor: colors.input, borderColor: colors.border },
-              ]}
-            >
-              <TextInput
-                value={text}
-                onChangeText={setText}
-                keyboardType="decimal-pad"
-                placeholder="0"
-                placeholderTextColor={colors.mutedForeground}
-                style={[styles.numInput, { color: colors.text }]}
-                autoFocus
-                selectTextOnFocus
-              />
-              <Text style={[styles.unitText, { color: colors.mutedForeground }]}>kg</Text>
-            </View>
-
-            {!valid && text.length > 0 ? (
-              <Text style={styles.warnText}>30 va 250 kg orasida kiriting</Text>
-            ) : null}
-
-            <Pressable
-              onPress={() => {
-                if (valid && field) onSave(field, num);
-              }}
-              disabled={!valid || !field}
-              style={({ pressed }) => [
-                styles.saveBtn,
-                {
-                  backgroundColor: valid ? colors.primary : colors.mutedForeground,
-                  opacity: pressed && valid ? 0.85 : 1,
-                },
-              ]}
-            >
-              <Feather name="check" size={20} color="#FFFFFF" />
-              <Text style={styles.saveText}>Saqlash</Text>
-            </Pressable>
-
-            <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
-              <Text style={[styles.cancelText, { color: colors.mutedForeground }]}>
-                Bekor qilish
-              </Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-}
-
 function BmiInfoModal({
   visible,
   bmi,
@@ -1704,7 +1419,6 @@ function BmiInfoModal({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  flex1: { flex: 1 },
   content: { paddingHorizontal: 20 },
   weightCardWrap: { marginBottom: 24 },
   profileHeader: { alignItems: "center", gap: 8, marginBottom: 24 },
@@ -1716,7 +1430,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 4,
   },
-  phone: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  avatarLetter: { fontSize: 36, fontFamily: "Inter_700Bold" },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  name: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  phone: { fontSize: 13, fontFamily: "Inter_500Medium", marginTop: -4 },
   goalBadge: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
   goalText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   statsRow: { flexDirection: "row", gap: 7, marginBottom: 24 },
@@ -1754,8 +1471,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   settingIcon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  settingLabel: { fontSize: 15, fontFamily: "Inter_500Medium" },
-  settingValue: { fontSize: 13, fontFamily: "Inter_400Regular", marginRight: 4 },
+  settingLabel: { fontSize: 15, fontFamily: "Inter_500Medium", flexShrink: 0 },
+  settingValueWrap: { flex: 1, alignItems: "flex-end" },
+  settingValue: { fontSize: 13, fontFamily: "Inter_400Regular", marginRight: 4, textAlign: "right" },
 
   backdrop: {
     flex: 1,
@@ -1829,29 +1547,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 4,
   },
-  numField: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 16,
-    borderWidth: 1.5,
-    paddingHorizontal: 18,
-    height: 64,
-  },
-  numInput: {
-    flex: 1,
-    fontSize: 28,
-    fontFamily: "Inter_700Bold",
-    paddingVertical: 0,
-  },
-  unitText: {
-    fontSize: 18,
-    fontFamily: "Inter_600SemiBold",
-  },
-  warnText: {
-    fontSize: 12.5,
-    fontFamily: "Inter_500Medium",
-    color: "#DC2626",
-  },
   saveBtn: {
     flexDirection: "row",
     height: 54,
@@ -1909,36 +1604,6 @@ const styles = StyleSheet.create({
   speedLabel: { fontSize: 16, fontFamily: "Inter_700Bold" },
   speedDesc: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
 
-  notifCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 14,
-    marginBottom: 8,
-    gap: 12,
-  },
-  notifHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  notifTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  notifSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
-  timeChips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  timeChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  timeText: { fontSize: 11, fontFamily: "Inter_700Bold" },
-  timeLabel: { fontSize: 11, fontFamily: "Inter_500Medium" },
   timeChipsInner: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1952,39 +1617,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  permBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 8,
-  },
-  permTitle: { fontSize: 14, fontFamily: "Inter_700Bold" },
-  permSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
-  testBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingVertical: 12,
-    marginBottom: 8,
-  },
-  testBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  batteryHint: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 10,
-    marginBottom: 8,
-  },
-  batteryHintText: { fontSize: 11, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 16 },
 
   histRoot: { flex: 1 },
   histHeader: {
