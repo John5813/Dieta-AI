@@ -155,20 +155,57 @@ export async function cancelAllReminders(): Promise<void> {
   } catch {}
 }
 
+/** One-off notifications (fast finished, weekly report) survive reminder rescheduling. */
+const ONE_OFF_PREFIX = "uzd-oneoff-";
+
+async function cancelRoutineReminders(): Promise<void> {
+  try {
+    const all = await Notifications.getAllScheduledNotificationsAsync();
+    await Promise.all(
+      all
+        .filter((n) => !n.identifier.startsWith(ONE_OFF_PREFIX))
+        .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier).catch(() => {})),
+    );
+  } catch {}
+}
+
+/** Schedules (or replaces) a single notification at `date`; false without permission. */
+export async function scheduleOneOff(id: string, date: Date, title: string, body: string): Promise<boolean> {
+  if (Platform.OS === "web" || date.getTime() <= Date.now()) return false;
+  try {
+    const granted = await ensureNotificationPermission();
+    if (!granted) return false;
+    await Notifications.cancelScheduledNotificationAsync(ONE_OFF_PREFIX + id).catch(() => {});
+    await Notifications.scheduleNotificationAsync({
+      identifier: ONE_OFF_PREFIX + id,
+      content: { title, body, sound: true },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function cancelOneOff(id: string): Promise<void> {
+  if (Platform.OS === "web") return;
+  await Notifications.cancelScheduledNotificationAsync(ONE_OFF_PREFIX + id).catch(() => {});
+}
+
 export async function scheduleAllReminders(
   prefs: ReminderPreferences,
 ): Promise<ScheduleResult> {
   if (Platform.OS === "web") return { scheduled: 0, permissionGranted: false };
 
   if (!prefs.masterEnabled) {
-    await cancelAllReminders();
+    await cancelRoutineReminders();
     return { scheduled: 0, permissionGranted: false };
   }
 
   const granted = await ensureNotificationPermission();
   if (!granted) return { scheduled: 0, permissionGranted: false };
 
-  await cancelAllReminders();
+  await cancelRoutineReminders();
 
   let scheduled = 0;
 
