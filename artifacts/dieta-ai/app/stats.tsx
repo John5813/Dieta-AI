@@ -13,6 +13,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { AchievementsGrid } from "@/components/stats/AchievementsGrid";
+import { WeeklyReportCard } from "@/components/stats/WeeklyReportCard";
+import { useInsights } from "@/lib/useInsights";
 import { WeightProgressCard } from "@/components/WeightProgressCard";
 
 type Range = "week" | "month";
@@ -85,6 +88,7 @@ export default function StatsScreen() {
   const [showTodayFoods, setShowTodayFoods] = useState(false);
 
   const goal = profile.dailyCalories ?? 1993;
+  const insights = useInsights();
   const days = range === "week" ? 7 : 30;
 
   const buckets = useMemo(
@@ -281,6 +285,8 @@ export default function StatsScreen() {
             )}
           </View>
         )}
+
+        <WeeklyReportCard report={insights.report} goalCal={goal} />
 
         <View style={[styles.toggleWrap, { backgroundColor: colors.secondary }]}>
           {(["week", "month"] as Range[]).map((r) => (
@@ -534,6 +540,8 @@ export default function StatsScreen() {
             </Text>
           </View>
         ) : null}
+
+        <AchievementsGrid badges={insights.badges} />
       </ScrollView>
     </View>
   );

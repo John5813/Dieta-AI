@@ -170,10 +170,19 @@ async function cancelRoutineReminders(): Promise<void> {
 }
 
 /** Schedules (or replaces) a single notification at `date`; false without permission. */
-export async function scheduleOneOff(id: string, date: Date, title: string, body: string): Promise<boolean> {
+export async function scheduleOneOff(
+  id: string,
+  date: Date,
+  title: string,
+  body: string,
+  opts: { askPermission?: boolean } = {},
+): Promise<boolean> {
   if (Platform.OS === "web" || date.getTime() <= Date.now()) return false;
   try {
-    const granted = await ensureNotificationPermission();
+    const granted =
+      opts.askPermission === false
+        ? (await getPermissionStatus()) === "granted"
+        : await ensureNotificationPermission();
     if (!granted) return false;
     await Notifications.cancelScheduledNotificationAsync(ONE_OFF_PREFIX + id).catch(() => {});
     await Notifications.scheduleNotificationAsync({
@@ -317,4 +326,14 @@ export async function sendTestNotification(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Next Sunday 20:00 (today if it's Sunday before 20:00). */
+export function nextWeeklyReportTime(now = new Date()): Date {
+  const d = new Date(now);
+  d.setHours(20, 0, 0, 0);
+  const add = (7 - d.getDay()) % 7;
+  d.setDate(d.getDate() + add);
+  if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 7);
+  return d;
 }

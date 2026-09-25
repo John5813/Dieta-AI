@@ -29,6 +29,7 @@ import { WaterCard } from "@/components/home/WaterCard";
 import { calculatePlan } from "@/lib/nutrition";
 import { confirmAction } from "@/lib/confirm";
 import { formatDateKeyUz, shiftDateKey } from "@/lib/date";
+import { loggingStreak } from "@/lib/insights";
 import { MEAL_INFO, type MealType } from "@/lib/meals";
 
 /** How far back the home screen lets you browse / log forgotten meals. */
@@ -179,6 +180,7 @@ export default function HomeScreen() {
   const dayEntries = entries.filter((e) => e.date === selectedKey);
   const prevDayKey = shiftDateKey(selectedKey, -1);
   const prevDayEntries = entries.filter((e) => e.date === prevDayKey);
+  const streak = loggingStreak(entries, todayKey);
   // Meal chosen with a section's "+" button; the tab bar camera leaves it unset.
   const [presetMeal, setPresetMeal] = useState<MealType | undefined>(undefined);
 
@@ -545,6 +547,12 @@ export default function HomeScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             {isToday ? "Bugungi ovqatlar" : `${dayLabel} ovqatlari`}
           </Text>
+          {isToday && streak >= 2 ? (
+            <View style={styles.streakChip}>
+              <Text style={styles.streakText}>🔥 {streak} kun</Text>
+            </View>
+          ) : null}
+          <View style={{ flex: 1 }} />
           <Pressable
             onPress={() => router.push("/stats")}
             hitSlop={8}
@@ -1487,6 +1495,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
+  streakChip: { backgroundColor: "#FFEDD5", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8 },
+  streakText: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#C2410C" },
   statsBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   emptyCard: {
     borderRadius: 16,

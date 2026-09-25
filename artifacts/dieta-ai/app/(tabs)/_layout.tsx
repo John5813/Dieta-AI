@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { maybeAutoBackup } from "@/lib/backup";
+import { nextWeeklyReportTime, scheduleOneOff } from "@/lib/notifications";
 import { useTranslation } from "@/hooks/useTranslation";
 
 function CameraTabButton({ onPress, bottomPad }: { onPress: () => void; bottomPad: number }) {
@@ -43,7 +44,7 @@ export default function TabLayout() {
   const colors = useColors();
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
-  const { setAddFoodModalVisible, subscription, canScan, loading } = useApp();
+  const { setAddFoodModalVisible, subscription, canScan, loading, profile } = useApp();
   const { t } = useTranslation();
   const router = useRouter();
   const isDark = colorScheme === "dark";
@@ -63,6 +64,16 @@ export default function TabLayout() {
   useEffect(() => {
     if (loading) return;
     maybeAutoBackup().catch(() => {});
+    // Sunday-evening nudge to open the weekly report; never asks for permission itself.
+    if (profile.notificationsEnabled !== false) {
+      scheduleOneOff(
+        "weekly-report",
+        nextWeeklyReportTime(),
+        "📊 Haftalik hisobotingiz tayyor",
+        "Bu hafta qanday o'tganini ko'ring: o'rtacha kaloriya, vazn o'zgarishi va maslahatlar.",
+        { askPermission: false },
+      ).catch(() => {});
+    }
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "background") maybeAutoBackup().catch(() => {});
     });
