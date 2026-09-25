@@ -546,6 +546,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       FileSystem.deleteAsync(`${FileSystem.documentDirectory}food_images`, {
         idempotent: true,
       }).catch(() => {});
+      FileSystem.deleteAsync(`${FileSystem.documentDirectory}progress_photos`, {
+        idempotent: true,
+      }).catch(() => {});
     }
     setOnboardingComplete(false);
     setProfileState({});

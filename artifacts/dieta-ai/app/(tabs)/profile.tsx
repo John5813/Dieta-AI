@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EditEntryModal } from "@/components/EditEntryModal";
 import { BackupModal } from "@/components/profile/BackupModal";
+import { BodyModal } from "@/components/profile/BodyModal";
 import { MyFoodsModal } from "@/components/profile/MyFoodsModal";
 import { NotificationsModal } from "@/components/profile/NotificationsModal";
 import { PremiumCard } from "@/components/profile/PremiumCard";
@@ -187,8 +188,9 @@ export default function ProfileScreen() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [myFoodsOpen, setMyFoodsOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
+  const [bodyOpen, setBodyOpen] = useState(false);
   const [backupOn, setBackupOn] = useState(false);
-  const { customFoods, favorites } = useTracker();
+  const { customFoods, favorites, measurements, photos } = useTracker();
   const [permStatus, setPermStatus] = useState<PermissionStatus>("undetermined");
 
   // Re-check on focus: the user may have toggled permission in system settings.
@@ -379,6 +381,18 @@ export default function ProfileScreen() {
             onRemoveEntry={removeWeightEntry}
           />
         </View>
+
+        <SettingRow
+          icon="maximize"
+          label="Tana o'lchamlari va suratlar"
+          value={
+            measurements.length + photos.length > 0
+              ? `${measurements.length} o'lchov · ${photos.length} surat`
+              : "Boshlash"
+          }
+          onPress={() => setBodyOpen(true)}
+        />
+        <View style={{ height: 16 }} />
 
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Shaxsiy ma'lumotlar</Text>
         <SettingRow icon="user" label="Ism" value={displayName || "Kiritilmagan"} onPress={() => setEditor("name")} />
@@ -620,6 +634,7 @@ export default function ProfileScreen() {
       />
 
       <MyFoodsModal visible={myFoodsOpen} onClose={() => setMyFoodsOpen(false)} />
+      <BodyModal visible={bodyOpen} onClose={() => setBodyOpen(false)} />
 
       <BackupModal
         visible={backupOpen}
@@ -1473,7 +1488,7 @@ function BmiInfoModal({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingHorizontal: 20 },
-  weightCardWrap: { marginBottom: 24 },
+  weightCardWrap: { marginBottom: 10 },
   profileHeader: { alignItems: "center", gap: 8, marginBottom: 24 },
   avatar: {
     width: 88,
