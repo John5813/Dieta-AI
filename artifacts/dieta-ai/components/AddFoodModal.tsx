@@ -30,6 +30,8 @@ import {
   type FoodVariant,
 } from "@/lib/api-client";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
+import { TRIAL_DAILY_SCAN_LIMIT, useApp, type ScanBlockReason } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import {
   CATEGORIES,
@@ -172,6 +174,7 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
   };
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { subscription, canScan, registerScan } = useApp();
   const [step, setStep] = useState<Step>("choose");
   const [activeSource, setActiveSource] = useState<Source | null>(null);
   const [textInput, setTextInput] = useState("");
@@ -257,6 +260,11 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
     if (step === "confirm") {
       animateStep("catalog", "catalog");
       setPickedFood(null);
+    } else if (step === "error" && errorStatus?.startsWith("scan_")) {
+      // Retrying the photo would hit the same limit — offer the other ways in.
+      setErrorMsg(null);
+      setErrorStatus(null);
+      animateStep("choose", null);
     } else if (step === "ai-confirm" || step === "text-confirm" || step === "error") {
       const src = activeSource ?? "camera";
       setAiResult(null);
@@ -393,6 +401,8 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
     setLoading(source);
     try {
       const res = await aiAnalyzeImage({ imageBase64: base64, mimeType, userContext: buildCtx() });
+      // Only a recognised dish uses up a trial scan; blurry or non-food shots don't.
+      if (res.status === "ok") registerScan();
       showAnalysisResult(res, source, imageUri);
     } catch {
       setErrorMsg("Internet bilan bog'lanishda xatolik. Qaytadan urinib ko'ring.");
@@ -406,6 +416,14 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
 
   const pickAndAnalyze = async (source: "camera" | "gallery") => {
     triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    const allowance = canScan();
+    if (!allowance.allowed) {
+      setErrorMsg(scanBlockMessage(allowance.reason));
+      setErrorDetected(null);
+      setErrorStatus(allowance.reason === "daily_limit" ? "scan_limit" : "scan_locked");
+      animateStep("error", source);
+      return;
+    }
     if (Platform.OS === "web") {
       setErrorMsg("Rasm tahlili faqat mobil ilovada ishlaydi.");
       setErrorDetected(null);
@@ -694,6 +712,11 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
                   colors={colors}
                   onPick={handlePickVariant}
                   onClose={onClose}
+                  scanNote={
+                    subscription.status === "trial"
+                      ? `Sinov: bugun ${canScan().remaining} / ${TRIAL_DAILY_SCAN_LIMIT} ta rasm tahlili qoldi`
+                      : undefined
+                  }
                 />
               ) : step === "catalog" ? (
                 <CatalogStep
@@ -750,6 +773,10 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
                   onBack={handleBack}
                   onRetakeCamera={handleStartCamera}
                   onRetakeGallery={handleStartGallery}
+                  onGetPremium={() => {
+                    onClose();
+                    router.push("/onboarding/premium");
+                  }}
                 />
               ) : (
                 <InstructionsStep
@@ -901,14 +928,30 @@ function SidesList({
   );
 }
 
+function scanBlockMessage(reason?: ScanBlockReason): string {
+  switch (reason) {
+    case "daily_limit":
+      return `Sinov davrida kuniga ${TRIAL_DAILY_SCAN_LIMIT} ta rasm tahlil qilinadi — bugungisi tugadi. Ovqatni ro'yxatdan yoki matn bilan qo'shishingiz mumkin, yoki Premium bilan cheksiz foydalaning.`;
+    case "premium_expired":
+      return "Premium muddati tugagan. Rasm tahlilidan foydalanish uchun Premiumni yangilang.";
+    case "trial_expired":
+      return "Bepul sinov muddati tugadi. Rasm tahlilidan foydalanish uchun Premium oling.";
+    default:
+      return "Rasm tahlili Premium foydalanuvchilar uchun. Premium oling yoki bepul sinovni boshlang.";
+  }
+}
+
 function ChooseStep({
   colors,
   onPick,
   onClose,
+  scanNote,
 }: {
   colors: ColorPalette;
   onPick: (s: Source) => void;
   onClose: () => void;
+  /** Trial allowance line shown under the photo options. */
+  scanNote?: string;
 }) {
   return (
     <View style={styles.stepWrap}>
@@ -942,6 +985,12 @@ function ChooseStep({
           desc="Telefon xotirasidagi tayyor rasmni yuklash"
           onPress={() => onPick("gallery")}
         />
+        {scanNote ? (
+          <View style={[styles.scanNote, { backgroundColor: "#FEF3C7" }]}>
+            <Feather name="clock" size={13} color="#92400E" />
+            <Text style={styles.scanNoteText}>{scanNote}</Text>
+          </View>
+        ) : null}
         <Tile
           colors={colors}
           accent={ACCENT.text}
@@ -2595,6 +2644,7 @@ function ErrorStep({
   onBack,
   onRetakeCamera,
   onRetakeGallery,
+  onGetPremium,
 }: {
   colors: ColorPalette;
   message: string;
@@ -2604,20 +2654,28 @@ function ErrorStep({
   onBack: () => void;
   onRetakeCamera: () => void;
   onRetakeGallery: () => void;
+  onGetPremium: () => void;
 }) {
   const isNotFood = status === "not_food";
   const isUnclear = status === "unclear";
+  const isBlocked = status === "scan_limit" || status === "scan_locked";
   const isImageSource = source === "camera" || source === "gallery";
-  const headerTitle = isNotFood
-    ? "Bu ovqat emas"
-    : isUnclear
-      ? "Rasm noaniq"
-      : "Aniqlanmadi";
-  const headerSubtitle = isNotFood
-    ? "Faqat ovqat rasmini yuboring"
-    : isUnclear
-      ? "Yaxshi yorug'likda qaytadan oling"
-      : "Iltimos, qaytadan urinib ko'ring";
+  const headerTitle = isBlocked
+    ? status === "scan_limit"
+      ? "Bugungi limit tugadi"
+      : "Premium kerak"
+    : isNotFood
+      ? "Bu ovqat emas"
+      : isUnclear
+        ? "Rasm noaniq"
+        : "Aniqlanmadi";
+  const headerSubtitle = isBlocked
+    ? "Rasm tahlili cheklangan"
+    : isNotFood
+      ? "Faqat ovqat rasmini yuboring"
+      : isUnclear
+        ? "Yaxshi yorug'likda qaytadan oling"
+        : "Iltimos, qaytadan urinib ko'ring";
 
   return (
     <View style={styles.stepWrap}>
@@ -2642,7 +2700,9 @@ function ErrorStep({
           { backgroundColor: "#FEF2F2", borderColor: "#FCA5A5" },
         ]}
       >
-        <Text style={styles.errorEmoji}>{isNotFood ? "🚫" : isUnclear ? "🔍" : "⚠️"}</Text>
+        <Text style={styles.errorEmoji}>
+          {isBlocked ? "⏳" : isNotFood ? "🚫" : isUnclear ? "🔍" : "⚠️"}
+        </Text>
         <Text style={[styles.errorMessage, { color: "#991B1B" }]}>{message}</Text>
         {detected && detected.trim().length > 0 ? (
           <View style={styles.detectedBox}>
@@ -2652,7 +2712,36 @@ function ErrorStep({
         ) : null}
       </View>
 
-      {isImageSource ? (
+      {isBlocked ? (
+        <>
+          <Pressable
+            onPress={onGetPremium}
+            style={({ pressed }) => [
+              styles.cta,
+              { backgroundColor: "#2C5F1A", opacity: pressed ? 0.85 : 1 },
+            ]}
+          >
+            <Feather name="award" size={18} color="#FFFFFF" />
+            <Text style={styles.ctaText}>Premium olish</Text>
+          </Pressable>
+          <Pressable
+            onPress={onBack}
+            style={({ pressed }) => [
+              styles.cta,
+              {
+                backgroundColor: colors.background,
+                borderWidth: 1.5,
+                borderColor: colors.border,
+                opacity: pressed ? 0.85 : 1,
+                marginTop: -2,
+              },
+            ]}
+          >
+            <Feather name="list" size={18} color={colors.text} />
+            <Text style={[styles.ctaText, { color: colors.text }]}>Boshqa usul bilan qo'shish</Text>
+          </Pressable>
+        </>
+      ) : isImageSource ? (
         <>
           <Pressable
             onPress={onRetakeCamera}
@@ -2766,6 +2855,15 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 6,
   },
+  scanNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  scanNoteText: { flex: 1, fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#92400E" },
   tile: {
     flexDirection: "row",
     alignItems: "center",
