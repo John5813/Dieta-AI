@@ -34,6 +34,7 @@ import { router } from "expo-router";
 import { TRIAL_DAILY_SCAN_LIMIT, useApp, type ScanBlockReason } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { MEAL_INFO, MEAL_ORDER, mealForTime, type MealType } from "@/lib/meals";
+import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { CustomFoodEditor } from "@/components/CustomFoodEditor";
 import { QuickAddStrip } from "@/components/QuickAddStrip";
 import { foodKey, useTracker, type SavedFood } from "@/context/TrackerContext";
@@ -147,6 +148,8 @@ export interface AddedFood {
   emoji?: string;
   imageUri?: string;
   meal?: MealType;
+  sugar?: number;
+  sodiumMg?: number;
 }
 
 interface AiUserContext {
@@ -238,6 +241,7 @@ export function AddFoodModal({
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
   const [meal, setMeal] = useState<MealType>(() => initialMeal ?? mealForTime());
   const [creatingFood, setCreatingFood] = useState(false);
+  const [barcodeOpen, setBarcodeOpen] = useState(false);
   const onAdd = (foods: AddedFood[]) => onAddProp(foods.map((f) => ({ ...f, meal: f.meal ?? meal })));
 
   const fade = useRef(new Animated.Value(0)).current;
@@ -785,6 +789,7 @@ export function AddFoodModal({
                   onClose={onClose}
                   meal={meal}
                   onMealChange={setMeal}
+                  onBarcode={() => setBarcodeOpen(true)}
                   quickAdd={
                     <QuickAddStrip
                       recent={recentFoods}
@@ -880,6 +885,15 @@ export function AddFoodModal({
         </Animated.View>
       </KeyboardAvoidingView>
       <CustomFoodEditor visible={creatingFood} onClose={() => setCreatingFood(false)} />
+      <BarcodeScanner
+        visible={barcodeOpen}
+        onClose={() => setBarcodeOpen(false)}
+        onAdd={(f) => {
+          setBarcodeOpen(false);
+          onAdd([{ ...f, emoji: "🏷️", source: "catalog" }]);
+          onClose();
+        }}
+      />
     </Modal>
   );
 }
@@ -1034,6 +1048,7 @@ function ChooseStep({
   meal,
   onMealChange,
   quickAdd,
+  onBarcode,
 }: {
   colors: ColorPalette;
   onPick: (s: Source) => void;
@@ -1041,6 +1056,7 @@ function ChooseStep({
   meal: MealType;
   onMealChange: (m: MealType) => void;
   quickAdd?: React.ReactNode;
+  onBarcode: () => void;
   /** Trial allowance line shown under the photo options. */
   scanNote?: string;
 }) {
@@ -1113,6 +1129,14 @@ function ChooseStep({
           title="Galereyadan tanlash"
           desc="Telefon xotirasidagi tayyor rasmni yuklash"
           onPress={() => onPick("gallery")}
+        />
+        <Tile
+          colors={colors}
+          accent="#0F766E"
+          icon="maximize"
+          title="Shtrix-kod skaneri"
+          desc="Do'kondan olingan qadoqli mahsulot kodini skanerlang"
+          onPress={onBarcode}
         />
         {scanNote ? (
           <View style={[styles.scanNote, { backgroundColor: "#FEF3C7" }]}>

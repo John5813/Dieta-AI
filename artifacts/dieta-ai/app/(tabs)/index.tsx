@@ -208,6 +208,8 @@ export default function HomeScreen() {
         emoji: food.emoji,
         imageUri: food.imageUri,
         meal: food.meal,
+        sugar: food.sugar,
+        sodiumMg: food.sodiumMg,
       })),
       isToday ? undefined : selectedKey,
     );
@@ -241,6 +243,8 @@ export default function HomeScreen() {
         emoji: e.emoji,
         portion: e.portion,
         imageUri: e.imageUri,
+        sugar: e.sugar,
+        sodiumMg: e.sodiumMg,
         meal,
       })),
       isToday ? undefined : selectedKey,

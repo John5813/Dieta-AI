@@ -101,6 +101,10 @@ export interface DiaryEntry {
   portion?: string;
   /** Older entries have none — use entryMeal() to read it. */
   meal?: MealType;
+  /** Grams of sugar, when known (AI result or product label). */
+  sugar?: number;
+  /** Milligrams of sodium, when known. */
+  sodiumMg?: number;
 }
 
 export type DiaryEntryPatch = Partial<

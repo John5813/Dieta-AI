@@ -51,6 +51,13 @@
           "photosPermission": "Oziq-ovqat rasmlarini tahlil qilish uchun ruxsat.",
           "cameraPermission": "Oziq-ovqat suratga olish uchun ruxsat."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Ovqatni suratga olish va mahsulot shtrix-kodini skanerlash uchun kamera kerak.",
+          "recordAudioAndroid": false
+        }
       ]
     ],
     "experiments": {

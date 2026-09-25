@@ -104,6 +104,24 @@ export async function ensureSchema(): Promise<void> {
       created_at timestamp NOT NULL DEFAULT now()
     );
   `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS barcode_products (
+      code text PRIMARY KEY,
+      name text NOT NULL,
+      brand text,
+      unit text NOT NULL DEFAULT 'g',
+      cal_100 real NOT NULL,
+      protein_100 real NOT NULL DEFAULT 0,
+      carbs_100 real NOT NULL DEFAULT 0,
+      fat_100 real NOT NULL DEFAULT 0,
+      sugar_100 real,
+      sodium_mg_100 real,
+      serving_grams real,
+      source text NOT NULL,
+      scan_count integer NOT NULL DEFAULT 0,
+      created_at timestamp NOT NULL DEFAULT now()
+    );
+  `);
 }
 
 export * from "./schema";
