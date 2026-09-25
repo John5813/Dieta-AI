@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { mealFromLabel } from "@/lib/meals";
 import {
   CATEGORIES,
   FOOD_DB,
@@ -334,6 +335,7 @@ export default function FoodScreen() {
               carbs: m.carbs,
               fat: m.fat,
               source: "plan",
+              meal: mealFromLabel(m.meal),
             },
           ])
         }

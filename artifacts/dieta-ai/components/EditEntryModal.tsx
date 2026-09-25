@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { DiaryEntry, DiaryEntryPatch } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { confirmAction } from "@/lib/confirm";
+import { entryMeal, MEAL_INFO, MEAL_ORDER, type MealType } from "@/lib/meals";
 
 const MULTIPLIERS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
@@ -44,6 +45,7 @@ export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Pr
   const [protein, setProtein] = useState("");
   const [carbs, setCarbs] = useState("");
   const [fat, setFat] = useState("");
+  const [meal, setMeal] = useState<MealType>("tushlik");
 
   useEffect(() => {
     if (!visible || !entry) return;
@@ -53,6 +55,7 @@ export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Pr
     setProtein(String(entry.protein));
     setCarbs(String(entry.carbs));
     setFat(String(entry.fat));
+    setMeal(entryMeal(entry));
   }, [visible, entry]);
 
   if (!entry) return null;
@@ -81,6 +84,7 @@ export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Pr
       carbs: carbsN!,
       fat: fatN!,
     };
+    if (meal !== entryMeal(entry)) patch.meal = meal;
     if (mult !== 1) {
       const base = (entry.portion ?? "porsiya").replace(/^[\d.]+×\s*/, "");
       patch.portion = `${fmtMult(mult)}× ${base}`;
@@ -161,6 +165,30 @@ export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Pr
                   { backgroundColor: colors.input, borderColor: colors.border, color: colors.text },
                 ]}
               />
+
+              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Ovqat vaqti</Text>
+              <View style={styles.chips}>
+                {MEAL_ORDER.map((m) => {
+                  const active = m === meal;
+                  return (
+                    <Pressable
+                      key={m}
+                      onPress={() => setMeal(m)}
+                      style={[
+                        styles.chip,
+                        {
+                          backgroundColor: active ? colors.primary : colors.secondary,
+                          borderColor: active ? colors.primary : colors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.chipText, { color: active ? "#FFFFFF" : colors.text }]}>
+                        {MEAL_INFO[m].emoji} {m === "kechki" ? "Kechki" : MEAL_INFO[m].label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
 
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
                 Porsiya (asl miqdorga nisbatan)

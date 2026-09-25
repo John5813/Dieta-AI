@@ -3,7 +3,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Modal } from "react-native";
+import { ActivityIndicator, Modal } from "react-native";
 import {
   Platform,
   Pressable,
@@ -21,7 +21,10 @@ import { MacroCard } from "@/components/MacroCard";
 import { TourOverlay } from "@/components/TourOverlay";
 import { useApp, type DiaryEntry } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { MealSections } from "@/components/home/MealSections";
+import { confirmAction } from "@/lib/confirm";
 import { formatDateKeyUz, shiftDateKey } from "@/lib/date";
+import { MEAL_INFO, type MealType } from "@/lib/meals";
 
 /** How far back the home screen lets you browse / log forgotten meals. */
 const MAX_DAYS_BACK = 30;
@@ -169,6 +172,10 @@ export default function HomeScreen() {
   );
 
   const dayEntries = entries.filter((e) => e.date === selectedKey);
+  const prevDayKey = shiftDateKey(selectedKey, -1);
+  const prevDayEntries = entries.filter((e) => e.date === prevDayKey);
+  // Meal chosen with a section's "+" button; the tab bar camera leaves it unset.
+  const [presetMeal, setPresetMeal] = useState<MealType | undefined>(undefined);
 
   const rawCal = dayEntries.reduce((s, e) => s + (Number.isFinite(e.cal) ? e.cal : 0), 0);
   const totalProtein = dayEntries.reduce((s, e) => s + (Number.isFinite(e.protein) ? e.protein : 0), 0);
@@ -198,6 +205,7 @@ export default function HomeScreen() {
         portion: food.portion,
         emoji: food.emoji,
         imageUri: food.imageUri,
+        meal: food.meal,
       })),
       isToday ? undefined : selectedKey,
     );
@@ -209,19 +217,34 @@ export default function HomeScreen() {
     });
   };
 
-  const handleDeleteEntry = (id: string, name: string) => {
-    Alert.alert(
-      "Yozuvni o'chirish",
-      `"${name}" yozuvini o'chirmoqchimisiz?`,
-      [
-        { text: "Bekor qilish", style: "cancel" },
-        {
-          text: "O'chirish",
-          style: "destructive",
-          onPress: () => removeEntry(id),
-        },
-      ],
+  const handleDeleteEntry = async (id: string, name: string) => {
+    const ok = await confirmAction({
+      title: "Yozuvni o'chirish",
+      message: `"${name}" yozuvini o'chirmoqchimisiz?`,
+      confirmText: "O'chirish",
+      destructive: true,
+    });
+    if (ok) removeEntry(id);
+  };
+
+  const handleRepeat = (meal: MealType, from: DiaryEntry[]) => {
+    addEntries(
+      from.map((e) => ({
+        name: e.name,
+        cal: e.cal,
+        protein: e.protein,
+        carbs: e.carbs,
+        fat: e.fat,
+        source: e.source,
+        emoji: e.emoji,
+        portion: e.portion,
+        imageUri: e.imageUri,
+        meal,
+      })),
+      isToday ? undefined : selectedKey,
     );
+    const total = from.reduce((t, e) => t + e.cal, 0);
+    setToast({ visible: true, message: `${MEAL_INFO[meal].label} takrorlandi · +${total} kkal` });
   };
 
   return (
@@ -506,7 +529,7 @@ export default function HomeScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            {isToday ? "Yaqinda iste'mol qilindi" : `${dayLabel} ovqatlari`}
+            {isToday ? "Bugungi ovqatlar" : `${dayLabel} ovqatlari`}
           </Text>
           <Pressable
             onPress={() => router.push("/stats")}
@@ -525,95 +548,18 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {dayEntries.length === 0 ? (
-          <View
-            style={[styles.emptyCard, { backgroundColor: colors.secondary, borderColor: colors.border }]}
-          >
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              {isToday ? "Hozircha ma'lumot yo'q!" : `${dayLabel} uchun yozuv yo'q`}
-            </Text>
-            <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-              {isToday
-                ? "Bugungi ovqatlaringizni tez suratga olib kuzatishni boshlang"
-                : "Unutilgan ovqatni shu kunga qo'shish uchun pastdagi kamera tugmasini bosing"}
-            </Text>
-          </View>
-        ) : (
-          dayEntries.map((e) => (
-            <Pressable
-              key={e.id}
-              onPress={() => setEditingEntry(e)}
-              onLongPress={() => handleDeleteEntry(e.id, e.name)}
-              delayLongPress={400}
-              accessibilityRole="button"
-              accessibilityLabel={`${e.name}, ${e.cal} kaloriya`}
-              accessibilityHint="Tahrirlash uchun bosing, o'chirish uchun bosib turing"
-              style={({ pressed }) => [
-                styles.entryCard,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                  opacity: pressed ? 0.85 : 1,
-                },
-              ]}
-            >
-              {e.imageUri ? (
-                <Image
-                  source={{ uri: e.imageUri }}
-                  style={styles.entryThumb}
-                  contentFit="cover"
-                  transition={120}
-                  cachePolicy="memory-disk"
-                />
-              ) : (
-                <View style={[styles.entryIcon, { backgroundColor: colors.secondary }]}>
-                  {e.emoji ? (
-                    <Text style={styles.entryIconEmoji}>{e.emoji}</Text>
-                  ) : (
-                    <Feather
-                      name={
-                        e.source === "camera"
-                          ? "camera"
-                          : e.source === "gallery"
-                          ? "image"
-                          : e.source === "plan"
-                          ? "calendar"
-                          : e.source === "catalog"
-                          ? "book-open"
-                          : "edit-3"
-                      }
-                      size={18}
-                      color={colors.primary}
-                    />
-                  )}
-                </View>
-              )}
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.entryName, { color: colors.text }]} numberOfLines={1}>
-                  {e.name}
-                </Text>
-                <Text style={[styles.entryMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
-                  {e.time}{e.portion ? ` · ${e.portion}` : ""} · {e.protein}g B · {e.carbs}g U · {e.fat}g Y
-                </Text>
-              </View>
-              <View style={styles.entryRight}>
-                <Text style={[styles.entryCal, { color: colors.primary }]}>{e.cal} kal</Text>
-                <Pressable
-                  onPress={() => handleDeleteEntry(e.id, e.name)}
-                  hitSlop={10}
-                  accessibilityRole="button"
-                  accessibilityLabel="O'chirish"
-                  style={({ pressed }) => [
-                    styles.deleteBtn,
-                    { opacity: pressed ? 0.5 : 1 },
-                  ]}
-                >
-                  <Feather name="trash-2" size={16} color={colors.destructive} />
-                </Pressable>
-              </View>
-            </Pressable>
-          ))
-        )}
+        <MealSections
+          entries={dayEntries}
+          yesterdayEntries={prevDayEntries}
+          canRepeat
+          onEdit={setEditingEntry}
+          onDelete={(e) => handleDeleteEntry(e.id, e.name)}
+          onAddToMeal={(m) => {
+            setPresetMeal(m);
+            setModalOpen(true);
+          }}
+          onRepeat={handleRepeat}
+        />
       </ScrollView>
 
       <SuccessToast
@@ -639,8 +585,12 @@ export default function HomeScreen() {
 
       <AddFoodModal
         visible={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          setPresetMeal(undefined);
+        }}
         onAdd={handleAdd}
+        meal={presetMeal}
         dailyCalories={goal}
         remainingCal={Math.max(goal - totalCal, 0)}
         userContext={{

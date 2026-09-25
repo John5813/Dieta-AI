@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { mealFromLabel } from "@/lib/meals";
 import { SuccessToast } from "@/components/SuccessToast";
 
 const API_BASE = process.env.EXPO_PUBLIC_DOMAIN
@@ -439,6 +440,7 @@ export default function RatsionScreen() {
         carbs: m.carbs,
         fat: m.fat,
         source: "plan",
+        meal: mealFromLabel(m.meal),
       },
     ]);
     setToast({

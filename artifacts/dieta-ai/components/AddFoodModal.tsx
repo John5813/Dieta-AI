@@ -33,6 +33,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { TRIAL_DAILY_SCAN_LIMIT, useApp, type ScanBlockReason } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { MEAL_INFO, MEAL_ORDER, mealForTime, type MealType } from "@/lib/meals";
 import {
   CATEGORIES,
   FOOD_DB,
@@ -130,6 +131,7 @@ export interface AddedFood {
   portion?: string;
   emoji?: string;
   imageUri?: string;
+  meal?: MealType;
 }
 
 interface AiUserContext {
@@ -152,6 +154,8 @@ interface AddFoodModalProps {
   onClose: () => void;
   /** One call per confirm; a photo of a full plate yields several foods. */
   onAdd: (foods: AddedFood[]) => void;
+  /** Meal to preselect; defaults to the one matching the current time. */
+  meal?: MealType;
   remainingCal?: number;
   dailyCalories?: number;
   userContext?: AiUserContext;
@@ -164,7 +168,15 @@ const ACCENT: Record<Source, string> = {
   catalog: "#E07A1F",
 };
 
-export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalories, userContext }: AddFoodModalProps) {
+export function AddFoodModal({
+  visible,
+  onClose,
+  onAdd: onAddProp,
+  meal: initialMeal,
+  remainingCal,
+  dailyCalories,
+  userContext,
+}: AddFoodModalProps) {
   const buildCtx = (): AiUserContext | undefined => {
     if (!userContext && remainingCal == null && dailyCalories == null) return undefined;
     const merged: AiUserContext = { ...(userContext ?? {}) };
@@ -186,6 +198,8 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [errorDetected, setErrorDetected] = useState<string | null>(null);
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
+  const [meal, setMeal] = useState<MealType>(() => initialMeal ?? mealForTime());
+  const onAdd = (foods: AddedFood[]) => onAddProp(foods.map((f) => ({ ...f, meal: f.meal ?? meal })));
 
   const fade = useRef(new Animated.Value(0)).current;
   const sheetY = useRef(new Animated.Value(40)).current;
@@ -193,6 +207,7 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
 
   useEffect(() => {
     if (visible) {
+      setMeal(initialMeal ?? mealForTime());
       setStep("choose");
       setActiveSource(null);
       setTextInput("");
@@ -712,6 +727,8 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
                   colors={colors}
                   onPick={handlePickVariant}
                   onClose={onClose}
+                  meal={meal}
+                  onMealChange={setMeal}
                   scanNote={
                     subscription.status === "trial"
                       ? `Sinov: bugun ${canScan().remaining} / ${TRIAL_DAILY_SCAN_LIMIT} ta rasm tahlili qoldi`
@@ -946,10 +963,14 @@ function ChooseStep({
   onPick,
   onClose,
   scanNote,
+  meal,
+  onMealChange,
 }: {
   colors: ColorPalette;
   onPick: (s: Source) => void;
   onClose: () => void;
+  meal: MealType;
+  onMealChange: (m: MealType) => void;
   /** Trial allowance line shown under the photo options. */
   scanNote?: string;
 }) {
@@ -957,8 +978,37 @@ function ChooseStep({
     <View style={styles.stepWrap}>
       <Text style={[styles.title, { color: colors.text }]}>Ovqat qo'shish</Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-        Bugungi kunga qaysi yo'l bilan qo'shasiz?
+        Qaysi ovqatga va qaysi yo'l bilan qo'shasiz?
       </Text>
+
+      <View style={styles.mealRow}>
+        {MEAL_ORDER.map((m) => {
+          const on = m === meal;
+          return (
+            <Pressable
+              key={m}
+              onPress={() => onMealChange(m)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              style={[
+                styles.mealChip,
+                {
+                  backgroundColor: on ? colors.primary : colors.background,
+                  borderColor: on ? colors.primary : colors.border,
+                },
+              ]}
+            >
+              <Text style={styles.mealChipEmoji}>{MEAL_INFO[m].emoji}</Text>
+              <Text
+                style={[styles.mealChipText, { color: on ? "#FFFFFF" : colors.text }]}
+                numberOfLines={1}
+              >
+                {m === "kechki" ? "Kechki" : MEAL_INFO[m].label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
       <View style={styles.tileList}>
         <Tile
@@ -2855,6 +2905,17 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 6,
   },
+  mealRow: { flexDirection: "row", gap: 6, marginBottom: 4 },
+  mealChip: {
+    flex: 1,
+    alignItems: "center",
+    gap: 2,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  mealChipEmoji: { fontSize: 16 },
+  mealChipText: { fontSize: 11.5, fontFamily: "Inter_600SemiBold" },
   scanNote: {
     flexDirection: "row",
     alignItems: "center",

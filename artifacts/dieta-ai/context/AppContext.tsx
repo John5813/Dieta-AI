@@ -9,6 +9,7 @@ import {
   todayStr,
   yesterdayStr,
 } from "@/lib/date";
+import { mealForTime, type MealType } from "@/lib/meals";
 import { cancelAllReminders, scheduleAllReminders } from "@/lib/notifications";
 
 export type Language = "uz" | "uz-kril" | "ru" | "en";
@@ -97,10 +98,12 @@ export interface DiaryEntry {
   imageUri?: string;
   emoji?: string;
   portion?: string;
+  /** Older entries have none — use entryMeal() to read it. */
+  meal?: MealType;
 }
 
 export type DiaryEntryPatch = Partial<
-  Pick<DiaryEntry, "name" | "cal" | "protein" | "carbs" | "fat" | "portion">
+  Pick<DiaryEntry, "name" | "cal" | "protein" | "carbs" | "fat" | "portion" | "meal">
 >;
 
 export interface WeightEntry {
@@ -604,11 +607,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addEntry = (entry: Omit<DiaryEntry, "id" | "time" | "date">, date?: string) => {
+    const time = nowTime();
     const e: DiaryEntry = {
       ...entry,
       id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      time: nowTime(),
+      time,
       date: date ?? todayStr(),
+      meal: entry.meal ?? mealForTime(),
     };
     persistEntries((prev) => [e, ...prev]);
   };
@@ -621,6 +626,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       id: `e-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
       time: t,
       date: d,
+      meal: entry.meal ?? mealForTime(),
     }));
     persistEntries((prev) => [...newOnes, ...prev]);
   };
