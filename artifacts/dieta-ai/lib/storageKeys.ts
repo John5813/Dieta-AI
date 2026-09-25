@@ -21,3 +21,6 @@ export const TRACKER_KEYS = {
 } as const;
 
 export const ALL_DATA_KEYS: string[] = [...CORE_KEYS, ...Object.values(TRACKER_KEYS)];
+
+/** Backup code and bookkeeping; wiped on reset so an empty app never overwrites the cloud copy. */
+export const BACKUP_META_KEYS = ["backup_code", "backup_meta"] as const;

@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { BodyAvatar } from "@/components/BodyAvatar";
 import { OnboardingLayout } from "@/components/OnboardingLayout";
+import { BackupModal } from "@/components/profile/BackupModal";
 import { useApp, Gender } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -11,6 +12,7 @@ export default function GenderScreen() {
   const { profile, setProfile } = useApp();
   const colors = useColors();
   const [selected, setSelected] = useState<Gender | null>(profile.gender ?? null);
+  const [restoreOpen, setRestoreOpen] = useState(false);
 
   const handleNext = () => {
     if (!selected) return;
@@ -70,12 +72,43 @@ export default function GenderScreen() {
         <Card value="erkak" label="Erkak" />
         <Card value="ayol" label="Ayol" />
       </View>
+
+      <Pressable
+        onPress={() => setRestoreOpen(true)}
+        style={({ pressed }) => [styles.restore, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+      >
+        <Feather name="download-cloud" size={16} color={colors.primary} />
+        <Text style={[styles.restoreText, { color: colors.primary }]}>
+          Oldin foydalanganmisiz? Zaxiradan tiklash
+        </Text>
+      </Pressable>
+
+      <BackupModal
+        visible={restoreOpen}
+        restoreOnly
+        onClose={() => setRestoreOpen(false)}
+        onRestored={() => {
+          setRestoreOpen(false);
+          router.replace("/(tabs)");
+        }}
+      />
     </OnboardingLayout>
   );
 }
 
 const styles = StyleSheet.create({
   list: { flexDirection: "row", gap: 12, marginTop: 16 },
+  restore: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 20,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  restoreText: { fontSize: 13.5, fontFamily: "Inter_600SemiBold" },
   card: {
     flex: 1,
     height: 260,

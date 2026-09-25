@@ -2,10 +2,11 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Tabs, useRouter } from "expo-router";
 import React, { useEffect } from "react";
-import { Platform, Pressable, StyleSheet, View, useColorScheme } from "react-native";
+import { AppState, Platform, Pressable, StyleSheet, View, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { maybeAutoBackup } from "@/lib/backup";
 import { useTranslation } from "@/hooks/useTranslation";
 
 function CameraTabButton({ onPress, bottomPad }: { onPress: () => void; bottomPad: number }) {
@@ -57,6 +58,16 @@ export default function TabLayout() {
       router.replace("/onboarding/premium" as never);
     }
   }, [loading, subscription.status, subscription.trialStartedAt, subscription.premiumUntil]);
+
+  // Cloud backup (when turned on) refreshes whenever the app goes to the background.
+  useEffect(() => {
+    if (loading) return;
+    maybeAutoBackup().catch(() => {});
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "background") maybeAutoBackup().catch(() => {});
+    });
+    return () => sub.remove();
+  }, [loading]);
 
   // Tab bar pastroqqa tushiriladi: native va web bir xil ko'rinadi.
   // Bottom inset (home indicator) hisobga olinadi va qo'shimcha 14px joy beriladi.

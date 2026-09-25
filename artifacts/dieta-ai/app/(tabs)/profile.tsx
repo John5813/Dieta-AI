@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EditEntryModal } from "@/components/EditEntryModal";
+import { BackupModal } from "@/components/profile/BackupModal";
 import { MyFoodsModal } from "@/components/profile/MyFoodsModal";
 import { NotificationsModal } from "@/components/profile/NotificationsModal";
 import { PremiumCard } from "@/components/profile/PremiumCard";
@@ -35,6 +36,7 @@ import {
 } from "@/context/AppContext";
 import { useTracker } from "@/context/TrackerContext";
 import { useColors } from "@/hooks/useColors";
+import { getBackupCode } from "@/lib/backup";
 import { confirmAction } from "@/lib/confirm";
 import { calculateAge, calculatePlan, macrosForCalories } from "@/lib/nutrition";
 import {
@@ -184,12 +186,17 @@ export default function ProfileScreen() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [myFoodsOpen, setMyFoodsOpen] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
+  const [backupOn, setBackupOn] = useState(false);
   const { customFoods, favorites } = useTracker();
   const [permStatus, setPermStatus] = useState<PermissionStatus>("undetermined");
 
   // Re-check on focus: the user may have toggled permission in system settings.
   useFocusEffect(
     useCallback(() => {
+      getBackupCode()
+        .then((c) => setBackupOn(!!c))
+        .catch(() => {});
       if (Platform.OS === "web") return;
       getPermissionStatus().then(setPermStatus).catch(() => {});
     }, []),
@@ -428,6 +435,13 @@ export default function ProfileScreen() {
 
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Ma'lumotlar</Text>
         <SettingRow
+          icon="upload-cloud"
+          label="Zaxira nusxa"
+          value={backupOn ? "Yoqilgan" : "O'chiq"}
+          valueColor={backupOn ? colors.primary : "#B45309"}
+          onPress={() => setBackupOpen(true)}
+        />
+        <SettingRow
           icon="book"
           label="Mening taomlarim"
           value={
@@ -606,6 +620,16 @@ export default function ProfileScreen() {
       />
 
       <MyFoodsModal visible={myFoodsOpen} onClose={() => setMyFoodsOpen(false)} />
+
+      <BackupModal
+        visible={backupOpen}
+        onClose={() => {
+          setBackupOpen(false);
+          getBackupCode()
+            .then((c) => setBackupOn(!!c))
+            .catch(() => {});
+        }}
+      />
 
       <PrivacyModal
         visible={privacyOpen}
@@ -979,8 +1003,21 @@ function PrivacyModal({
       title: "Qurilmada saqlanadigan ma'lumotlar",
       body:
         "Profilingiz (yosh, jins, bo'y, vazn, maqsad), ovqatlanish tarixi, vazn o'lchovlari va " +
-        "sozlamalar faqat shu telefonda saqlanadi. Biz ularni serverimizga yozmaymiz. Ilova " +
-        "o'chirilsa yoki \"Barcha ma'lumotlarni o'chirish\" bosilsa, ular butunlay yo'qoladi.",
+        "sozlamalar shu telefonda saqlanadi. Ilova o'chirilsa yoki \"Barcha ma'lumotlarni " +
+        "o'chirish\" bosilsa, ular yo'qoladi.",
+    },
+    {
+      title: "Zaxira nusxa (ixtiyoriy)",
+      body:
+        "\"Zaxira nusxa\"ni o'zingiz yoqsangiz, yuqoridagi ma'lumotlar serverimizga yoziladi va faqat " +
+        "sizdagi zaxira kodi bilan olinadi. Kodning o'zi serverda saqlanmaydi. Ovqat rasmlari va " +
+        "progress suratlari zaxiraga kirmaydi.",
+    },
+    {
+      title: "Shtrix-kod mahsulotlari",
+      body:
+        "Bazada yo'q mahsulotni qo'shib, \"Boshqalar uchun ham saqlash\"ni yoqsangiz, mahsulot nomi va " +
+        "ozuqaviy qiymati umumiy bazaga qo'shiladi. Unga siz haqingizda hech qanday ma'lumot biriktirilmaydi.",
     },
     {
       title: "AI tahlil",

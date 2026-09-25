@@ -10,7 +10,7 @@ import {
   yesterdayStr,
 } from "@/lib/date";
 import { mealForTime, type MealType } from "@/lib/meals";
-import { ALL_DATA_KEYS } from "@/lib/storageKeys";
+import { ALL_DATA_KEYS, BACKUP_META_KEYS } from "@/lib/storageKeys";
 import { cancelAllReminders, scheduleAllReminders } from "@/lib/notifications";
 
 export type Language = "uz" | "uz-kril" | "ru" | "en";
@@ -541,7 +541,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .then(() => cancelAllReminders().catch(() => {}));
     schedQueue.current = cancelJob;
     await cancelJob;
-    await AsyncStorage.multiRemove(ALL_DATA_KEYS);
+    await AsyncStorage.multiRemove([...ALL_DATA_KEYS, ...BACKUP_META_KEYS]);
     if (FileSystem.documentDirectory) {
       FileSystem.deleteAsync(`${FileSystem.documentDirectory}food_images`, {
         idempotent: true,
