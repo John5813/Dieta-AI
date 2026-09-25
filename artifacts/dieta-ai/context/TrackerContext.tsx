@@ -112,6 +112,9 @@ function normalizeDateMap(raw: Record<string, number>): Record<string, number> {
 }
 
 interface TrackerContextType {
+  stepsByDate: Record<string, number>;
+  setSteps: (steps: number, date?: string) => void;
+
   waterByDate: Record<string, number>;
   /** Adds (or with a negative value removes) ml of water; never below zero. */
   addWater: (ml: number, date?: string) => void;
@@ -148,6 +151,12 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     dataVersion,
     normalizeDateMap,
   );
+  const [stepsByDate, setStepsMap] = useStored<Record<string, number>>(
+    TRACKER_KEYS.steps,
+    {},
+    dataVersion,
+    normalizeDateMap,
+  );
   const [favorites, setFavorites] = useStored<SavedFood[]>(TRACKER_KEYS.favorites, [], dataVersion);
   const [customFoods, setCustomFoods] = useStored<CustomFood[]>(TRACKER_KEYS.customFoods, [], dataVersion);
   const [fasting, setFasting] = useStored<FastingState>(TRACKER_KEYS.fasting, DEFAULT_FASTING, dataVersion);
@@ -157,6 +166,12 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     dataVersion,
   );
   const [photos, setPhotos] = useStored<ProgressPhoto[]>(TRACKER_KEYS.photos, [], dataVersion);
+
+  const setSteps = (steps: number, date?: string) => {
+    const key = date ?? todayStr();
+    const n = Math.max(0, Math.round(steps));
+    setStepsMap((prev) => (prev[key] === n ? prev : { ...prev, [key]: n }));
+  };
 
   const addWater = (ml: number, date?: string) => {
     const key = date ?? todayStr();
@@ -212,6 +227,8 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   return (
     <TrackerContext.Provider
       value={{
+        stepsByDate,
+        setSteps,
         waterByDate,
         addWater,
         favorites,

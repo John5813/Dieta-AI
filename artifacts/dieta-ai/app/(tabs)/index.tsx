@@ -23,6 +23,7 @@ import { useApp, type DiaryEntry } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { MealSections } from "@/components/home/MealSections";
 import { SugarSaltRow } from "@/components/home/SugarSaltRow";
+import { StepsCard } from "@/components/home/StepsCard";
 import { WaterCard } from "@/components/home/WaterCard";
 import { calculatePlan } from "@/lib/nutrition";
 import { confirmAction } from "@/lib/confirm";
@@ -380,6 +381,7 @@ export default function HomeScreen() {
 
         <SugarSaltRow entries={dayEntries} />
         <WaterCard dateKey={selectedKey} goalMl={calculatePlan(profile).waterMl} />
+        <StepsCard dateKey={selectedKey} isToday={isToday} weightKg={profile.currentWeight ?? 70} />
 
         {showCelebration ? (
           <View

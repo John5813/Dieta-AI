@@ -18,6 +18,7 @@ export const TRACKER_KEYS = {
   fasting: "fasting_state",
   measurements: "body_measurements",
   photos: "progress_photos",
+  steps: "steps_by_date",
 } as const;
 
 export const ALL_DATA_KEYS: string[] = [...CORE_KEYS, ...Object.values(TRACKER_KEYS)];

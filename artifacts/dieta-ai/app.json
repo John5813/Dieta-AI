@@ -28,7 +28,8 @@
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACTIVITY_RECOGNITION"
       ],
       "newArchEnabled": true,
       "versionCode": 1
@@ -57,6 +58,12 @@
         {
           "cameraPermission": "Ovqatni suratga olish va mahsulot shtrix-kodini skanerlash uchun kamera kerak.",
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Kunlik qadamlaringizni hisoblash uchun harakat ma'lumotlari kerak."
         }
       ]
     ],
