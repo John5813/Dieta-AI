@@ -15,7 +15,7 @@ import {
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useTint } from "@/hooks/useColors";
 import {
   applyBackup,
   backupErrorMessage,
@@ -51,6 +51,7 @@ export function BackupModal({
   onRestored?: () => void;
 }) {
   const colors = useColors();
+  const tint = useTint();
   const insets = useSafeAreaInsets();
   const { reloadFromStorage } = useApp();
   const [code, setCode] = useState<string | null>(null);
@@ -230,7 +231,7 @@ export function BackupModal({
 
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.cardHead}>
-              <View style={[styles.icon, { backgroundColor: "#DBEAFE" }]}>
+              <View style={[styles.icon, { backgroundColor: tint("#DBEAFE", "#2563EB") }]}>
                 <Feather name="download-cloud" size={20} color="#2563EB" />
               </View>
               <View style={styles.flex1}>

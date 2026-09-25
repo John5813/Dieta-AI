@@ -5,7 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { NumberSheet } from "@/components/profile/ProfileSheets";
 import { useTracker } from "@/context/TrackerContext";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useTint } from "@/hooks/useColors";
 
 const STEP_GOAL = 10000;
 const STEPS = "#F97316";
@@ -25,6 +25,7 @@ function startOfToday(): Date {
  */
 export function StepsCard({ dateKey, isToday, weightKg }: { dateKey: string; isToday: boolean; weightKg: number }) {
   const colors = useColors();
+  const tint = useTint();
   const { stepsByDate, setSteps } = useTracker();
   const [sensor, setSensor] = useState<SensorState>("checking");
   const [editOpen, setEditOpen] = useState(false);
@@ -88,7 +89,7 @@ export function StepsCard({ dateKey, isToday, weightKg }: { dateKey: string; isT
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.head}>
-        <View style={[styles.icon, { backgroundColor: "#FFEDD5" }]}>
+        <View style={[styles.icon, { backgroundColor: tint("#FFEDD5", STEPS) }]}>
           <MaterialCommunityIcons name="walk" size={20} color={STEPS} />
         </View>
         <Pressable onPress={() => setEditOpen(true)} style={styles.flex1} accessibilityLabel="Qadamlarni kiritish">
@@ -108,7 +109,7 @@ export function StepsCard({ dateKey, isToday, weightKg }: { dateKey: string; isT
           <Feather name="edit-2" size={15} color={colors.mutedForeground} />
         </Pressable>
       </View>
-      <View style={[styles.track, { backgroundColor: "#FFEDD5" }]}>
+      <View style={[styles.track, { backgroundColor: tint("#FFEDD5", STEPS) }]}>
         <View style={[styles.fill, { width: `${pct * 100}%` }]} />
       </View>
       {isToday && sensor === "needs-permission" ? (

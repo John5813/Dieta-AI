@@ -18,6 +18,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppProvider } from "@/context/AppContext";
 import { TrackerProvider } from "@/context/TrackerContext";
+import { useColors, useThemeScheme } from "@/hooks/useColors";
+import { StatusBar } from "expo-status-bar";
 
 const apiBase = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
@@ -39,8 +41,12 @@ const queryClient = new QueryClient();
 const FONT_TIMEOUT_MS = 4500;
 
 function RootLayoutNav() {
+  const scheme = useThemeScheme();
+  const colors = useColors();
   return (
-    <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
+    <>
+    <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+    <Stack screenOptions={{ headerShown: false, animation: "fade", contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="index" />
       <Stack.Screen
         name="(tabs)"
@@ -48,6 +54,7 @@ function RootLayoutNav() {
       />
       <Stack.Screen name="stats" options={{ animation: "slide_from_right" }} />
     </Stack>
+    </>
   );
 }
 

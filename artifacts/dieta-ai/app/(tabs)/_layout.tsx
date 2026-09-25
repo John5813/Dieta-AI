@@ -2,10 +2,10 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Tabs, useRouter } from "expo-router";
 import React, { useEffect } from "react";
-import { AppState, Platform, Pressable, StyleSheet, View, useColorScheme } from "react-native";
+import { AppState, Platform, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useThemeScheme } from "@/hooks/useColors";
 import { maybeAutoBackup } from "@/lib/backup";
 import { nextWeeklyReportTime, scheduleOneOff } from "@/lib/notifications";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -42,7 +42,7 @@ function CameraTabButton({ onPress, bottomPad }: { onPress: () => void; bottomPa
 
 export default function TabLayout() {
   const colors = useColors();
-  const colorScheme = useColorScheme();
+  const colorScheme = useThemeScheme();
   const insets = useSafeAreaInsets();
   const { setAddFoodModalVisible, subscription, canScan, loading, profile } = useApp();
   const { t } = useTranslation();
@@ -114,7 +114,7 @@ export default function TabLayout() {
             style={[
               StyleSheet.absoluteFill,
               styles.tabBarBg,
-              { backgroundColor: isDark ? "#1A1A1A" : "#FFFFFF" },
+              { backgroundColor: isDark ? colors.card : "#FFFFFF" },
             ]}
           />
         ),

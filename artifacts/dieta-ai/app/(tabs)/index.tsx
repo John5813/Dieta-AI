@@ -20,7 +20,7 @@ import { SuccessToast } from "@/components/SuccessToast";
 import { MacroCard } from "@/components/MacroCard";
 import { TourOverlay } from "@/components/TourOverlay";
 import { useApp, type DiaryEntry } from "@/context/AppContext";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useThemeScheme } from "@/hooks/useColors";
 import { MealSections } from "@/components/home/MealSections";
 import { SugarSaltRow } from "@/components/home/SugarSaltRow";
 import { FastingCard } from "@/components/home/FastingCard";
@@ -134,6 +134,7 @@ export default function HomeScreen() {
     setAddFoodModalVisible,
   } = useApp();
   const colors = useColors();
+  const isDark = useThemeScheme() === "dark";
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const modalOpen = addFoodModalVisible;
@@ -259,7 +260,10 @@ export default function HomeScreen() {
   };
 
   return (
-    <LinearGradient colors={["#FFFFFF", "#EDF7ED", "#E2F5E2"]} style={styles.root}>
+    <LinearGradient
+      colors={isDark ? ["#0E130E", "#101810", "#12200F"] : ["#FFFFFF", "#EDF7ED", "#E2F5E2"]}
+      style={styles.root}
+    >
       <ScrollView
         contentContainerStyle={[
           styles.content,

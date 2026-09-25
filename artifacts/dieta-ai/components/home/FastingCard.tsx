@@ -2,7 +2,7 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTracker } from "@/context/TrackerContext";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useTint } from "@/hooks/useColors";
 import { confirmAction } from "@/lib/confirm";
 import { cancelOneOff, scheduleOneOff } from "@/lib/notifications";
 
@@ -29,6 +29,7 @@ function clock(ms: number): string {
 /** Intermittent fasting: pick a window, start, watch the timer, get notified at the end. */
 export function FastingCard() {
   const colors = useColors();
+  const tint = useTint();
   const { fasting, startFast, endFast, setFastTarget } = useTracker();
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -73,7 +74,7 @@ export function FastingCard() {
     return (
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Pressable onPress={() => setOpen((o) => !o)} style={styles.head} accessibilityRole="button">
-          <View style={[styles.icon, { backgroundColor: "#EDE9FE" }]}>
+          <View style={[styles.icon, { backgroundColor: tint("#EDE9FE", FAST) }]}>
             <MaterialCommunityIcons name="timer-sand" size={20} color={FAST} />
           </View>
           <View style={styles.flex1}>
@@ -134,7 +135,7 @@ export function FastingCard() {
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: FAST }]}>
       <View style={styles.head}>
-        <View style={[styles.icon, { backgroundColor: done ? "#DCFCE7" : "#EDE9FE" }]}>
+        <View style={[styles.icon, { backgroundColor: done ? tint("#DCFCE7", "#16A34A") : tint("#EDE9FE", FAST) }]}>
           <MaterialCommunityIcons name={done ? "check-bold" : "timer-sand"} size={20} color={done ? "#16A34A" : FAST} />
         </View>
         <View style={styles.flex1}>
@@ -146,7 +147,7 @@ export function FastingCard() {
           </Text>
         </View>
       </View>
-      <View style={[styles.track, { backgroundColor: "#EDE9FE" }]}>
+      <View style={[styles.track, { backgroundColor: tint("#EDE9FE", FAST) }]}>
         <View style={[styles.fill, { width: `${pct * 100}%`, backgroundColor: done ? "#16A34A" : FAST }]} />
       </View>
       <Pressable

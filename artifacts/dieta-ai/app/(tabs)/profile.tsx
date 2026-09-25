@@ -96,6 +96,12 @@ const GENDER_OPTIONS: ChoiceOption<Gender>[] = [
   { value: "ayol", label: "Ayol", icon: "user" },
 ];
 
+const THEME_OPTIONS: ChoiceOption<"light" | "dark" | "system">[] = [
+  { value: "light", label: "Yorug'", icon: "sun" },
+  { value: "dark", label: "Qorong'i", icon: "moon" },
+  { value: "system", label: "Telefon bo'yicha", icon: "smartphone" },
+];
+
 const GOAL_LABEL: Record<Goal, string> = {
   ozish: "Vazn yo'qotish",
   saqlash: "Vaznni saqlash",
@@ -189,6 +195,7 @@ export default function ProfileScreen() {
   const [myFoodsOpen, setMyFoodsOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
   const [bodyOpen, setBodyOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
   const [backupOn, setBackupOn] = useState(false);
   const { customFoods, favorites, measurements, photos } = useTracker();
   const [permStatus, setPermStatus] = useState<PermissionStatus>("undetermined");
@@ -444,6 +451,12 @@ export default function ProfileScreen() {
           valueColor={notifLabel === "Ruxsat yo'q" ? colors.destructive : undefined}
           onPress={() => setNotifOpen(true)}
         />
+        <SettingRow
+          icon="moon"
+          label="Mavzu"
+          value={THEME_OPTIONS.find((o) => o.value === (profile.theme ?? "light"))?.label}
+          onPress={() => setThemeOpen(true)}
+        />
         <SettingRow icon="globe" label="Til" value="O'zbekcha" />
         <SettingRow icon="shield" label="Maxfiylik siyosati" onPress={() => setPrivacyOpen(true)} />
 
@@ -581,6 +594,20 @@ export default function ProfileScreen() {
         onUseAuto={() => {
           applyProfile({ manualCalories: false });
           closeEditor();
+        }}
+      />
+
+      <ChoiceSheet
+        visible={themeOpen}
+        onClose={() => setThemeOpen(false)}
+        icon="moon"
+        title="Mavzu"
+        desc="Ilova ranglari. «Telefon bo'yicha» tanlansa, telefoningiz sozlamasiga moslashadi."
+        options={THEME_OPTIONS}
+        current={profile.theme ?? "light"}
+        onSelect={(v) => {
+          setProfile({ theme: v });
+          setThemeOpen(false);
         }}
       />
 

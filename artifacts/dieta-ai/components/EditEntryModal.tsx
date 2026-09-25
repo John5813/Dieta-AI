@@ -13,7 +13,7 @@ import {
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { DiaryEntry, DiaryEntryPatch } from "@/context/AppContext";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useTint } from "@/hooks/useColors";
 import { useTracker } from "@/context/TrackerContext";
 import { confirmAction } from "@/lib/confirm";
 import { entryMeal, MEAL_INFO, MEAL_ORDER, type MealType } from "@/lib/meals";
@@ -39,6 +39,7 @@ interface Props {
 
 export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Props) {
   const colors = useColors();
+  const tint = useTint();
   const insets = useSafeAreaInsets();
   const [name, setName] = useState("");
   const [mult, setMult] = useState(1);
@@ -180,7 +181,7 @@ export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Pr
                   accessibilityLabel={fav ? "Sevimlilardan olib tashlash" : "Sevimliga qo'shish"}
                   style={[
                     styles.favBtn,
-                    { backgroundColor: fav ? "#FEF3C7" : colors.secondary },
+                    { backgroundColor: fav ? tint("#FEF3C7", "#F59E0B") : colors.secondary },
                   ]}
                 >
                   <Feather name="star" size={18} color={fav ? "#F59E0B" : colors.mutedForeground} />

@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { isPremiumExpired, TRIAL_DAYS, type Subscription } from "@/context/AppContext";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useTint } from "@/hooks/useColors";
 import { formatUzDate } from "@/lib/nutrition";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -39,6 +39,7 @@ export function PremiumCard({
   onRestore: () => void;
 }) {
   const colors = useColors();
+  const tintOf = useTint();
   const state = getState(subscription, Date.now());
   const isActive = state.kind === "active";
   const renewSoon = isActive && state.daysLeft <= RENEW_SOON_DAYS;
@@ -64,7 +65,7 @@ export function PremiumCard({
           : "Cheksiz AI tahlil va shaxsiy reja uchun Premium oling";
 
   const accent = isActive && !renewSoon ? colors.primary : "#E07A1F";
-  const tint = isActive && !renewSoon ? colors.secondary : "#FEF3C7";
+  const tint = isActive && !renewSoon ? colors.secondary : tintOf("#FEF3C7", "#E07A1F");
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: isActive ? accent : colors.border }]}>

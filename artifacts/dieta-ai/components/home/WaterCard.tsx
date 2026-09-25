@@ -2,7 +2,7 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTracker } from "@/context/TrackerContext";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useTint } from "@/hooks/useColors";
 
 const GLASS_ML = 250;
 const WATER = "#2563EB";
@@ -14,6 +14,7 @@ function fmtL(ml: number): string {
 /** Glass-by-glass water log for one day. */
 export function WaterCard({ dateKey, goalMl }: { dateKey: string; goalMl: number }) {
   const colors = useColors();
+  const tint = useTint();
   const { waterByDate, addWater } = useTracker();
   const drunk = waterByDate[dateKey] ?? 0;
   const glassesGoal = Math.min(12, Math.max(4, Math.round(goalMl / GLASS_ML)));
@@ -24,7 +25,7 @@ export function WaterCard({ dateKey, goalMl }: { dateKey: string; goalMl: number
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.head}>
-        <View style={[styles.icon, { backgroundColor: "#DBEAFE" }]}>
+        <View style={[styles.icon, { backgroundColor: tint("#DBEAFE", WATER) }]}>
           <Feather name="droplet" size={18} color={WATER} />
         </View>
         <View style={styles.flex1}>
@@ -75,7 +76,7 @@ export function WaterCard({ dateKey, goalMl }: { dateKey: string; goalMl: number
         ))}
       </View>
 
-      <View style={[styles.track, { backgroundColor: "#DBEAFE" }]}>
+      <View style={[styles.track, { backgroundColor: tint("#DBEAFE", WATER) }]}>
         <View style={[styles.fill, { width: `${pct * 100}%` }]} />
       </View>
       <Text style={[styles.hint, { color: colors.mutedForeground }]}>1 stakan = {GLASS_ML} ml</Text>

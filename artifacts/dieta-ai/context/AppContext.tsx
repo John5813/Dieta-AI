@@ -45,6 +45,8 @@ export interface UserProfile {
   waterRemindersEnabled: boolean;
   dailySummaryEnabled: boolean;
   morningGreetingEnabled: boolean;
+  /** App theme; "system" follows the phone. Absent means light. */
+  theme?: "light" | "dark" | "system";
 }
 
 export type SubscriptionStatus = "none" | "trial" | "active";
