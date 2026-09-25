@@ -30,6 +30,8 @@ export interface UserProfile {
   achievements: string[];
   mealsPerDay: number;
   dailyCalories: number;
+  /** User typed their own daily target — weight/activity edits keep it. */
+  manualCalories?: boolean;
   protein: number;
   carbs: number;
   fat: number;
@@ -54,6 +56,14 @@ export interface Subscription {
   scansToday: number;
   spinAttempts: number;
   premiumUntil?: number;
+  /** Bot-issued login of the redeemed purchase, kept so the user can restore it later. */
+  login?: string;
+}
+
+export type ScanBlockReason = "trial_expired" | "premium_expired" | "daily_limit" | "locked";
+
+export function isPremiumExpired(s: Subscription, now = Date.now()): boolean {
+  return s.status === "active" && s.premiumUntil != null && now >= s.premiumUntil;
 }
 
 export interface ExercisePlanItem {
@@ -115,12 +125,12 @@ interface AppContextType {
   completeOnboarding: () => Promise<void>;
   resetApp: () => Promise<void>;
   startTrial: () => void;
-  activateSubscription: (premiumUntil?: number) => void;
+  activateSubscription: (premiumUntil?: number, login?: string) => void;
   incrementSpinAttempts: () => void;
   tourPending: boolean;
   clearTourPending: () => void;
-  registerScan: () => { allowed: boolean; reason?: "trial_expired" | "daily_limit" | "locked" };
-  canScan: () => { allowed: boolean; reason?: "trial_expired" | "daily_limit" | "locked"; remaining: number };
+  registerScan: () => { allowed: boolean; reason?: ScanBlockReason };
+  canScan: () => { allowed: boolean; reason?: ScanBlockReason; remaining: number };
   /** `date` defaults to today; pass a past "YYYY-MM-DD" to log a forgotten meal. */
   addEntry: (entry: Omit<DiaryEntry, "id" | "time" | "date">, date?: string) => void;
   addEntries: (entries: Array<Omit<DiaryEntry, "id" | "time" | "date">>, date?: string) => void;
@@ -536,11 +546,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const activateSubscription = (premiumUntil?: number) => {
+  const activateSubscription = (premiumUntil?: number, login?: string) => {
     persistSub({
       ...subscription,
       status: "active",
       premiumUntil: premiumUntil ?? Date.now() + 365 * 24 * 60 * 60 * 1000,
+      login: login ?? subscription.login,
     });
     setTourPendingState(true);
   };
@@ -559,6 +570,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const canScan = () => {
     if (subscription.status === "active") {
+      if (isPremiumExpired(subscription)) {
+        return { allowed: false, reason: "premium_expired" as const, remaining: 0 };
+      }
       return { allowed: true, remaining: Infinity };
     }
     if (subscription.status === "trial") {

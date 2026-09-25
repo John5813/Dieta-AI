@@ -154,7 +154,7 @@ export default function PaymentScreen() {
         return;
       }
       const until = data.premiumUntil ? new Date(data.premiumUntil).getTime() : undefined;
-      activateSubscription(until);
+      activateSubscription(until, login.trim());
       await completeOnboarding();
       try {
         await AsyncStorage.setItem("onboarding_complete", "true");
