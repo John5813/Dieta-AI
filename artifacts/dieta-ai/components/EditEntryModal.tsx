@@ -5,11 +5,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "@/components/i18n/Text";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { DiaryEntry, DiaryEntryPatch } from "@/context/AppContext";
@@ -17,6 +16,7 @@ import { useColors, useTint } from "@/hooks/useColors";
 import { useTracker } from "@/context/TrackerContext";
 import { confirmAction } from "@/lib/confirm";
 import { entryMeal, MEAL_INFO, MEAL_ORDER, type MealType } from "@/lib/meals";
+import { tr } from "@/lib/i18n";
 
 const MULTIPLIERS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
@@ -105,7 +105,7 @@ export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Pr
   const confirmDelete = async () => {
     const ok = await confirmAction({
       title: "Yozuvni o'chirish",
-      message: `"${entry.name}" yozuvini o'chirmoqchimisiz?`,
+      message: tr("\"{0}\" yozuvini o'chirmoqchimisiz?", entry.name),
       confirmText: "O'chirish",
       destructive: true,
     });

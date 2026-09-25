@@ -1,10 +1,12 @@
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import type { DiaryEntry } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { entryMeal, MEAL_INFO, MEAL_ORDER, type MealType } from "@/lib/meals";
+import { tr } from "@/lib/i18n";
 
 /** The day's diary split into breakfast / lunch / dinner / snacks. */
 export function MealSections({
@@ -41,7 +43,7 @@ export function MealSections({
               <View style={styles.flex1}>
                 <Text style={[styles.headTitle, { color: colors.text }]}>{info.label}</Text>
                 <Text style={[styles.headSub, { color: colors.mutedForeground }]}>
-                  {list.length > 0 ? `${list.length} ta · ${total} kkal` : "Hali qo'shilmagan"}
+                  {list.length > 0 ? tr("{0} ta · {1} kkal", list.length, total) : "Hali qo'shilmagan"}
                 </Text>
               </View>
               <Pressable

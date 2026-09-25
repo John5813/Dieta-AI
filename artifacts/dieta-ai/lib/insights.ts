@@ -2,6 +2,7 @@ import type { DiaryEntry, Goal, WeightEntry } from "@/context/AppContext";
 import type { BodyMeasurement, CustomFood, FastingState, ProgressPhoto } from "@/context/TrackerContext";
 import { shiftDateKey } from "@/lib/date";
 import { entryMeal, MEAL_INFO, type MealType } from "@/lib/meals";
+import { tr, trText } from "@/lib/i18n";
 
 export interface InsightInput {
   entries: DiaryEntry[];
@@ -113,14 +114,14 @@ export function weeklyReport(inp: InsightInput): WeeklyReport {
   if (logged.length === 0) {
     tips.push("Bu hafta hali ovqat yozilmagan. Kuniga kamida bitta ovqatni qo'shishdan boshlang.");
   } else {
-    if (logged.length < 5) tips.push(`7 kundan ${logged.length} kuni yozildi — har kuni yozsangiz natija aniqroq bo'ladi.`);
-    if (daysOver >= 3) tips.push(`${daysOver} kun me'yordan oshdi. Kechki ovqat porsiyasini kichraytirib ko'ring.`);
+    if (logged.length < 5) tips.push(tr("7 kundan {0} kuni yozildi — har kuni yozsangiz natija aniqroq bo'ladi.", logged.length));
+    if (daysOver >= 3) tips.push(tr("{0} kun me'yordan oshdi. Kechki ovqat porsiyasini kichraytirib ko'ring.", daysOver));
     if (avgProtein > 0 && avgProtein < inp.goalProtein * 0.75)
-      tips.push(`Oqsil o'rtacha ${avgProtein} g — me'yor ${inp.goalProtein} g. Tuxum, tvorog, go'sht, dukkaklilar qo'shing.`);
+      tips.push(tr("Oqsil o'rtacha {0} g — me'yor {1} g. Tuxum, tvorog, go'sht, dukkaklilar qo'shing.", avgProtein, inp.goalProtein));
     if (skippedMeal)
-      tips.push(`${MEAL_INFO[skippedMeal.meal].label} ${skippedMeal.days} kun yozilmagan — ovqatni o'tkazib yuborish keyin ortiqcha yeyishga olib keladi.`);
+      tips.push(tr("{0} {1} kun yozilmagan — ovqatni o'tkazib yuborish keyin ortiqcha yeyishga olib keladi.", trText(MEAL_INFO[skippedMeal.meal].label), skippedMeal.days));
     if (waterDays.length > 0 && avg(waterDays) < inp.waterGoalMl * 0.7)
-      tips.push(`Suv o'rtacha ${(avg(waterDays) / 1000).toFixed(1)} L — me'yor ${(inp.waterGoalMl / 1000).toFixed(1)} L.`);
+      tips.push(tr("Suv o'rtacha {0} L — me'yor {1} L.", (avg(waterDays) / 1000).toFixed(1), (inp.waterGoalMl / 1000).toFixed(1)));
     if (daysOnTarget >= 5) tips.push("Ajoyib hafta! 5 va undan ko'p kun me'yorda bo'ldingiz. 👏");
   }
 
@@ -165,7 +166,6 @@ export function achievements(inp: InsightInput): Achievement[] {
     latestW != null && startW != null
       ? Math.max(0, Math.round((inp.goal === "oshirish" ? latestW - startW : startW - latestW) * 10) / 10)
       : 0;
-  const weightWord = inp.goal === "oshirish" ? "oshirildi" : "tashlandi";
 
   const list: Achievement[] = [
     { id: "first", emoji: "🌱", title: "Birinchi qadam", desc: "Birinchi ovqatni yozing", current: Math.min(1, inp.entries.length), target: 1 },
@@ -176,8 +176,8 @@ export function achievements(inp: InsightInput): Achievement[] {
     { id: "ontarget7", emoji: "🎯", title: "Me'yor ustasi", desc: "7 kun kaloriya me'yorida qoling", current: Math.min(onTargetDays, 7), target: 7 },
     { id: "water7", emoji: "💧", title: "Suv chempioni", desc: "7 kun suv me'yorini bajaring", current: Math.min(waterDays, 7), target: 7 },
     { id: "steps10k", emoji: "👟", title: "10 000 qadam", desc: "Bir kunda 10 000 qadam yuring", current: Math.min(maxSteps, 10000), target: 10000 },
-    { id: "kg2", emoji: "⚖️", title: `2 kg ${weightWord}`, desc: `Boshlang'ich vazndan 2 kg`, current: Math.min(progressKg, 2), target: 2 },
-    { id: "kg5", emoji: "🥇", title: `5 kg ${weightWord}`, desc: `Boshlang'ich vazndan 5 kg`, current: Math.min(progressKg, 5), target: 5 },
+    { id: "kg2", emoji: "⚖️", title: inp.goal === "oshirish" ? tr("2 kg oshirildi") : tr("2 kg tashlandi"), desc: `Boshlang'ich vazndan 2 kg`, current: Math.min(progressKg, 2), target: 2 },
+    { id: "kg5", emoji: "🥇", title: inp.goal === "oshirish" ? tr("5 kg oshirildi") : tr("5 kg tashlandi"), desc: `Boshlang'ich vazndan 5 kg`, current: Math.min(progressKg, 5), target: 5 },
     { id: "fast16", emoji: "⏳", title: "16 soat ochlik", desc: "16 soatlik ochlikni bajaring", current: Math.min(Math.floor(longestFastH), 16), target: 16 },
     { id: "recipe", emoji: "👩‍🍳", title: "Oshpaz", desc: "O'z taomingiz yoki retseptingizni yarating", current: Math.min(inp.customFoods.length, 1), target: 1 },
     { id: "measure4", emoji: "📏", title: "O'lchovchi", desc: "Tana o'lchamlarini 4 marta yozing", current: Math.min(inp.measurements.length, 4), target: 4 },

@@ -1,20 +1,22 @@
 import { router } from "expo-router";
 import React, { useMemo } from "react";
 import { Feather } from "@expo/vector-icons";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { BodyAvatar } from "@/components/BodyAvatar";
 import { OnboardingLayout } from "@/components/OnboardingLayout";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { calculatePlan, formatUzDate } from "@/lib/nutrition";
+import { tr } from "@/lib/i18n";
 
 function formatDuration(days: number): string {
   if (days <= 0) return "0 kun";
-  if (days < 14) return `${days} kun`;
+  if (days < 14) return tr("{0} kun", days);
   const weeks = Math.round(days / 7);
-  if (weeks < 8) return `${weeks} hafta`;
+  if (weeks < 8) return tr("{0} hafta", weeks);
   const months = Math.round(days / 30);
-  return `${months} oy`;
+  return tr("{0} oy", months);
 }
 
 export default function TransformationScreen() {
@@ -47,7 +49,11 @@ export default function TransformationScreen() {
 
   const infoText = isMaintain
     ? "Sizning vazningiz ideal! UzDieta AI sizga sog'lom ovqatlanish odatlarini saqlab qolish va energiyangizni yuqori darajada ushlab turishda yordam beradi."
-    : `Sizning ${speed.toFixed(1)} kg/hafta sur'atingizda UzDieta AI tarixiy ma'lumotlariga ko'ra, dastlabki natijalar 7-10 kunda ko'rinadi va ${totalLabel} ichida to'liq maqsadga erishasiz.`;
+    : tr(
+        "Sizning {0} kg/hafta sur'atingizda UzDieta AI tarixiy ma'lumotlariga ko'ra, dastlabki natijalar 7-10 kunda ko'rinadi va {1} ichida to'liq maqsadga erishasiz.",
+        speed.toFixed(1),
+        totalLabel,
+      );
 
   return (
     <OnboardingLayout

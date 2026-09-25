@@ -14,12 +14,11 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
   useWindowDimensions,
 } from "react-native";
+import { Text, TextInput } from "@/components/i18n/Text";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import {
@@ -56,6 +55,7 @@ import {
   type FoodCategory,
   type FoodItem,
 } from "@/lib/foodDatabase";
+import { getLanguage, tr, trText } from "@/lib/i18n";
 
 type ColorPalette = ReturnType<typeof useColors>;
 type ImageMime = "image/png" | "image/webp" | "image/jpeg";
@@ -480,7 +480,7 @@ export function AddFoodModal({
   ) => {
     setLoading(source);
     try {
-      const res = await aiAnalyzeImage({ imageBase64: base64, mimeType, userContext: buildCtx() });
+      const res = await aiAnalyzeImage({ imageBase64: base64, mimeType, userContext: buildCtx(), language: getLanguage() });
       // Only a recognised dish uses up a trial scan; blurry or non-food shots don't.
       if (res.status === "ok") registerScan();
       showAnalysisResult(res, source, imageUri);
@@ -572,7 +572,7 @@ export function AddFoodModal({
     triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
     setLoading("text");
     try {
-      const res = await aiAnalyzeText({ text: textInput.trim(), userContext: buildCtx() });
+      const res = await aiAnalyzeText({ text: textInput.trim(), userContext: buildCtx(), language: getLanguage() });
       showAnalysisResult(res, "text");
     } catch {
       setErrorMsg("Internet bilan bog'lanishda xatolik. Qaytadan urinib ko'ring.");
@@ -699,7 +699,7 @@ export function AddFoodModal({
         `Faqat shu QO'SHIMCHA mahsulot(lar)ning kaloriya va makrolarini hisobla: "${note}". ` +
         `Asosiy taom (palov, manti va h.k.) HAQIDA o'ylash kerak emas — faqat shu qo'shimchaning ` +
         `o'zining qiymatlarini qaytar. Masalan: "30g sariyog'" → ~220 kkal, oqsil 0g, uglevod 0g, yog' 24g.`;
-      const res = await aiAnalyzeText({ text: prompt, userContext: buildCtx() });
+      const res = await aiAnalyzeText({ text: prompt, userContext: buildCtx(), language: getLanguage() });
       // "30g sariyog' va smetana" may come back split into a main item plus
       // sides — the extra is all of it together.
       const withSides = sumSides(res.sides?.map((s) => ({ ...s, included: true })));
@@ -812,7 +812,7 @@ export function AddFoodModal({
                   }
                   scanNote={
                     subscription.status === "trial"
-                      ? `Sinov: bugun ${canScan().remaining} / ${TRIAL_DAILY_SCAN_LIMIT} ta rasm tahlili qoldi`
+                      ? tr("Sinov: bugun {0} / {1} ta rasm tahlili qoldi", canScan().remaining, TRIAL_DAILY_SCAN_LIMIT)
                       : undefined
                   }
                 />
@@ -1039,7 +1039,7 @@ function SidesList({
 function scanBlockMessage(reason?: ScanBlockReason): string {
   switch (reason) {
     case "daily_limit":
-      return `Sinov davrida kuniga ${TRIAL_DAILY_SCAN_LIMIT} ta rasm tahlil qilinadi — bugungisi tugadi. Ovqatni ro'yxatdan yoki matn bilan qo'shishingiz mumkin, yoki Premium bilan cheksiz foydalaning.`;
+      return tr("Sinov davrida kuniga {0} ta rasm tahlil qilinadi — bugungisi tugadi. Ovqatni ro'yxatdan yoki matn bilan qo'shishingiz mumkin, yoki Premium bilan cheksiz foydalaning.", TRIAL_DAILY_SCAN_LIMIT);
     case "premium_expired":
       return "Premium muddati tugagan. Rasm tahlilidan foydalanish uchun Premiumni yangilang.";
     case "trial_expired":
@@ -2125,22 +2125,22 @@ function AiConfirmStep({
       const cal = Math.round(recommendedUnits * calPerUnit);
       const base =
         remainingCal != null && dailyCalories != null
-          ? `Kunlik normangiz ${dailyCalories} kkal, qolgan ${remainingCal} kkal. `
+          ? tr("Kunlik normangiz {0} kkal, qolgan {1} kkal. ", dailyCalories, remainingCal)
           : "";
-      return `${base}Sizga ~${fmtUnits(recommendedUnits)} ${unitNamePlural} (≈${cal} kkal) optimal.`;
+      return tr("{0}Sizga ~{1} {2} (≈{3} kkal) optimal.", base, fmtUnits(recommendedUnits), trText(unitNamePlural), cal);
     }
     if (recommendedGrams && per100Cal) {
       const cal = Math.round((recommendedGrams * per100Cal) / 100);
       const base =
         remainingCal != null && dailyCalories != null
-          ? `Kunlik normangiz ${dailyCalories} kkal, qolgan ${remainingCal} kkal. `
+          ? tr("Kunlik normangiz {0} kkal, qolgan {1} kkal. ", dailyCalories, remainingCal)
           : "";
-      return `${base}Sizga ~${recommendedGrams}${unit} (≈${cal} kkal) tavsiya etiladi.`;
+      return tr("{0}Sizga ~{1}{2} (≈{3} kkal) tavsiya etiladi.", base, recommendedGrams, unit, cal);
     }
     if (remainingCal != null && dailyCalories != null) {
       return displayCal > remainingCal
-        ? `Kunlik normangiz ${dailyCalories} kkal. Hozir ${remainingCal} kkal qolgan — bu porsiya normadan oshadi. Porsiyani kamaytirish tavsiya etiladi.`
-        : `Kunlik normangiz ${dailyCalories} kkal. Bu porsiya (${displayCal} kkal) norma doirasida.`;
+        ? tr("Kunlik normangiz {0} kkal. Hozir {1} kkal qolgan — bu porsiya normadan oshadi. Porsiyani kamaytirish tavsiya etiladi.", dailyCalories, remainingCal)
+        : tr("Kunlik normangiz {0} kkal. Bu porsiya ({1} kkal) norma doirasida.", dailyCalories, displayCal);
     }
     return "Bu porsiyani me'yorida iste'mol qilish tavsiya etiladi.";
   })();
@@ -2188,7 +2188,7 @@ function AiConfirmStep({
   const extrasSummary = (() => {
     if (extras.length === 0) return undefined;
     if (extras.length === 1) return extras[0].note.length > 30 ? `${extras[0].note.slice(0, 30)}…` : extras[0].note;
-    return `${extras.length} qo'shimcha`;
+    return tr("{0} qo'shimcha", extras.length);
   })();
 
   // Porsiya yorlig'i — saqlanganda ko'rinadi
@@ -2372,8 +2372,8 @@ function AiConfirmStep({
                 ]}
               >
                 {kcalLeftAfter >= 0
-                  ? `Keyin qoladi: ${kcalLeftAfter} kkal`
-                  : `Normadan +${-kcalLeftAfter} kkal`}
+                  ? tr("Keyin qoladi: {0} kkal", kcalLeftAfter)
+                  : tr("Normadan +{0} kkal", -kcalLeftAfter)}
               </Text>
             ) : null}
           </View>
@@ -2514,7 +2514,7 @@ function AiConfirmStep({
             <TextInput
               value={customPortionText}
               onChangeText={setCustomPortionText}
-              placeholder={isCountUnit ? `Boshqa miqdor (${unitNamePlural}), masalan 1.5` : "Boshqa miqdor, masalan 1.5"}
+              placeholder={isCountUnit ? tr("Boshqa miqdor ({0}), masalan 1.5", unitNamePlural) : "Boshqa miqdor, masalan 1.5"}
               placeholderTextColor={colors.mutedForeground}
               keyboardType="decimal-pad"
               style={[ac.input, ac.flex1, { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
@@ -2594,7 +2594,7 @@ function AiConfirmStep({
           {extras.map((it, idx) => (
             <View key={`${it.note}-${idx}`} style={[ac.extraRow, { borderTopColor: colors.border }]}>
               <Text style={[ac.extraName, { color: colors.text }]} numberOfLines={2}>+ {it.note}</Text>
-              <Text style={[ac.extraCal, { color: colors.text }]}>{it.cal > 0 ? `${it.cal} kkal` : "?"}</Text>
+              <Text style={[ac.extraCal, { color: colors.text }]}>{it.cal > 0 ? tr("{0} kkal", it.cal) : "?"}</Text>
               <Pressable
                 onPress={() => onRemoveIngredient(idx)}
                 hitSlop={8}
@@ -2659,7 +2659,7 @@ function AiConfirmStep({
         >
           <Feather name="check" size={20} color="#FFFFFF" />
           <Text style={ac.confirmText} numberOfLines={1}>
-            {sides.count > 0 ? `${sides.count + 1} ta taomni qo'shish` : "Kundalikka qo'shish"} · {plateCal} kkal
+            {sides.count > 0 ? tr("{0} ta taomni qo'shish", sides.count + 1) : "Kundalikka qo'shish"} · {plateCal} kkal
           </Text>
         </Pressable>
       </View>

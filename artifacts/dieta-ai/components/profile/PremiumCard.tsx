@@ -1,9 +1,11 @@
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { isPremiumExpired, TRIAL_DAYS, type Subscription } from "@/context/AppContext";
 import { useColors, useTint } from "@/hooks/useColors";
 import { formatUzDate } from "@/lib/nutrition";
+import { tr } from "@/lib/i18n";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Start nudging to renew this many days before premium runs out. */
@@ -55,12 +57,12 @@ export function PremiumCard({
 
   const subtitle =
     state.kind === "active"
-      ? `${formatUzDate(new Date(state.until))} gacha · ${state.daysLeft} kun qoldi`
+      ? tr("{0} gacha · {1} kun qoldi", formatUzDate(new Date(state.until)), state.daysLeft)
       : state.kind === "trial"
-        ? `${state.hoursLeft} soat qoldi — keyin davom etish uchun Premium kerak`
+        ? tr("{0} soat qoldi — keyin davom etish uchun Premium kerak", state.hoursLeft)
         : state.kind === "expired"
           ? state.until
-            ? `${formatUzDate(new Date(state.until))} da tugagan`
+            ? tr("{0} da tugagan", formatUzDate(new Date(state.until)))
             : "AI tahlildan foydalanish uchun Premium oling"
           : "Cheksiz AI tahlil va shaxsiy reja uchun Premium oling";
 

@@ -1,8 +1,10 @@
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { useColors } from "@/hooks/useColors";
 import type { WeeklyReport } from "@/lib/insights";
+import { tr } from "@/lib/i18n";
 
 function Cell({ label, value, sub }: { label: string; value: string; sub?: string }) {
   const colors = useColors();
@@ -31,11 +33,11 @@ export function WeeklyReportCard({ report, goalCal }: { report: WeeklyReport; go
         </View>
       </View>
       <View style={styles.grid}>
-        <Cell label="O'rtacha kkal" value={report.avgCal ? String(report.avgCal) : "—"} sub={`me'yor ${goalCal}`} />
-        <Cell label="Me'yorda" value={`${report.daysOnTarget} kun`} sub={report.daysOver ? `${report.daysOver} kun oshgan` : undefined} />
+        <Cell label="O'rtacha kkal" value={report.avgCal ? String(report.avgCal) : "—"} sub={tr("me'yor {0}", goalCal)} />
+        <Cell label="Me'yorda" value={tr("{0} kun", report.daysOnTarget)} sub={report.daysOver ? tr("{0} kun oshgan", report.daysOver) : undefined} />
         <Cell
           label="Vazn"
-          value={w == null ? "—" : `${w > 0 ? "+" : ""}${w} kg`}
+          value={w == null ? "—" : tr("{0}{1} kg", w > 0 ? "+" : "", w)}
           sub={w == null ? "2 ta o'lchov kerak" : undefined}
         />
         <Cell label="O'rtacha oqsil" value={report.avgProtein ? `${report.avgProtein} g` : "—"} />

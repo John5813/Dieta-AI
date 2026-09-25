@@ -8,14 +8,15 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { mealFromLabel } from "@/lib/meals";
 import { SuccessToast } from "@/components/SuccessToast";
+import { getLanguage, tr } from "@/lib/i18n";
 
 const API_BASE = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
@@ -325,7 +326,7 @@ export default function RatsionScreen() {
       const res = await fetch(`${API_BASE}/api/ai/meal-plan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: JSON.stringify({ language: getLanguage(),
           profile: buildProfilePayload(),
           regenerate,
           excludeNames,
@@ -384,7 +385,7 @@ export default function RatsionScreen() {
       const res = await fetch(`${API_BASE}/api/ai/meal-plan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: JSON.stringify({ language: getLanguage(),
           profile: buildProfilePayload(),
           alternativeFor: current.name,
           dietKey: activeDiet,
@@ -445,7 +446,7 @@ export default function RatsionScreen() {
     ]);
     setToast({
       visible: true,
-      message: `${m.name} qo'shildi · +${Math.round(m.cal)} kkal`,
+      message: tr("{0} qo'shildi · +{1} kkal", m.name, Math.round(m.cal)),
     });
   };
 
@@ -624,7 +625,7 @@ export default function RatsionScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.mealName, { color: colors.text }]}>{m.name}</Text>
                     <Text style={[styles.mealPortion, { color: colors.mutedForeground }]}>
-                      {m.portion}{Number.isFinite(m.cal) && m.cal > 0 ? ` · ${m.cal} kkal` : ""}
+                      {m.portion}{Number.isFinite(m.cal) && m.cal > 0 ? tr(" · {0} kkal", m.cal) : ""}
                     </Text>
                     <View style={styles.macroRow}>
                       <Text style={[styles.macroTag, { color: colors.chartRed }]}>

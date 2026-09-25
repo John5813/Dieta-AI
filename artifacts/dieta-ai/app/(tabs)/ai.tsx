@@ -7,10 +7,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from "react-native";
+import { Text, TextInput } from "@/components/i18n/Text";
 import {
   KeyboardAvoidingView,
   useKeyboardState,
@@ -19,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
+import { getLanguage } from "@/lib/i18n";
 
 interface ChatMsg {
   id: string;
@@ -113,7 +113,7 @@ export default function AiScreen() {
         const res = await fetch(`${API_BASE}/api/ai/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+          body: JSON.stringify({ language: getLanguage(),
             messages: next.map((m) => ({ role: m.role, content: m.content })),
             userContext: {
               gender: profile.gender,

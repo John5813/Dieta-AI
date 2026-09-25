@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { OnboardingLayout } from "@/components/OnboardingLayout";
 import { SelectionCard } from "@/components/SelectionCard";
 import { useApp, Language } from "@/context/AppContext";
@@ -47,7 +48,11 @@ export default function LanguageScreen() {
                 label={lang.label}
                 sublabel={lang.sublabel}
                 selected={selected === lang.key}
-                onPress={() => setSelected(lang.key)}
+                onPress={() => {
+                  setSelected(lang.key);
+                  // Apply right away so the rest of this screen switches language too.
+                  setProfile({ language: lang.key });
+                }}
               />
             </View>
           </View>

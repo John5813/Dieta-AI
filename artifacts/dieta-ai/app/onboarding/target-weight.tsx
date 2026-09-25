@@ -1,10 +1,12 @@
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { OnboardingLayout } from "@/components/OnboardingLayout";
 import { WeightRuler } from "@/components/WeightRuler";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { tr } from "@/lib/i18n";
 
 const BMI_MIN = 16;
 const BMI_MAX = 40;
@@ -61,9 +63,9 @@ export default function TargetWeightScreen() {
       : "Istalgan vazningiz qancha?";
 
   const hint = isGain
-    ? `Hozirgi vazningizdan yuqori bo'lishi kerak (${current} kg dan ko'p)`
+    ? tr("Hozirgi vazningizdan yuqori bo'lishi kerak ({0} kg dan ko'p)", current)
     : isLose
-      ? `Hozirgi vazningizdan past bo'lishi kerak (${current} kg dan kam)`
+      ? tr("Hozirgi vazningizdan past bo'lishi kerak ({0} kg dan kam)", current)
       : null;
 
   return (
@@ -80,7 +82,7 @@ export default function TargetWeightScreen() {
       {diff !== 0 && !isInvalid && (
         <View style={[styles.badge, { backgroundColor: colors.secondary }]}>
           <Text style={[styles.badgeText, { color: colors.primary }]}>
-            {diff > 0 ? `▼ ${diff} kg ozish` : `▲ ${Math.abs(diff)} kg oshirish`}
+            {diff > 0 ? tr("▼ {0} kg ozish", diff) : tr("▲ {0} kg oshirish", Math.abs(diff))}
           </Text>
         </View>
       )}
@@ -99,8 +101,8 @@ export default function TargetWeightScreen() {
           </Text>
           <Text style={[styles.warningDesc, { color: "#7F1D1D" }]}>
             {isTooLow
-              ? `${weight} kg maqsad siz uchun BMI ${targetBMI.toFixed(1)} ga teng — bu juda past va sog'liq uchun xavfli.`
-              : `${weight} kg maqsad siz uchun BMI ${targetBMI.toFixed(1)} ga teng — bu juda yuqori va sog'liq uchun xavfli.`}
+              ? tr("{0} kg maqsad siz uchun BMI {1} ga teng — bu juda past va sog'liq uchun xavfli.", weight, targetBMI.toFixed(1))
+              : tr("{0} kg maqsad siz uchun BMI {1} ga teng — bu juda yuqori va sog'liq uchun xavfli.", weight, targetBMI.toFixed(1))}
           </Text>
           <View style={[styles.rangeBox, { backgroundColor: "#ECFDF5", borderColor: "#16A34A" }]}>
             <Text style={[styles.rangeLabel, { color: "#166534" }]}>

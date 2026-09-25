@@ -569,6 +569,20 @@ function sanitizeUserStr(v: unknown, max = 40): string | null {
   return cleaned.length > 0 ? cleaned : null;
 }
 
+/**
+ * Extra system-prompt line asking for replies in the app's language.
+ * JSON keys and the fixed Uzbek unit codes stay as they are.
+ */
+function languageLine(lang: unknown): string {
+  if (lang === "ru") {
+    return "\n\nTIL: Foydalanuvchi ilovani RUS tilida ishlatadi. Barcha matnli qiymatlarni (name, portion, coachAdvice, reason, detected, variantQuestion, variant label, side name/portion, tips, ingredients, summary, warning, instruction, reply) RUS tilida yoz. JSON kalitlari, status qiymatlari, unitName va unitPer100 o'zgarmaydi.";
+  }
+  if (lang === "uz-kril") {
+    return "\n\nTIL: Foydalanuvchi o'zbek tilining KIRILL alifbosini ishlatadi. Barcha matnli qiymatlarni o'zbekcha KIRILL harflarida yoz. JSON kalitlari, status qiymatlari, unitName va unitPer100 lotinda o'zgarmay qoladi.";
+  }
+  return "";
+}
+
 function buildUserContextLine(ctx: UserCtx | undefined | null): string {
   if (!ctx || typeof ctx !== "object") return "";
   const parts: string[] = [];
@@ -734,7 +748,7 @@ router.post("/ai/chat", async (req, res) => {
   try {
     const content = await chatComplete(
       [
-        { role: "system", content: CHAT_SYSTEM + contextLine + diaryLine },
+        { role: "system", content: CHAT_SYSTEM + contextLine + diaryLine + languageLine(req.body?.language) },
         ...messages,
       ],
       { temperature: 0.5 },
@@ -765,7 +779,7 @@ router.post("/ai/analyze-text", async (req, res) => {
   try {
     const content = await chatComplete(
       [
-        { role: "system", content: FOOD_ANALYSIS_SYSTEM + ctxLine },
+        { role: "system", content: FOOD_ANALYSIS_SYSTEM + ctxLine + languageLine(req.body?.language) },
         {
           role: "user",
           content: `Foydalanuvchi yozdi: "${parsed.data.text}"\n\nShu matnni tahlil qil va JSON qaytar.`,
@@ -945,7 +959,7 @@ router.post("/ai/meal-plan", async (req, res) => {
     try {
       const content = await chatComplete(
         [
-          { role: "system", content: MEAL_PLAN_SYSTEM },
+          { role: "system", content: MEAL_PLAN_SYSTEM + languageLine(req.body?.language) },
           { role: "user", content: altUserPrompt },
         ],
         {
@@ -995,7 +1009,7 @@ router.post("/ai/meal-plan", async (req, res) => {
   try {
     const content = await chatComplete(
       [
-        { role: "system", content: MEAL_PLAN_SYSTEM },
+        { role: "system", content: MEAL_PLAN_SYSTEM + languageLine(req.body?.language) },
         {
           role: "user",
           content: `${profileLine}${variationLine}\n\nShu profil bo'yicha 1 kunlik 4 turdagi ovqatlanish ratsioniga taom rejasini tuz. Faqat JSON qaytar.`,
@@ -1179,7 +1193,7 @@ router.post("/ai/exercise-plan", async (req, res) => {
   try {
     const content = await chatComplete(
       [
-        { role: "system", content: EXERCISE_SYSTEM },
+        { role: "system", content: EXERCISE_SYSTEM + languageLine(req.body?.language) },
         {
           role: "user",
           content: `${overLine} ${profileLine}${altLine}\n\nShu ortiqcha kaloriyalarni yo'qotish va parhez normasini saqlash uchun aniq mashqlar dasturini tuz. Faqat JSON qaytar.`,
@@ -1221,7 +1235,7 @@ router.post("/ai/analyze-image", async (req, res) => {
   try {
     const content = await chatComplete(
       [
-        { role: "system", content: FOOD_ANALYSIS_SYSTEM + ctxLine },
+        { role: "system", content: FOOD_ANALYSIS_SYSTEM + ctxLine + languageLine(req.body?.language) },
         {
           role: "user",
           content: [

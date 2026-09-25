@@ -7,16 +7,16 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from "react-native";
+import { Text, TextInput } from "@/components/i18n/Text";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTracker, type CustomFood, type RecipeIngredient } from "@/context/TrackerContext";
 import { useColors } from "@/hooks/useColors";
 import { aiAnalyzeText } from "@/lib/api-client";
 import { FOOD_DB } from "@/lib/foodDatabase";
+import { getLanguage, tr } from "@/lib/i18n";
 
 const EMOJIS = ["🍲", "🍚", "🥗", "🍜", "🥟", "🍳", "🥘", "🍗", "🥩", "🐟", "🥞", "🍰", "🥤", "🍎"];
 
@@ -106,7 +106,7 @@ export function CustomFoodEditor({
     setIngBusy(true);
     setIngError(null);
     try {
-      const res = await aiAnalyzeText({ text });
+      const res = await aiAnalyzeText({ text, language: getLanguage() });
       if (res.status !== "ok" || !res.calories) {
         setIngError(res.reason || "Aniqlab bo'lmadi. Masalan: \"200 g guruch\" deb yozing.");
         return;
@@ -144,7 +144,7 @@ export function CustomFoodEditor({
     } else {
       saveCustomFood({
         ...base,
-        portion: portion.trim() || (servings > 1 ? `1 porsiya (1/${servings})` : "1 porsiya"),
+        portion: portion.trim() || (servings > 1 ? tr("1 porsiya (1/{0})", servings) : "1 porsiya"),
         ...per,
         ingredients,
         servings,

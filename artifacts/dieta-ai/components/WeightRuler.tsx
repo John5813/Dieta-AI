@@ -5,9 +5,9 @@ import {
   NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { useColors } from "@/hooks/useColors";
 
 const { width } = Dimensions.get("window");

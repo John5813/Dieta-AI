@@ -66,6 +66,7 @@ export interface AiAnalyzeTextRequest {
 export interface AiAnalyzeImageRequest {
   imageBase64: string;
   mimeType?: string;
+  language?: string;
   userContext?: UserContext;
 }
 

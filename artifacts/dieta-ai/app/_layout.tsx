@@ -16,7 +16,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AppProvider } from "@/context/AppContext";
+import { AppProvider, useApp } from "@/context/AppContext";
 import { TrackerProvider } from "@/context/TrackerContext";
 import { useColors, useThemeScheme } from "@/hooks/useColors";
 import { StatusBar } from "expo-status-bar";
@@ -43,10 +43,14 @@ const FONT_TIMEOUT_MS = 4500;
 function RootLayoutNav() {
   const scheme = useThemeScheme();
   const colors = useColors();
+  // tr() reads a module-level language, which the React Compiler's memoization
+  // can't see — remount the screens when it changes so every label updates.
+  const { profile } = useApp();
+  const language = profile.language ?? "uz";
   return (
     <>
     <StatusBar style={scheme === "dark" ? "light" : "dark"} />
-    <Stack screenOptions={{ headerShown: false, animation: "fade", contentStyle: { backgroundColor: colors.background } }}>
+    <Stack key={language} screenOptions={{ headerShown: false, animation: "fade", contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="index" />
       <Stack.Screen
         name="(tabs)"

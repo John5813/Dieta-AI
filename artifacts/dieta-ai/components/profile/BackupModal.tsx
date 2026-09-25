@@ -8,10 +8,9 @@ import {
   ScrollView,
   Share,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from "react-native";
+import { Text, TextInput } from "@/components/i18n/Text";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
@@ -27,6 +26,7 @@ import {
   normalizeBackupCode,
 } from "@/lib/backup";
 import { confirmAction } from "@/lib/confirm";
+import { tr } from "@/lib/i18n";
 
 function fmtTime(ms: number): string {
   const d = new Date(ms);
@@ -96,7 +96,7 @@ export function BackupModal({
       const { entries, days } = backupItemCount(payload);
       const ok = await confirmAction({
         title: "Zaxiradan tiklash",
-        message: `${fmtTime(new Date(updatedAt).getTime())} dagi zaxira: ${entries} ta ovqat yozuvi, ${days} kun. Shu telefondagi hozirgi ma'lumotlar uning o'rniga almashtiriladi.`,
+        message: tr("{0} dagi zaxira: {1} ta ovqat yozuvi, {2} kun. Shu telefondagi hozirgi ma'lumotlar uning o'rniga almashtiriladi.", fmtTime(new Date(updatedAt).getTime()), entries, days),
         confirmText: "Tiklash",
         destructive: !restoreOnly,
       });
@@ -116,7 +116,7 @@ export function BackupModal({
   const shareCode = () => {
     if (!code) return;
     Share.share({
-      message: `UzDieta AI zaxira kodim: ${code}\nYangi telefonda Profil → Zaxira nusxa → Tiklash orqali kiriting.`,
+      message: tr("UzDieta AI zaxira kodim: {0}\nYangi telefonda Profil → Zaxira nusxa → Tiklash orqali kiriting.", code),
     }).catch(() => {});
   };
 
@@ -164,7 +164,7 @@ export function BackupModal({
                   <Text style={[styles.hint, { color: colors.mutedForeground }]}>
                     {code
                       ? lastAt
-                        ? `Oxirgi saqlash: ${fmtTime(lastAt)} · ilova yopilganda o'zi yangilanadi`
+                        ? tr("Oxirgi saqlash: {0} · ilova yopilganda o'zi yangilanadi", fmtTime(lastAt))
                         : "Hali saqlanmagan"
                       : "Ovqat tarixi, vazn, suv, taomlaringiz va sozlamalar serverga yoziladi. Telefon almashsa, kod bilan qaytarasiz."}
                   </Text>

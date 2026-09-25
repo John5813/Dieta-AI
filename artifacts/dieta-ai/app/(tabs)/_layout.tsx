@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { useColors, useThemeScheme } from "@/hooks/useColors";
 import { maybeAutoBackup } from "@/lib/backup";
+import { tr } from "@/lib/i18n";
 import { nextWeeklyReportTime, scheduleOneOff } from "@/lib/notifications";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -123,7 +124,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Bosh sahifa",
+          title: tr("Bosh sahifa"),
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
               <Feather name="home" size={20} color={color} />
@@ -134,7 +135,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="ai"
         options={{
-          title: "Suniy intellekt",
+          title: tr("Suniy intellekt"),
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
               <Feather name="cpu" size={20} color={color} />
@@ -159,7 +160,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="ratsion"
         options={{
-          title: "Ovqatlanish rejasi",
+          title: tr("Ovqatlanish rejasi"),
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
               <Feather name="bar-chart-2" size={20} color={color} />
@@ -170,7 +171,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profil",
+          title: tr("Profil"),
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
               <Feather name="user" size={20} color={color} />

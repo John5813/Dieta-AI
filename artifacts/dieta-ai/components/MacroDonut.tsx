@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import Svg, { Circle } from "react-native-svg";
 import { useColors } from "@/hooks/useColors";
 

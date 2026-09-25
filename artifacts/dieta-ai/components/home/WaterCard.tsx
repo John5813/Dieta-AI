@@ -1,14 +1,16 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { useTracker } from "@/context/TrackerContext";
 import { useColors, useTint } from "@/hooks/useColors";
+import { tr } from "@/lib/i18n";
 
 const GLASS_ML = 250;
 const WATER = "#2563EB";
 
 function fmtL(ml: number): string {
-  return ml >= 1000 ? `${(ml / 1000).toFixed(ml % 1000 === 0 ? 0 : 2).replace(/0$/, "")} L` : `${ml} ml`;
+  return ml >= 1000 ? `${(ml / 1000).toFixed(ml % 1000 === 0 ? 0 : 2).replace(/0$/, "")} L` : tr("{0} ml", ml);
 }
 
 /** Glass-by-glass water log for one day. */
@@ -31,7 +33,7 @@ export function WaterCard({ dateKey, goalMl }: { dateKey: string; goalMl: number
         <View style={styles.flex1}>
           <Text style={[styles.title, { color: colors.text }]}>Suv</Text>
           <Text style={[styles.sub, { color: done ? "#16A34A" : colors.mutedForeground }]}>
-            {done ? `Kunlik me'yor bajarildi · ${fmtL(drunk)}` : `${fmtL(drunk)} / ${fmtL(goalMl)}`}
+            {done ? tr("Kunlik me'yor bajarildi · {0}", fmtL(drunk)) : `${fmtL(drunk)} / ${fmtL(goalMl)}`}
           </Text>
         </View>
         <Pressable

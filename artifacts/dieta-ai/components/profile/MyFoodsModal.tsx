@@ -1,11 +1,13 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CustomFoodEditor } from "@/components/CustomFoodEditor";
 import { useTracker, type CustomFood } from "@/context/TrackerContext";
 import { useColors } from "@/hooks/useColors";
 import { confirmAction } from "@/lib/confirm";
+import { tr } from "@/lib/i18n";
 
 /** Manage user-made foods/recipes and favorites. */
 export function MyFoodsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
@@ -18,7 +20,7 @@ export function MyFoodsModal({ visible, onClose }: { visible: boolean; onClose: 
   const remove = async (f: CustomFood) => {
     const ok = await confirmAction({
       title: "Taomni o'chirish",
-      message: `"${f.name}" o'chirilsinmi? Kundalikdagi yozuvlar o'zgarmaydi.`,
+      message: tr("\"{0}\" o'chirilsinmi? Kundalikdagi yozuvlar o'zgarmaydi.", f.name),
       confirmText: "O'chirish",
       destructive: true,
     });
@@ -71,7 +73,7 @@ export function MyFoodsModal({ visible, onClose }: { visible: boolean; onClose: 
                     {f.name}
                   </Text>
                   <Text style={[styles.meta, { color: colors.mutedForeground }]} numberOfLines={1}>
-                    {f.ingredients?.length ? `Retsept · ${f.ingredients.length} masalliq · ` : ""}
+                    {f.ingredients?.length ? tr("Retsept · {0} masalliq · ", f.ingredients.length) : ""}
                     {f.portion ?? "1 porsiya"}
                   </Text>
                 </View>

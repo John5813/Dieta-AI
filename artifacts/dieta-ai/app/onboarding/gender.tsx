@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { Feather } from "@expo/vector-icons";
 import { BodyAvatar } from "@/components/BodyAvatar";
 import { OnboardingLayout } from "@/components/OnboardingLayout";

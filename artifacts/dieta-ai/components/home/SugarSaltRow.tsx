@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import type { DiaryEntry } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 

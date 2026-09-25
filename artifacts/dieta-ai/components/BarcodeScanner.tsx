@@ -9,14 +9,14 @@ import {
   ScrollView,
   StyleSheet,
   Switch,
-  Text,
-  TextInput,
   View,
 } from "react-native";
+import { Text, TextInput } from "@/components/i18n/Text";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { customFetch } from "@/lib/api-client";
+import { tr } from "@/lib/i18n";
 
 export interface BarcodeProduct {
   code: string;
@@ -300,10 +300,10 @@ export function BarcodeScanner({
                     <Text style={[styles.per100, { color: colors.mutedForeground }]}>
                       100 {p.unit}: {Math.round(p.per100.cal)} kkal · {p.per100.protein}g B · {p.per100.carbs}g U ·{" "}
                       {p.per100.fat}g Y
-                      {p.per100.sugar != null ? ` · ${p.per100.sugar}g qand` : ""}
+                      {p.per100.sugar != null ? tr(" · {0}g qand", p.per100.sugar) : ""}
                     </Text>
                   </View>
-                  {gramsField(`Qancha iste'mol qildingiz (${p.unit})`)}
+                  {gramsField(tr("Qancha iste'mol qildingiz ({0})", p.unit))}
                   <View style={styles.chips}>
                     {[p.servingGrams, 50, 100, 200, 330, 500]
                       .filter((g, i, a): g is number => g != null && g > 0 && a.indexOf(g) === i)
@@ -324,7 +324,7 @@ export function BarcodeScanner({
                               { color: Math.round(gramsN) === Math.round(g) ? "#FFFFFF" : colors.text },
                             ]}
                           >
-                            {g === p.servingGrams ? `1 porsiya (${Math.round(g)})` : Math.round(g)}
+                            {g === p.servingGrams ? tr("1 porsiya ({0})", Math.round(g)) : Math.round(g)}
                           </Text>
                         </Pressable>
                       ))}
@@ -334,7 +334,7 @@ export function BarcodeScanner({
                       <Text style={[styles.totalCal, { color: colors.primary }]}>{v.cal} kkal</Text>
                       <Text style={[styles.hint, { color: colors.primary }]}>
                         {v.protein}g oqsil · {v.carbs}g uglevod · {v.fat}g yog'
-                        {v.sugar != null ? ` · ${v.sugar}g qand` : ""}
+                        {v.sugar != null ? tr(" · {0}g qand", v.sugar) : ""}
                       </Text>
                     </View>
                   ) : null}

@@ -9,10 +9,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from "react-native";
+import { Text, TextInput } from "@/components/i18n/Text";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
@@ -20,6 +19,7 @@ import { useTracker, type BodyMeasurement, type ProgressPhoto } from "@/context/
 import { useColors } from "@/hooks/useColors";
 import { confirmAction } from "@/lib/confirm";
 import { formatDateKeyUz, todayStr } from "@/lib/date";
+import { tr } from "@/lib/i18n";
 
 type Field = Exclude<keyof BodyMeasurement, "date">;
 
@@ -106,7 +106,7 @@ export function BodyModal({ visible, onClose }: { visible: boolean; onClose: () 
   const deletePhoto = async (p: ProgressPhoto) => {
     const ok = await confirmAction({
       title: "Suratni o'chirish",
-      message: `${formatDateKeyUz(p.date)} dagi surat o'chirilsinmi?`,
+      message: tr("{0} dagi surat o'chirilsinmi?", formatDateKeyUz(p.date)),
       confirmText: "O'chirish",
       destructive: true,
     });
@@ -152,7 +152,7 @@ export function BodyModal({ visible, onClose }: { visible: boolean; onClose: () 
               <>
                 <Text style={[styles.hint, { color: colors.mutedForeground }]}>
                   {formatDateKeyUz(latest.date)}
-                  {first && first.date !== latest.date ? ` · ${formatDateKeyUz(first.date)} ga nisbatan` : ""}
+                  {first && first.date !== latest.date ? tr(" · {0} ga nisbatan", formatDateKeyUz(first.date)) : ""}
                 </Text>
                 <View style={styles.grid}>
                   {FIELDS.map((f) => {
@@ -275,7 +275,7 @@ export function BodyModal({ visible, onClose }: { visible: boolean; onClose: () 
                         value={values[f.key] ?? ""}
                         onChangeText={(t) => setValues((v) => ({ ...v, [f.key]: t }))}
                         keyboardType="decimal-pad"
-                        placeholder={latest?.[f.key] != null ? `Oldingi: ${fmt(latest[f.key]!)}` : f.hint}
+                        placeholder={latest?.[f.key] != null ? tr("Oldingi: {0}", fmt(latest[f.key]!)) : f.hint}
                         placeholderTextColor={colors.mutedForeground}
                         style={[styles.input, { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
                       />
@@ -306,7 +306,7 @@ export function BodyModal({ visible, onClose }: { visible: boolean; onClose: () 
                 <Image source={{ uri: viewing.uri }} style={styles.viewerImg} contentFit="contain" />
                 <Text style={styles.viewerText}>
                   {formatDateKeyUz(viewing.date)}
-                  {viewing.weight ? ` · ${fmt(viewing.weight)} kg` : ""}
+                  {viewing.weight ? tr(" · {0} kg", fmt(viewing.weight)) : ""}
                 </Text>
                 <View style={styles.row}>
                   <Pressable onPress={() => deletePhoto(viewing)} style={[styles.outlineBtn, { borderColor: "#F87171" }]}>

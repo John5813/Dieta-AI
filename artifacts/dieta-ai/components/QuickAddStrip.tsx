@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import type { SavedFood } from "@/context/TrackerContext";
 import { useColors } from "@/hooks/useColors";
 

@@ -6,13 +6,13 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "@/components/i18n/Text";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useColors } from "@/hooks/useColors";
+import { tr, trText } from "@/lib/i18n";
 
 type IconName = keyof typeof Feather.glyphMap;
 
@@ -323,9 +323,9 @@ export function BirthDateSheet({
   const valid = yearOk && dayOk;
   const error =
     yearText.length === 4 && !yearOk
-      ? `Yil ${thisYear - 90} va ${thisYear - 10} orasida bo'lishi kerak`
+      ? tr("Yil {0} va {1} orasida bo'lishi kerak", thisYear - 90, thisYear - 10)
       : dayText.length > 0 && !dayOk
-        ? `${MONTHS_UZ[month]} oyida 1–${daysInMonth} kun bor`
+        ? tr("{0} oyida 1–{1} kun bor", trText(MONTHS_UZ[month]!), daysInMonth)
         : null;
 
   return (

@@ -1,5 +1,6 @@
 import { Alert, Linking, Platform } from "react-native";
 import * as Notifications from "expo-notifications";
+import { tr, trText } from "@/lib/i18n";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -124,18 +125,18 @@ export async function requestPermissionWithRationale(): Promise<boolean> {
 
     return new Promise((resolve) => {
       Alert.alert(
-        "Eslatmalarni yoqish",
-        "UzDieta AI ovqatlanish va suv ichish eslatmalarini yuborishi uchun ruxsat bering. Bu sog'lom rejimni saqlashga yordam beradi.",
+        trText("Eslatmalarni yoqish"),
+        trText("UzDieta AI ovqatlanish va suv ichish eslatmalarini yuborishi uchun ruxsat bering. Bu sog'lom rejimni saqlashga yordam beradi."),
         [
           {
-            text: "Ruxsat berish",
+            text: trText("Ruxsat berish"),
             onPress: async () => {
               const { status } = await Notifications.requestPermissionsAsync();
               resolve(status === "granted");
             },
           },
           {
-            text: "Keyinroq",
+            text: trText("Keyinroq"),
             style: "cancel",
             onPress: () => resolve(false),
           },
@@ -187,7 +188,7 @@ export async function scheduleOneOff(
     await Notifications.cancelScheduledNotificationAsync(ONE_OFF_PREFIX + id).catch(() => {});
     await Notifications.scheduleNotificationAsync({
       identifier: ONE_OFF_PREFIX + id,
-      content: { title, body, sound: true },
+      content: { title: trText(title), body: trText(body), sound: true },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date },
     });
     return true;
@@ -224,8 +225,8 @@ export async function scheduleAllReminders(
       try {
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: `🍽️ ${m.label} vaqti!`,
-            body: "Ovqatingizni yeb, kaloriyangizni kuzatishni unutmang.",
+            title: tr("🍽️ {0} vaqti!", trText(m.label)),
+            body: trText("Ovqatingizni yeb, kaloriyangizni kuzatishni unutmang."),
             sound: true,
           },
           trigger: {
@@ -253,8 +254,8 @@ export async function scheduleAllReminders(
       try {
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: "💧 Suv ichish vaqti",
-            body: waterMessages[i % waterMessages.length],
+            title: trText("💧 Suv ichish vaqti"),
+            body: trText(waterMessages[i % waterMessages.length]!),
             sound: false,
           },
           trigger: {
@@ -273,8 +274,8 @@ export async function scheduleAllReminders(
     try {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: "📊 Kunlik hisobot",
-          body: "Bugun necha kaloriya iste'mol qildingiz? Statistikangizni tekshiring.",
+          title: trText("📊 Kunlik hisobot"),
+          body: trText("Bugun necha kaloriya iste'mol qildingiz? Statistikangizni tekshiring."),
           sound: true,
         },
         trigger: {
@@ -292,8 +293,8 @@ export async function scheduleAllReminders(
     try {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: "🌅 Xayrli tong!",
-          body: "Bugungi ovqatlanish rejangizni boshlang. Birinchi ovqat eng muhimi!",
+          title: trText("🌅 Xayrli tong!"),
+          body: trText("Bugungi ovqatlanish rejangizni boshlang. Birinchi ovqat eng muhimi!"),
           sound: true,
         },
         trigger: {
@@ -316,8 +317,8 @@ export async function sendTestNotification(): Promise<boolean> {
     if (!granted) return false;
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: "✅ Eslatmalar faol!",
-        body: "UzDieta AI eslatmalari muvaffaqiyatli sozlandi.",
+        title: trText("✅ Eslatmalar faol!"),
+        body: trText("UzDieta AI eslatmalari muvaffaqiyatli sozlandi."),
         sound: true,
       },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 1 },

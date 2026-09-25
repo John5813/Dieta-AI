@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { OnboardingLayout } from "@/components/OnboardingLayout";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";

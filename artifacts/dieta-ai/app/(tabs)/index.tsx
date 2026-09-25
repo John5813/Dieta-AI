@@ -9,9 +9,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, LinearGradient as SvgLinGrad, Stop } from "react-native-svg";
 import { AddFoodModal, type AddedFood } from "@/components/AddFoodModal";
@@ -30,6 +30,7 @@ import { calculatePlan } from "@/lib/nutrition";
 import { confirmAction } from "@/lib/confirm";
 import { formatDateKeyUz, shiftDateKey } from "@/lib/date";
 import { loggingStreak } from "@/lib/insights";
+import { getLanguage, tr, trText } from "@/lib/i18n";
 import { MEAL_INFO, type MealType } from "@/lib/meals";
 
 /** How far back the home screen lets you browse / log forgotten meals. */
@@ -220,17 +221,17 @@ export default function HomeScreen() {
       isToday ? undefined : selectedKey,
     );
     const totalAdded = Math.round(foods.reduce((t, f) => t + f.cal, 0));
-    const what = foods.length === 1 ? foods[0].name : `${foods[0].name} va yana ${foods.length - 1} ta taom`;
+    const what = foods.length === 1 ? foods[0].name : tr("{0} va yana {1} ta taom", foods[0].name, foods.length - 1);
     setToast({
       visible: true,
-      message: `${what} qo'shildi${isToday ? "" : ` (${dayLabel})`} · +${totalAdded} kkal`,
+      message: tr("{0} qo'shildi{1} · +{2} kkal", what, isToday ? "" : ` (${dayLabel})`, totalAdded),
     });
   };
 
   const handleDeleteEntry = async (id: string, name: string) => {
     const ok = await confirmAction({
       title: "Yozuvni o'chirish",
-      message: `"${name}" yozuvini o'chirmoqchimisiz?`,
+      message: tr("\"{0}\" yozuvini o'chirmoqchimisiz?", name),
       confirmText: "O'chirish",
       destructive: true,
     });
@@ -256,7 +257,7 @@ export default function HomeScreen() {
       isToday ? undefined : selectedKey,
     );
     const total = from.reduce((t, e) => t + e.cal, 0);
-    setToast({ visible: true, message: `${MEAL_INFO[meal].label} takrorlandi · +${total} kkal` });
+    setToast({ visible: true, message: tr("{0} takrorlandi · +{1} kkal", trText(MEAL_INFO[meal].label), total) });
   };
 
   return (
@@ -427,10 +428,10 @@ export default function HomeScreen() {
           if (anyOver) wasOverRef.current = true;
           if (!anyOver) return null;
           const overChips: string[] = [];
-          if (overCal > 0) overChips.push(`+${overCal} kkal`);
-          if (overP > 0) overChips.push(`+${overP}g oqsil`);
-          if (overC > 0) overChips.push(`+${overC}g uglevod`);
-          if (overF > 0) overChips.push(`+${overF}g yog'`);
+          if (overCal > 0) overChips.push(tr("+{0} kkal", overCal));
+          if (overP > 0) overChips.push(tr("+{0}g oqsil", overP));
+          if (overC > 0) overChips.push(tr("+{0}g uglevod", overC));
+          if (overF > 0) overChips.push(tr("+{0}g yog'", overF));
           return (
             <View
               style={[
@@ -549,7 +550,7 @@ export default function HomeScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            {isToday ? "Bugungi ovqatlar" : `${dayLabel} ovqatlari`}
+            {isToday ? "Bugungi ovqatlar" : tr("{0} ovqatlari", dayLabel)}
           </Text>
           {isToday && streak >= 2 ? (
             <View style={styles.streakChip}>
@@ -767,7 +768,7 @@ function ExerciseModal({
       const res = await fetch(`${API_BASE_EX}/api/ai/exercise-plan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: JSON.stringify({ language: getLanguage(),
           profile: {
             gender: profile.gender,
             age,
@@ -848,7 +849,7 @@ function ExerciseModal({
       const res = await fetch(`${API_BASE_EX}/api/ai/exercise-plan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: JSON.stringify({ language: getLanguage(),
           profile: {
             gender: profile.gender,
             age,

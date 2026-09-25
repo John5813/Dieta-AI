@@ -1,10 +1,12 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { useTracker } from "@/context/TrackerContext";
 import { useColors, useTint } from "@/hooks/useColors";
 import { confirmAction } from "@/lib/confirm";
 import { cancelOneOff, scheduleOneOff } from "@/lib/notifications";
+import { tr } from "@/lib/i18n";
 
 const PRESETS = [
   { hours: 12, label: "12:12", desc: "Boshlovchi" },
@@ -50,7 +52,7 @@ export function FastingCard() {
       "fast-end",
       new Date(start + fasting.targetHours * HOUR),
       "🎉 Ochlik yakunlandi!",
-      `${fasting.targetHours} soatlik ochlikni bajardingiz. Endi ovqatlanish oynasi ochiq.`,
+      tr("{0} soatlik ochlikni bajardingiz. Endi ovqatlanish oynasi ochiq.", fasting.targetHours),
     ).catch(() => {});
   };
 
@@ -59,7 +61,7 @@ export function FastingCard() {
     if (elapsed < fasting.targetHours * HOUR) {
       const ok = await confirmAction({
         title: "Ochlikni tugatish",
-        message: `Maqsadga hali ${hms(fasting.targetHours * HOUR - elapsed)} qoldi. Baribir tugatasizmi?`,
+        message: tr("Maqsadga hali {0} qoldi. Baribir tugatasizmi?", hms(fasting.targetHours * HOUR - elapsed)),
         confirmText: "Tugatish",
       });
       if (!ok) return;
@@ -81,10 +83,8 @@ export function FastingCard() {
             <Text style={[styles.title, { color: colors.text }]}>Intervalli ochlik</Text>
             <Text style={[styles.sub, { color: colors.mutedForeground }]}>
               {last
-                ? `Oxirgisi: ${((last.end - last.start) / HOUR).toFixed(1)} soat ${
-                    last.end - last.start >= last.targetHours * HOUR ? "✅" : ""
-                  }`
-                : `${fasting.targetHours} soatlik ochlikni boshlang`}
+                ? tr("Oxirgisi: {0} soat {1}", ((last.end - last.start) / HOUR).toFixed(1), last.end - last.start >= last.targetHours * HOUR ? "✅" : "")
+                : tr("{0} soatlik ochlikni boshlang", fasting.targetHours)}
             </Text>
           </View>
           <Feather name={open ? "chevron-up" : "chevron-down"} size={18} color={colors.mutedForeground} />
@@ -142,8 +142,8 @@ export function FastingCard() {
           <Text style={[styles.timer, { color: done ? "#16A34A" : FAST }]}>{hms(elapsed)}</Text>
           <Text style={[styles.sub, { color: colors.mutedForeground }]}>
             {done
-              ? `${fasting.targetHours} soatlik maqsad bajarildi — ovqatlanishingiz mumkin`
-              : `${clock(start)} da boshlandi · ${clock(start + target)} da tugaydi · ${Math.round(pct * 100)}%`}
+              ? tr("{0} soatlik maqsad bajarildi — ovqatlanishingiz mumkin", fasting.targetHours)
+              : tr("{0} da boshlandi · {1} da tugaydi · {2}%", clock(start), clock(start + target), Math.round(pct * 100))}
           </Text>
         </View>
       </View>

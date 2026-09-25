@@ -1,4 +1,5 @@
 import type { UserProfile } from "@/context/AppContext";
+import { dateMonth } from "@/lib/i18n";
 
 export interface NutritionPlan {
   bmr: number;
@@ -145,11 +146,6 @@ export function calculatePlan(profile: Partial<UserProfile>): NutritionPlan {
   };
 }
 
-const MONTHS_UZ = [
-  "yanvar", "fevral", "mart", "aprel", "may", "iyun",
-  "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr",
-];
-
 export function formatUzDate(d: Date): string {
-  return `${d.getDate()} ${MONTHS_UZ[d.getMonth()]} ${d.getFullYear()}`;
+  return `${d.getDate()} ${dateMonth(d.getMonth())} ${d.getFullYear()}`;
 }

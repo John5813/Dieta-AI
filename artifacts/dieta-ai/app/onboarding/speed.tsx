@@ -1,7 +1,8 @@
 import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { Feather } from "@expo/vector-icons";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import Slider from "@react-native-community/slider";
 import { OnboardingLayout } from "@/components/OnboardingLayout";
 import { useApp } from "@/context/AppContext";

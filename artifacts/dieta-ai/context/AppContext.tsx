@@ -9,6 +9,7 @@ import {
   todayStr,
   yesterdayStr,
 } from "@/lib/date";
+import { setLanguage } from "@/lib/i18n";
 import { mealForTime, type MealType } from "@/lib/meals";
 import { ALL_DATA_KEYS, BACKUP_META_KEYS } from "@/lib/storageKeys";
 import { cancelAllReminders, scheduleAllReminders } from "@/lib/notifications";
@@ -427,7 +428,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const reschedule = (next: Partial<UserProfile>, force = false): Promise<void> => {
     const p = buildPrefs(next);
-    const key = `${p.mealsPerDay}|${p.masterEnabled ? 1 : 0}|${p.mealsEnabled ? 1 : 0}|${p.waterEnabled ? 1 : 0}|${p.summaryEnabled ? 1 : 0}|${p.morningEnabled ? 1 : 0}`;
+    const key = `${next.language ?? "uz"}|${p.mealsPerDay}|${p.masterEnabled ? 1 : 0}|${p.mealsEnabled ? 1 : 0}|${p.waterEnabled ? 1 : 0}|${p.summaryEnabled ? 1 : 0}|${p.morningEnabled ? 1 : 0}`;
     if (!force && key === lastSchedKey.current) return Promise.resolve();
     const myId = ++schedReqId.current;
     // Mutexga qo'yamiz — oldingi scheduling tugamaguncha kutadi.
@@ -453,6 +454,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const RESCHED_KEYS = [
+    "language",
     "mealsPerDay",
     "notificationsEnabled",
     "mealRemindersEnabled",
@@ -462,6 +464,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   ] as const;
 
   const setProfile = (updates: Partial<UserProfile>) => {
+    // Reminders rescheduled below must already use the new language.
+    if ("language" in updates) setLanguage(updates.language);
     setProfileState((prev) => {
       const next = { ...prev, ...updates };
       AsyncStorage.setItem("user_profile", JSON.stringify(next)).catch(() => {});
@@ -683,6 +687,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
   };
+
+  // Module-level so tr()/Text can read it without a hook; set before children render.
+  setLanguage(profile.language);
 
   return (
     <AppContext.Provider
