@@ -5,9 +5,9 @@ import {
   Image,
   Pressable,
   StyleSheet,
-  Text,
   View,
 } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FoodScanAnimation } from "@/components/FoodScanAnimation";
 import { ProgressBar } from "@/components/ProgressBar";

@@ -8,15 +8,16 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { isPremiumExpired, useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { calculatePlan } from "@/lib/nutrition";
+import { tr } from "@/lib/i18n";
 
 const { width } = Dimensions.get("window");
 const chartW = width - 80;
@@ -140,7 +141,7 @@ export default function PremiumScreen() {
         ? "up"
         : "down";
   const totalDays = plan.weeksToGoal * 7;
-  const dayLabel = totalDays > 0 ? `Kun ${totalDays}` : "Bugun";
+  const dayLabel = totalDays > 0 ? tr("Kun {0}", totalDays) : "Bugun";
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>

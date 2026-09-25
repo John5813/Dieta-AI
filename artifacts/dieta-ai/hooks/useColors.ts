@@ -1,24 +1,32 @@
 import { useColorScheme } from "react-native";
 
 import colors from "@/constants/colors";
+import { useApp } from "@/context/AppContext";
 
 /**
- * Returns the design tokens for the current color scheme.
- *
- * The returned object contains all color tokens for the active palette
- * plus scheme-independent values like `radius`.
- *
- * Falls back to the light palette when no dark key is defined in
- * constants/colors.ts (the scaffold ships light-only by default).
- * When a sibling web artifact's dark tokens are synced into a `dark`
- * key, this hook will automatically switch palettes based on the
- * device's appearance setting.
+ * The scheme the app draws in: the user's choice in the profile, or the
+ * device setting when they chose "system". Defaults to light.
  */
+export function useThemeScheme(): "light" | "dark" {
+  const system = useColorScheme();
+  const { profile } = useApp();
+  const pref = profile.theme ?? "light";
+  if (pref === "system") return system === "dark" ? "dark" : "light";
+  return pref;
+}
+
+/** Design tokens for the active scheme plus scheme-independent values like `radius`. */
 export function useColors() {
-  const scheme = useColorScheme();
-  const palette =
-    scheme === "dark" && "dark" in colors
-      ? (colors as Record<string, typeof colors.light>).dark
-      : colors.light;
+  const scheme = useThemeScheme();
+  const palette = scheme === "dark" ? colors.dark : colors.light;
   return { ...palette, radius: colors.radius };
+}
+
+/**
+ * Pale accent backgrounds (#DBEAFE behind a blue icon, etc.) glare on the dark
+ * theme; there they become a translucent wash of the accent color instead.
+ */
+export function useTint() {
+  const dark = useThemeScheme() === "dark";
+  return (light: string, accent: string) => (dark ? `${accent}33` : light);
 }

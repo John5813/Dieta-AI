@@ -2,10 +2,13 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Tabs, useRouter } from "expo-router";
 import React, { useEffect } from "react";
-import { Platform, Pressable, StyleSheet, View, useColorScheme } from "react-native";
+import { AppState, Platform, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useThemeScheme } from "@/hooks/useColors";
+import { maybeAutoBackup } from "@/lib/backup";
+import { tr } from "@/lib/i18n";
+import { nextWeeklyReportTime, scheduleOneOff } from "@/lib/notifications";
 import { useTranslation } from "@/hooks/useTranslation";
 
 function CameraTabButton({ onPress, bottomPad }: { onPress: () => void; bottomPad: number }) {
@@ -40,9 +43,9 @@ function CameraTabButton({ onPress, bottomPad }: { onPress: () => void; bottomPa
 
 export default function TabLayout() {
   const colors = useColors();
-  const colorScheme = useColorScheme();
+  const colorScheme = useThemeScheme();
   const insets = useSafeAreaInsets();
-  const { setAddFoodModalVisible, subscription, canScan, loading } = useApp();
+  const { setAddFoodModalVisible, subscription, canScan, loading, profile } = useApp();
   const { t } = useTranslation();
   const router = useRouter();
   const isDark = colorScheme === "dark";
@@ -57,6 +60,26 @@ export default function TabLayout() {
       router.replace("/onboarding/premium" as never);
     }
   }, [loading, subscription.status, subscription.trialStartedAt, subscription.premiumUntil]);
+
+  // Cloud backup (when turned on) refreshes whenever the app goes to the background.
+  useEffect(() => {
+    if (loading) return;
+    maybeAutoBackup().catch(() => {});
+    // Sunday-evening nudge to open the weekly report; never asks for permission itself.
+    if (profile.notificationsEnabled !== false) {
+      scheduleOneOff(
+        "weekly-report",
+        nextWeeklyReportTime(),
+        "📊 Haftalik hisobotingiz tayyor",
+        "Bu hafta qanday o'tganini ko'ring: o'rtacha kaloriya, vazn o'zgarishi va maslahatlar.",
+        { askPermission: false },
+      ).catch(() => {});
+    }
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "background") maybeAutoBackup().catch(() => {});
+    });
+    return () => sub.remove();
+  }, [loading]);
 
   // Tab bar pastroqqa tushiriladi: native va web bir xil ko'rinadi.
   // Bottom inset (home indicator) hisobga olinadi va qo'shimcha 14px joy beriladi.
@@ -92,7 +115,7 @@ export default function TabLayout() {
             style={[
               StyleSheet.absoluteFill,
               styles.tabBarBg,
-              { backgroundColor: isDark ? "#1A1A1A" : "#FFFFFF" },
+              { backgroundColor: isDark ? colors.card : "#FFFFFF" },
             ]}
           />
         ),
@@ -101,7 +124,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Bosh sahifa",
+          title: tr("Bosh sahifa"),
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
               <Feather name="home" size={20} color={color} />
@@ -112,7 +135,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="ai"
         options={{
-          title: "Suniy intellekt",
+          title: tr("Suniy intellekt"),
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
               <Feather name="cpu" size={20} color={color} />
@@ -137,7 +160,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="ratsion"
         options={{
-          title: "Ovqatlanish rejasi",
+          title: tr("Ovqatlanish rejasi"),
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
               <Feather name="bar-chart-2" size={20} color={color} />
@@ -148,7 +171,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profil",
+          title: tr("Profil"),
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
               <Feather name="user" size={20} color={color} />

@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { dateMonth } from "@/lib/i18n";
 
 const STORAGE_KEY = "tz_offset_minutes";
 
@@ -63,15 +64,10 @@ export function shiftDateKey(key: string, days: number): string {
   return `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
 }
 
-const UZ_MONTHS_FULL = [
-  "yanvar", "fevral", "mart", "aprel", "may", "iyun",
-  "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr",
-];
-
-/** "18 sentabr" for a "YYYY-MM-DD" key. */
+/** "18 sentabr" (or "18 сентября") for a "YYYY-MM-DD" key. */
 export function formatDateKeyUz(key: string): string {
   const [, m, d] = key.split("-").map(Number);
-  return `${d} ${UZ_MONTHS_FULL[m - 1] ?? ""}`.trim();
+  return `${d} ${dateMonth(m - 1)}`.trim();
 }
 
 /**

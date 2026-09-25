@@ -7,12 +7,15 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EditEntryModal } from "@/components/EditEntryModal";
+import { BackupModal } from "@/components/profile/BackupModal";
+import { BodyModal } from "@/components/profile/BodyModal";
+import { MyFoodsModal } from "@/components/profile/MyFoodsModal";
 import { NotificationsModal } from "@/components/profile/NotificationsModal";
 import { PremiumCard } from "@/components/profile/PremiumCard";
 import {
@@ -32,7 +35,9 @@ import {
   type Goal,
   type UserProfile,
 } from "@/context/AppContext";
+import { useTracker } from "@/context/TrackerContext";
 import { useColors } from "@/hooks/useColors";
+import { getBackupCode } from "@/lib/backup";
 import { confirmAction } from "@/lib/confirm";
 import { calculateAge, calculatePlan, macrosForCalories } from "@/lib/nutrition";
 import {
@@ -40,6 +45,7 @@ import {
   getPermissionStatus,
   type PermissionStatus,
 } from "@/lib/notifications";
+import { dateMonth, tr, trText } from "@/lib/i18n";
 
 type Editor =
   | "currentWeight"
@@ -89,6 +95,19 @@ const GOAL_OPTIONS: ChoiceOption<Goal>[] = [
 const GENDER_OPTIONS: ChoiceOption<Gender>[] = [
   { value: "erkak", label: "Erkak", icon: "user" },
   { value: "ayol", label: "Ayol", icon: "user" },
+];
+
+// Labels are in their own language/script; the Text wrapper leaves Cyrillic alone.
+const LANGUAGE_OPTIONS: ChoiceOption<"uz" | "uz-kril" | "ru">[] = [
+  { value: "uz", label: "O'zbekcha (lotin)", icon: "globe" },
+  { value: "uz-kril", label: "Ўзбекча (кирилл)", icon: "globe" },
+  { value: "ru", label: "Русский", icon: "globe" },
+];
+
+const THEME_OPTIONS: ChoiceOption<"light" | "dark" | "system">[] = [
+  { value: "light", label: "Yorug'", icon: "sun" },
+  { value: "dark", label: "Qorong'i", icon: "moon" },
+  { value: "system", label: "Telefon bo'yicha", icon: "smartphone" },
 ];
 
 const GOAL_LABEL: Record<Goal, string> = {
@@ -181,11 +200,21 @@ export default function ProfileScreen() {
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [myFoodsOpen, setMyFoodsOpen] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
+  const [bodyOpen, setBodyOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+  const [backupOn, setBackupOn] = useState(false);
+  const { customFoods, favorites, measurements, photos } = useTracker();
   const [permStatus, setPermStatus] = useState<PermissionStatus>("undetermined");
 
   // Re-check on focus: the user may have toggled permission in system settings.
   useFocusEffect(
     useCallback(() => {
+      getBackupCode()
+        .then((c) => setBackupOn(!!c))
+        .catch(() => {});
       if (Platform.OS === "web") return;
       getPermissionStatus().then(setPermStatus).catch(() => {});
     }, []),
@@ -262,21 +291,21 @@ export default function ProfileScreen() {
   const handleReset = async () => {
     setPrivacyOpen(false);
     const restoreNote = subscription.login
-      ? `Premium yo'qolmaydi: "${subscription.login}" login va botdagi parol bilan qayta tiklaysiz.`
+      ? tr("Premium yo'qolmaydi: \"{0}\" login va botdagi parol bilan qayta tiklaysiz.", subscription.login)
       : "Premium yo'qolmaydi: botdan olgan login va parol bilan qayta tiklaysiz.";
     const ok = await confirmAction({
       title: "Barcha ma'lumotlarni o'chirish",
-      message: `Ovqat tarixi, vazn o'lchovlari, rejalar va sozlamalar shu telefondan butunlay o'chiriladi. Buni qaytarib bo'lmaydi.\n\n${restoreNote}`,
+      message: tr("Ovqat tarixi, vazn o'lchovlari, rejalar va sozlamalar shu telefondan butunlay o'chiriladi. Buni qaytarib bo'lmaydi.\n\n{0}", restoreNote),
       confirmText: "Ha, o'chirish",
       destructive: true,
     });
     if (!ok) return;
     await resetApp();
-    router.replace("/onboarding/gender");
+    router.replace("/onboarding/language");
   };
 
   const birthLabel = profile.birthDate
-    ? `${profile.birthDate.day} ${MONTHS_UZ[profile.birthDate.month]?.slice(0, 3)} ${profile.birthDate.year} · ${calculateAge(profile.birthDate)} yosh`
+    ? tr("{0} {1} {2} · {3} yosh", profile.birthDate.day, dateMonth(profile.birthDate.month).slice(0, 3), profile.birthDate.year, calculateAge(profile.birthDate))
     : "Kiritilmagan";
 
   return (
@@ -327,7 +356,7 @@ export default function ProfileScreen() {
         <View style={styles.statsRow}>
           <StatCard
             label="Hozirgi vazn"
-            value={profile.currentWeight ? `${fmtKg(profile.currentWeight)} kg` : "—"}
+            value={profile.currentWeight ? tr("{0} kg", fmtKg(profile.currentWeight)) : "—"}
             hint="O'zgartirish"
             icon="edit-2"
             onPress={() => setEditor("currentWeight")}
@@ -335,7 +364,7 @@ export default function ProfileScreen() {
           />
           <StatCard
             label="Haftalik maqsad"
-            value={goal === "saqlash" ? "—" : `${parseFloat((profile.speedKgPerWeek ?? 0.5).toFixed(2))} kg`}
+            value={goal === "saqlash" ? "—" : tr("{0} kg", parseFloat((profile.speedKgPerWeek ?? 0.5).toFixed(2)))}
             hint={goal === "saqlash" ? "Saqlash rejimi" : "O'zgartirish"}
             icon="edit-2"
             onPress={() => (goal === "saqlash" ? setEditor("goal") : setSpeedOpen(true))}
@@ -343,7 +372,7 @@ export default function ProfileScreen() {
           />
           <StatCard
             label="Yakuniy maqsad"
-            value={profile.targetWeight ? `${fmtKg(profile.targetWeight)} kg` : "—"}
+            value={profile.targetWeight ? tr("{0} kg", fmtKg(profile.targetWeight)) : "—"}
             hint="O'zgartirish"
             icon="edit-2"
             onPress={() => setEditor("targetWeight")}
@@ -369,6 +398,18 @@ export default function ProfileScreen() {
           />
         </View>
 
+        <SettingRow
+          icon="maximize"
+          label="Tana o'lchamlari va suratlar"
+          value={
+            measurements.length + photos.length > 0
+              ? tr("{0} o'lchov · {1} surat", measurements.length, photos.length)
+              : "Boshlash"
+          }
+          onPress={() => setBodyOpen(true)}
+        />
+        <View style={{ height: 16 }} />
+
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Shaxsiy ma'lumotlar</Text>
         <SettingRow icon="user" label="Ism" value={displayName || "Kiritilmagan"} onPress={() => setEditor("name")} />
         <SettingRow
@@ -381,7 +422,7 @@ export default function ProfileScreen() {
         <SettingRow
           icon="maximize-2"
           label="Bo'y"
-          value={profile.height ? `${profile.height} sm` : "—"}
+          value={profile.height ? tr("{0} sm", profile.height) : "—"}
           onPress={() => setEditor("height")}
         />
         <SettingRow icon="target" label="Maqsad" value={GOAL_LABEL[goal]} onPress={() => setEditor("goal")} />
@@ -396,18 +437,18 @@ export default function ProfileScreen() {
         <SettingRow
           icon="zap"
           label="Kunlik kaloriya"
-          value={`${profile.dailyCalories ?? plan.calories} kkal · ${profile.manualCalories ? "qo'lda" : "avto"}`}
+          value={tr("{0} kkal · {1}", profile.dailyCalories ?? plan.calories, trText(profile.manualCalories ? "qo'lda" : "avto"))}
           onPress={() => setEditor("calories")}
         />
         <SettingRow
           icon="pie-chart"
           label="Makrolar"
-          value={`B ${profile.protein ?? plan.protein}g · U ${profile.carbs ?? plan.carbs}g · Y ${profile.fat ?? plan.fat}g`}
+          value={tr("B {0}g · U {1}g · Y {2}g", profile.protein ?? plan.protein, profile.carbs ?? plan.carbs, profile.fat ?? plan.fat)}
         />
         <SettingRow
           icon="coffee"
           label="Ovqatlanish soni"
-          value={`${mealsCount} mahal`}
+          value={tr("{0} mahal", mealsCount)}
           onPress={() => setMealsOpen(true)}
         />
 
@@ -419,14 +460,42 @@ export default function ProfileScreen() {
           valueColor={notifLabel === "Ruxsat yo'q" ? colors.destructive : undefined}
           onPress={() => setNotifOpen(true)}
         />
-        <SettingRow icon="globe" label="Til" value="O'zbekcha" />
+        <SettingRow
+          icon="moon"
+          label="Mavzu"
+          value={THEME_OPTIONS.find((o) => o.value === (profile.theme ?? "light"))?.label}
+          onPress={() => setThemeOpen(true)}
+        />
+        <SettingRow
+          icon="globe"
+          label="Til"
+          value={LANGUAGE_OPTIONS.find((o) => o.value === (profile.language ?? "uz"))?.label}
+          onPress={() => setLangOpen(true)}
+        />
         <SettingRow icon="shield" label="Maxfiylik siyosati" onPress={() => setPrivacyOpen(true)} />
 
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Ma'lumotlar</Text>
         <SettingRow
+          icon="upload-cloud"
+          label="Zaxira nusxa"
+          value={backupOn ? "Yoqilgan" : "O'chiq"}
+          valueColor={backupOn ? colors.primary : "#B45309"}
+          onPress={() => setBackupOpen(true)}
+        />
+        <SettingRow
+          icon="book"
+          label="Mening taomlarim"
+          value={
+            customFoods.length + favorites.length > 0
+              ? tr("{0} taom · {1} sevimli", customFoods.length, favorites.length)
+              : undefined
+          }
+          onPress={() => setMyFoodsOpen(true)}
+        />
+        <SettingRow
           icon="clock"
           label="Ovqatlanish tarixi"
-          value={entries.length > 0 ? `${entries.length} yozuv` : undefined}
+          value={entries.length > 0 ? tr("{0} yozuv", entries.length) : undefined}
           onPress={() => setHistoryOpen(true)}
         />
         <SettingRow icon="trash-2" label="Barcha ma'lumotlarni o'chirish" onPress={handleReset} danger />
@@ -460,7 +529,7 @@ export default function ProfileScreen() {
           const g = goalForTarget(current, v);
           if (g === "saqlash") return "Maqsad: vaznni saqlash";
           const diff = Math.abs(v - current);
-          return `Maqsad: ${GOAL_LABEL[g].toLowerCase()} — ${fmtKg(diff)} kg ${g === "ozish" ? "kamaytirish" : "qo'shish"}`;
+          return tr("Maqsad: {0} — {1} kg {2}", GOAL_LABEL[g].toLowerCase(), fmtKg(diff), g === "ozish" ? "kamaytirish" : "qo'shish");
         }}
         onSave={saveTarget}
       />
@@ -542,6 +611,34 @@ export default function ProfileScreen() {
         }}
       />
 
+      <ChoiceSheet
+        visible={langOpen}
+        onClose={() => setLangOpen(false)}
+        icon="globe"
+        title="Til"
+        desc="Ilova matnlari va AI javoblari shu tilda bo'ladi."
+        options={LANGUAGE_OPTIONS}
+        current={(profile.language === "en" ? "uz" : profile.language) ?? "uz"}
+        onSelect={(v) => {
+          setProfile({ language: v });
+          setLangOpen(false);
+        }}
+      />
+
+      <ChoiceSheet
+        visible={themeOpen}
+        onClose={() => setThemeOpen(false)}
+        icon="moon"
+        title="Mavzu"
+        desc="Ilova ranglari. «Telefon bo'yicha» tanlansa, telefoningiz sozlamasiga moslashadi."
+        options={THEME_OPTIONS}
+        current={profile.theme ?? "light"}
+        onSelect={(v) => {
+          setProfile({ theme: v });
+          setThemeOpen(false);
+        }}
+      />
+
       <BmiInfoModal
         visible={bmiOpen}
         bmi={bmi}
@@ -591,6 +688,19 @@ export default function ProfileScreen() {
         onPermissionChange={setPermStatus}
       />
 
+      <MyFoodsModal visible={myFoodsOpen} onClose={() => setMyFoodsOpen(false)} />
+      <BodyModal visible={bodyOpen} onClose={() => setBodyOpen(false)} />
+
+      <BackupModal
+        visible={backupOpen}
+        onClose={() => {
+          setBackupOpen(false);
+          getBackupCode()
+            .then((c) => setBackupOn(!!c))
+            .catch(() => {});
+        }}
+      />
+
       <PrivacyModal
         visible={privacyOpen}
         onClose={() => setPrivacyOpen(false)}
@@ -632,7 +742,7 @@ function HistoryModal({
   const handleDelete = async (id: string, name: string) => {
     const ok = await confirmAction({
       title: "Yozuvni o'chirish",
-      message: `"${name}" yozuvini o'chirmoqchimisiz?`,
+      message: tr("\"{0}\" yozuvini o'chirmoqchimisiz?", name),
       confirmText: "O'chirish",
       destructive: true,
     });
@@ -660,12 +770,8 @@ function HistoryModal({
           parseInt(parts[1], 10) - 1,
           parseInt(parts[2], 10),
         );
-        const MONTHS_UZ = [
-          "Yanvar","Fevral","Mart","Aprel","May","Iyun",
-          "Iyul","Avgust","Sentabr","Oktabr","Noyabr","Dekabr",
-        ];
         const DAYS_UZ = ["Yakshanba","Dushanba","Seshanba","Chorshanba","Payshanba","Juma","Shanba"];
-        const label = `${d.getDate()} ${MONTHS_UZ[d.getMonth()]} ${d.getFullYear()} — ${DAYS_UZ[d.getDay()]}`;
+        const label = `${d.getDate()} ${dateMonth(d.getMonth())} ${d.getFullYear()} — ${trText(DAYS_UZ[d.getDay()]!)}`;
         const totalCal = dayEntries.reduce((s, e) => s + e.cal, 0);
         const totalP = dayEntries.reduce((s, e) => s + e.protein, 0);
         const totalC = dayEntries.reduce((s, e) => s + e.carbs, 0);
@@ -698,7 +804,7 @@ function HistoryModal({
             <Text style={[styles.histTitle, { color: colors.text }]}>Ovqatlanish tarixi</Text>
             <Text style={[styles.histSub, { color: colors.mutedForeground }]}>
               {grouped.length > 0
-                ? `${grouped.length} kun, jami ${entries.length} yozuv · tahrirlash uchun bosing`
+                ? tr("{0} kun, jami {1} yozuv · tahrirlash uchun bosing", grouped.length, entries.length)
                 : "Yozuvlar yo'q"}
             </Text>
           </View>
@@ -963,8 +1069,21 @@ function PrivacyModal({
       title: "Qurilmada saqlanadigan ma'lumotlar",
       body:
         "Profilingiz (yosh, jins, bo'y, vazn, maqsad), ovqatlanish tarixi, vazn o'lchovlari va " +
-        "sozlamalar faqat shu telefonda saqlanadi. Biz ularni serverimizga yozmaymiz. Ilova " +
-        "o'chirilsa yoki \"Barcha ma'lumotlarni o'chirish\" bosilsa, ular butunlay yo'qoladi.",
+        "sozlamalar shu telefonda saqlanadi. Ilova o'chirilsa yoki \"Barcha ma'lumotlarni " +
+        "o'chirish\" bosilsa, ular yo'qoladi.",
+    },
+    {
+      title: "Zaxira nusxa (ixtiyoriy)",
+      body:
+        "\"Zaxira nusxa\"ni o'zingiz yoqsangiz, yuqoridagi ma'lumotlar serverimizga yoziladi va faqat " +
+        "sizdagi zaxira kodi bilan olinadi. Kodning o'zi serverda saqlanmaydi. Ovqat rasmlari va " +
+        "progress suratlari zaxiraga kirmaydi.",
+    },
+    {
+      title: "Shtrix-kod mahsulotlari",
+      body:
+        "Bazada yo'q mahsulotni qo'shib, \"Boshqalar uchun ham saqlash\"ni yoqsangiz, mahsulot nomi va " +
+        "ozuqaviy qiymati umumiy bazaga qo'shiladi. Unga siz haqingizda hech qanday ma'lumot biriktirilmaydi.",
     },
     {
       title: "AI tahlil",
@@ -1420,7 +1539,7 @@ function BmiInfoModal({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingHorizontal: 20 },
-  weightCardWrap: { marginBottom: 24 },
+  weightCardWrap: { marginBottom: 10 },
   profileHeader: { alignItems: "center", gap: 8, marginBottom: 24 },
   avatar: {
     width: 88,

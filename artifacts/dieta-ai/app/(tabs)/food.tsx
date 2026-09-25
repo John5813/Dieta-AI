@@ -7,20 +7,21 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "@/components/i18n/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { mealFromLabel } from "@/lib/meals";
 import {
   CATEGORIES,
   FOOD_DB,
   type FoodCategory,
   type FoodItem,
 } from "@/lib/foodDatabase";
+import { getLanguage } from "@/lib/i18n";
 
 type Tab = "all" | FoodCategory;
 
@@ -334,6 +335,7 @@ export default function FoodScreen() {
               carbs: m.carbs,
               fat: m.fat,
               source: "plan",
+              meal: mealFromLabel(m.meal),
             },
           ])
         }
@@ -518,7 +520,7 @@ function MealPlanModal({
       const res = await fetch(`${API_BASE}/api/ai/meal-plan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: JSON.stringify({ language: getLanguage(),
           profile: {
             gender: profile.gender,
             age,

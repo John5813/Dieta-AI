@@ -8,10 +8,10 @@ import {
   ScrollView,
   StyleSheet,
   Switch,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { UserProfile } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
@@ -26,6 +26,7 @@ import {
   sendTestNotification,
   type PermissionStatus,
 } from "@/lib/notifications";
+import { tr, trText } from "@/lib/i18n";
 
 function formatHm(h: number, m: number) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
@@ -73,11 +74,11 @@ export function NotificationsModal({
     if (Platform.OS === "web") return;
     if (permStatus === "denied") {
       Alert.alert(
-        "Eslatmalar bloklangan",
-        "Ilova sozlamalaridan bildirishnomalarga ruxsat bering. Aks holda eslatmalar yetib bormaydi.",
+        trText("Eslatmalar bloklangan"),
+        trText("Ilova sozlamalaridan bildirishnomalarga ruxsat bering. Aks holda eslatmalar yetib bormaydi."),
         [
-          { text: "Bekor qilish", style: "cancel" },
-          { text: "Sozlamalarni ochish", onPress: () => openSystemSettings() },
+          { text: trText("Bekor qilish"), style: "cancel" },
+          { text: trText("Sozlamalarni ochish"), onPress: () => openSystemSettings() },
         ],
       );
     } else {
@@ -90,23 +91,23 @@ export function NotificationsModal({
 
   const handleTestNotification = async () => {
     if (Platform.OS === "web") {
-      Alert.alert("Mavjud emas", "Sinov bildirishnomasi faqat haqiqiy qurilmada ishlaydi.");
+      Alert.alert(trText("Mavjud emas"), trText("Sinov bildirishnomasi faqat haqiqiy qurilmada ishlaydi."));
       return;
     }
     const ok = await sendTestNotification();
     await refreshPerm();
     if (ok) {
       Alert.alert(
-        "Sinov yuborildi",
-        "5 soniyadan so'ng bildirishnoma keladi. Ilovani yopib (yoki orqa fonga olib) kuting.",
+        trText("Sinov yuborildi"),
+        trText("5 soniyadan so'ng bildirishnoma keladi. Ilovani yopib (yoki orqa fonga olib) kuting."),
       );
     } else {
       Alert.alert(
-        "Yuborilmadi",
-        "Bildirishnomalar uchun ruxsat yo'q. Avval ruxsat bering yoki sozlamalardan oching.",
+        trText("Yuborilmadi"),
+        trText("Bildirishnomalar uchun ruxsat yo'q. Avval ruxsat bering yoki sozlamalardan oching."),
         [
-          { text: "Yopish", style: "cancel" },
-          { text: "Sozlamalarni ochish", onPress: () => openSystemSettings() },
+          { text: trText("Yopish"), style: "cancel" },
+          { text: trText("Sozlamalarni ochish"), onPress: () => openSystemSettings() },
         ],
       );
     }
@@ -234,7 +235,7 @@ export function NotificationsModal({
                     </Text>
                     <Text style={[styles.notifSub, { color: colors.mutedForeground }]}>
                       {mealEnabled
-                        ? `Kuniga ${mealSlots.length} marta eslatma yuboriladi`
+                        ? tr("Kuniga {0} marta eslatma yuboriladi", mealSlots.length)
                         : "O'chirilgan"}
                     </Text>
                   </View>
@@ -284,7 +285,7 @@ export function NotificationsModal({
                     </Text>
                     <Text style={[styles.notifSub, { color: colors.mutedForeground }]}>
                       {waterEnabled
-                        ? `Kuniga ${waterSlots.length} marta — suv ichishni unutmang`
+                        ? tr("Kuniga {0} marta — suv ichishni unutmang", waterSlots.length)
                         : "O'chirilgan"}
                     </Text>
                   </View>
@@ -331,7 +332,7 @@ export function NotificationsModal({
                     </Text>
                     <Text style={[styles.notifSub, { color: colors.mutedForeground }]}>
                       {summaryEnabled
-                        ? `Har kuni ${formatHm(summaryTime.hour, summaryTime.minute)} da`
+                        ? tr("Har kuni {0} da", formatHm(summaryTime.hour, summaryTime.minute))
                         : "O'chirilgan"}
                     </Text>
                   </View>
@@ -360,7 +361,7 @@ export function NotificationsModal({
                     </Text>
                     <Text style={[styles.notifSub, { color: colors.mutedForeground }]}>
                       {morningEnabled
-                        ? `Har kuni ${formatHm(morningTime.hour, morningTime.minute)} da`
+                        ? tr("Har kuni {0} da", formatHm(morningTime.hour, morningTime.minute))
                         : "O'chirilgan"}
                     </Text>
                   </View>

@@ -5,16 +5,18 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "@/components/i18n/Text";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { DiaryEntry, DiaryEntryPatch } from "@/context/AppContext";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useTint } from "@/hooks/useColors";
+import { useTracker } from "@/context/TrackerContext";
 import { confirmAction } from "@/lib/confirm";
+import { entryMeal, MEAL_INFO, MEAL_ORDER, type MealType } from "@/lib/meals";
+import { tr } from "@/lib/i18n";
 
 const MULTIPLIERS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
@@ -37,6 +39,7 @@ interface Props {
 
 export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Props) {
   const colors = useColors();
+  const tint = useTint();
   const insets = useSafeAreaInsets();
   const [name, setName] = useState("");
   const [mult, setMult] = useState(1);
@@ -44,6 +47,8 @@ export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Pr
   const [protein, setProtein] = useState("");
   const [carbs, setCarbs] = useState("");
   const [fat, setFat] = useState("");
+  const [meal, setMeal] = useState<MealType>("tushlik");
+  const { isFavorite, toggleFavorite } = useTracker();
 
   useEffect(() => {
     if (!visible || !entry) return;
@@ -53,9 +58,11 @@ export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Pr
     setProtein(String(entry.protein));
     setCarbs(String(entry.carbs));
     setFat(String(entry.fat));
+    setMeal(entryMeal(entry));
   }, [visible, entry]);
 
   if (!entry) return null;
+  const fav = isFavorite(entry.name);
 
   const applyMult = (m: number) => {
     setMult(m);
@@ -81,6 +88,13 @@ export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Pr
       carbs: carbsN!,
       fat: fatN!,
     };
+    if (meal !== entryMeal(entry)) patch.meal = meal;
+    // Sugar and sodium follow the calorie change (portion multiplier or typed value).
+    if (entry.cal > 0 && calN !== entry.cal) {
+      const ratio = calN! / entry.cal;
+      if (entry.sugar != null) patch.sugar = Math.round(entry.sugar * ratio);
+      if (entry.sodiumMg != null) patch.sodiumMg = Math.round(entry.sodiumMg * ratio);
+    }
     if (mult !== 1) {
       const base = (entry.portion ?? "porsiya").replace(/^[\d.]+×\s*/, "");
       patch.portion = `${fmtMult(mult)}× ${base}`;
@@ -91,7 +105,7 @@ export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Pr
   const confirmDelete = async () => {
     const ok = await confirmAction({
       title: "Yozuvni o'chirish",
-      message: `"${entry.name}" yozuvini o'chirmoqchimisiz?`,
+      message: tr("\"{0}\" yozuvini o'chirmoqchimisiz?", entry.name),
       confirmText: "O'chirish",
       destructive: true,
     });
@@ -150,6 +164,28 @@ export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Pr
                     {entry.portion ? ` · ${entry.portion}` : ""}
                   </Text>
                 </View>
+                <Pressable
+                  onPress={() =>
+                    toggleFavorite({
+                      name: entry.name,
+                      emoji: entry.emoji,
+                      portion: entry.portion,
+                      cal: entry.cal,
+                      protein: entry.protein,
+                      carbs: entry.carbs,
+                      fat: entry.fat,
+                    })
+                  }
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={fav ? "Sevimlilardan olib tashlash" : "Sevimliga qo'shish"}
+                  style={[
+                    styles.favBtn,
+                    { backgroundColor: fav ? tint("#FEF3C7", "#F59E0B") : colors.secondary },
+                  ]}
+                >
+                  <Feather name="star" size={18} color={fav ? "#F59E0B" : colors.mutedForeground} />
+                </Pressable>
               </View>
 
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Nomi</Text>
@@ -161,6 +197,30 @@ export function EditEntryModal({ visible, entry, onClose, onSave, onDelete }: Pr
                   { backgroundColor: colors.input, borderColor: colors.border, color: colors.text },
                 ]}
               />
+
+              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Ovqat vaqti</Text>
+              <View style={styles.chips}>
+                {MEAL_ORDER.map((m) => {
+                  const active = m === meal;
+                  return (
+                    <Pressable
+                      key={m}
+                      onPress={() => setMeal(m)}
+                      style={[
+                        styles.chip,
+                        {
+                          backgroundColor: active ? colors.primary : colors.secondary,
+                          borderColor: active ? colors.primary : colors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.chipText, { color: active ? "#FFFFFF" : colors.text }]}>
+                        {MEAL_INFO[m].emoji} {m === "kechki" ? "Kechki" : MEAL_INFO[m].label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
 
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
                 Porsiya (asl miqdorga nisbatan)
@@ -257,6 +317,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
   },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  favBtn: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, borderWidth: 1 },
   chipText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 },

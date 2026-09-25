@@ -1,11 +1,13 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
-import { type LayoutChangeEvent, Pressable, StyleSheet, Text, View } from "react-native";
+import { type LayoutChangeEvent, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 import type { Goal, WeightEntry } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { confirmAction } from "@/lib/confirm";
 import { formatDateKeyUz } from "@/lib/date";
+import { tr, trText } from "@/lib/i18n";
 
 const CHART_H = 150;
 const PAD = { top: 14, right: 14, bottom: 22, left: 34 };
@@ -113,7 +115,7 @@ export function WeightProgressCard({ weightLog, targetWeight, goal, onAddWeight,
     if (!onRemoveEntry) return;
     const ok = await confirmAction({
       title: "O'lchovni o'chirish",
-      message: `${formatDateKeyUz(w.date)} · ${fmtKg(w.kg)} kg o'chirilsinmi?`,
+      message: tr("{0} · {1} kg o'chirilsinmi?", formatDateKeyUz(w.date), fmtKg(w.kg)),
       confirmText: "O'chirish",
       destructive: true,
     });
@@ -128,7 +130,7 @@ export function WeightProgressCard({ weightLog, targetWeight, goal, onAddWeight,
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: colors.text }]}>Vazn dinamikasi</Text>
           <Text style={[styles.sub, { color: colors.mutedForeground }]}>
-            {weightLog.length > 0 ? `${weightLog.length} ta o'lchov` : "Hali o'lchov yo'q"}
+            {weightLog.length > 0 ? tr("{0} ta o'lchov", weightLog.length) : "Hali o'lchov yo'q"}
           </Text>
         </View>
         <Pressable
@@ -166,7 +168,7 @@ export function WeightProgressCard({ weightLog, targetWeight, goal, onAddWeight,
           <View style={styles.tile}>
             <Text style={[styles.tileLabel, { color: colors.mutedForeground }]}>Maqsadgacha</Text>
             <Text style={[styles.tileValue, { color: colors.text }]}>
-              {!hasTarget ? "—" : reached ? "Yetildi" : `${fmtKg(remaining)} kg`}
+              {!hasTarget ? "—" : reached ? "Yetildi" : tr("{0} kg", fmtKg(remaining))}
             </Text>
           </View>
         </View>
@@ -181,8 +183,8 @@ export function WeightProgressCard({ weightLog, targetWeight, goal, onAddWeight,
           </View>
           <Text style={[styles.progressText, { color: colors.mutedForeground }]}>
             {reached
-              ? `Maqsadga yetdingiz — ${fmtKg(targetWeight!)} kg`
-              : `Maqsad ${fmtKg(targetWeight!)} kg · ${Math.round(progress * 100)}% bajarildi`}
+              ? tr("Maqsadga yetdingiz — {0} kg", fmtKg(targetWeight!))
+              : tr("Maqsad {0} kg · {1}% bajarildi", fmtKg(targetWeight!), Math.round(progress * 100))}
           </Text>
         </View>
       ) : null}
@@ -233,7 +235,7 @@ export function WeightProgressCard({ weightLog, targetWeight, goal, onAddWeight,
                       fill={colors.mutedForeground}
                       textAnchor="end"
                     >
-                      Maqsad
+                      {trText("Maqsad")}
                     </SvgText>
                   </>
                 ) : null}

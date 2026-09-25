@@ -9,6 +9,9 @@ import {
   todayStr,
   yesterdayStr,
 } from "@/lib/date";
+import { setLanguage } from "@/lib/i18n";
+import { mealForTime, type MealType } from "@/lib/meals";
+import { ALL_DATA_KEYS, BACKUP_META_KEYS } from "@/lib/storageKeys";
 import { cancelAllReminders, scheduleAllReminders } from "@/lib/notifications";
 
 export type Language = "uz" | "uz-kril" | "ru" | "en";
@@ -43,6 +46,8 @@ export interface UserProfile {
   waterRemindersEnabled: boolean;
   dailySummaryEnabled: boolean;
   morningGreetingEnabled: boolean;
+  /** App theme; "system" follows the phone. Absent means light. */
+  theme?: "light" | "dark" | "system";
 }
 
 export type SubscriptionStatus = "none" | "trial" | "active";
@@ -97,10 +102,16 @@ export interface DiaryEntry {
   imageUri?: string;
   emoji?: string;
   portion?: string;
+  /** Older entries have none — use entryMeal() to read it. */
+  meal?: MealType;
+  /** Grams of sugar, when known (AI result or product label). */
+  sugar?: number;
+  /** Milligrams of sodium, when known. */
+  sodiumMg?: number;
 }
 
 export type DiaryEntryPatch = Partial<
-  Pick<DiaryEntry, "name" | "cal" | "protein" | "carbs" | "fat" | "portion">
+  Pick<DiaryEntry, "name" | "cal" | "protein" | "carbs" | "fat" | "portion" | "meal" | "sugar" | "sodiumMg">
 >;
 
 export interface WeightEntry {
@@ -149,6 +160,8 @@ interface AppContextType {
   todayKey: string;
   yesterdayKey: string;
   loading: boolean;
+  dataVersion: number;
+  reloadFromStorage: () => Promise<void>;
   addFoodModalVisible: boolean;
   setAddFoodModalVisible: (v: boolean) => void;
 }
@@ -186,6 +199,8 @@ const AppContext = createContext<AppContextType>({
   todayKey: todayStr(),
   yesterdayKey: yesterdayStr(),
   loading: true,
+  dataVersion: 0,
+  reloadFromStorage: async () => {},
   addFoodModalVisible: false,
   setAddFoodModalVisible: () => {},
 });
@@ -213,102 +228,119 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [tourPending, setTourPendingState] = useState(false);
   const [addFoodModalVisible, setAddFoodModalVisible] = useState(false);
+  // Bumped whenever storage is wiped or replaced wholesale, so other stores reload.
+  const [dataVersion, setDataVersion] = useState(0);
+
+  const loadFromStorage = async () => {
+    try {
+      const [
+        obRaw,
+        profileRaw,
+        subRaw,
+        entriesRaw,
+        burnedRaw,
+        exPlanRaw,
+        weightRaw,
+      ] = await AsyncStorage.multiGet([
+        "onboarding_complete",
+        "user_profile",
+        "subscription",
+        "diary_entries",
+        "burned_by_date",
+        "exercise_plan",
+        "weight_log",
+      ]);
+
+      if (obRaw[1] === "true") setOnboardingComplete(true);
+
+      let loadedProfile: Partial<UserProfile> = {};
+      if (profileRaw[1]) {
+        try {
+          loadedProfile = JSON.parse(profileRaw[1]);
+          setProfileState(loadedProfile);
+        } catch {}
+      }
+
+      let loadedWeights: WeightEntry[] = [];
+      if (weightRaw[1]) {
+        try {
+          const parsed = JSON.parse(weightRaw[1]) as WeightEntry[];
+          loadedWeights = parsed
+            .filter((w) => w && typeof w.date === "string" && Number.isFinite(w.kg) && w.kg > 0)
+            .map((w) => ({ date: normalizeDateKey(w.date), kg: w.kg }));
+        } catch {}
+      }
+      // Users who onboarded before weight tracking existed have no log yet —
+      // start it from their current profile weight so the chart isn't empty.
+      if (
+        loadedWeights.length === 0 &&
+        obRaw[1] === "true" &&
+        Number.isFinite(loadedProfile.currentWeight) &&
+        (loadedProfile.currentWeight ?? 0) > 0
+      ) {
+        loadedWeights = [{ date: todayStr(), kg: loadedProfile.currentWeight! }];
+        AsyncStorage.setItem("weight_log", JSON.stringify(loadedWeights)).catch(() => {});
+      }
+      setWeightLogState(sortWeights(loadedWeights));
+      if (subRaw[1]) {
+        try { setSubscriptionState(JSON.parse(subRaw[1])); } catch {}
+      }
+      if (entriesRaw[1]) {
+        try {
+          const parsed = JSON.parse(entriesRaw[1]) as DiaryEntry[];
+          setEntriesState(
+            parsed.map((e) => ({
+              ...e,
+              // Eski qurilmalarda nol qo'shilmagan sana kalitlari
+              // ("2026-9-5") saqlanib qolgan bo'lishi mumkin — statistika
+              // va bosh sahifa bilan mos kelishi uchun normallashtiramiz.
+              date: normalizeDateKey(e.date),
+              cal: Number.isFinite(e.cal) ? e.cal : 0,
+              protein: Number.isFinite(e.protein) ? e.protein : 0,
+              carbs: Number.isFinite(e.carbs) ? e.carbs : 0,
+              fat: Number.isFinite(e.fat) ? e.fat : 0,
+            }))
+          );
+        } catch {}
+      }
+      if (burnedRaw[1]) {
+        try {
+          const parsed = JSON.parse(burnedRaw[1]) as Record<string, number>;
+          const normalized: Record<string, number> = {};
+          for (const [k, v] of Object.entries(parsed)) {
+            const nk = normalizeDateKey(k);
+            normalized[nk] = (normalized[nk] ?? 0) + (Number.isFinite(v) ? v : 0);
+          }
+          setBurnedByDate(normalized);
+        } catch {}
+      }
+      if (exPlanRaw[1]) {
+        try { setExercisePlanState(JSON.parse(exPlanRaw[1])); } catch {}
+      }
+    } catch {}
+  };
 
   useEffect(() => {
     (async () => {
       await loadCachedOffset();
       refreshLocationTimezone().catch(() => {});
-
-      try {
-        const [
-          obRaw,
-          profileRaw,
-          subRaw,
-          entriesRaw,
-          burnedRaw,
-          exPlanRaw,
-          weightRaw,
-        ] = await AsyncStorage.multiGet([
-          "onboarding_complete",
-          "user_profile",
-          "subscription",
-          "diary_entries",
-          "burned_by_date",
-          "exercise_plan",
-          "weight_log",
-        ]);
-
-        if (obRaw[1] === "true") setOnboardingComplete(true);
-
-        let loadedProfile: Partial<UserProfile> = {};
-        if (profileRaw[1]) {
-          try {
-            loadedProfile = JSON.parse(profileRaw[1]);
-            setProfileState(loadedProfile);
-          } catch {}
-        }
-
-        let loadedWeights: WeightEntry[] = [];
-        if (weightRaw[1]) {
-          try {
-            const parsed = JSON.parse(weightRaw[1]) as WeightEntry[];
-            loadedWeights = parsed
-              .filter((w) => w && typeof w.date === "string" && Number.isFinite(w.kg) && w.kg > 0)
-              .map((w) => ({ date: normalizeDateKey(w.date), kg: w.kg }));
-          } catch {}
-        }
-        // Users who onboarded before weight tracking existed have no log yet —
-        // start it from their current profile weight so the chart isn't empty.
-        if (
-          loadedWeights.length === 0 &&
-          obRaw[1] === "true" &&
-          Number.isFinite(loadedProfile.currentWeight) &&
-          (loadedProfile.currentWeight ?? 0) > 0
-        ) {
-          loadedWeights = [{ date: todayStr(), kg: loadedProfile.currentWeight! }];
-          AsyncStorage.setItem("weight_log", JSON.stringify(loadedWeights)).catch(() => {});
-        }
-        setWeightLogState(sortWeights(loadedWeights));
-        if (subRaw[1]) {
-          try { setSubscriptionState(JSON.parse(subRaw[1])); } catch {}
-        }
-        if (entriesRaw[1]) {
-          try {
-            const parsed = JSON.parse(entriesRaw[1]) as DiaryEntry[];
-            setEntriesState(
-              parsed.map((e) => ({
-                ...e,
-                // Eski qurilmalarda nol qo'shilmagan sana kalitlari
-                // ("2026-9-5") saqlanib qolgan bo'lishi mumkin — statistika
-                // va bosh sahifa bilan mos kelishi uchun normallashtiramiz.
-                date: normalizeDateKey(e.date),
-                cal: Number.isFinite(e.cal) ? e.cal : 0,
-                protein: Number.isFinite(e.protein) ? e.protein : 0,
-                carbs: Number.isFinite(e.carbs) ? e.carbs : 0,
-                fat: Number.isFinite(e.fat) ? e.fat : 0,
-              }))
-            );
-          } catch {}
-        }
-        if (burnedRaw[1]) {
-          try {
-            const parsed = JSON.parse(burnedRaw[1]) as Record<string, number>;
-            const normalized: Record<string, number> = {};
-            for (const [k, v] of Object.entries(parsed)) {
-              const nk = normalizeDateKey(k);
-              normalized[nk] = (normalized[nk] ?? 0) + (Number.isFinite(v) ? v : 0);
-            }
-            setBurnedByDate(normalized);
-          } catch {}
-        }
-        if (exPlanRaw[1]) {
-          try { setExercisePlanState(JSON.parse(exPlanRaw[1])); } catch {}
-        }
-      } catch {}
-
+      await loadFromStorage();
       setLoading(false);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** Re-reads everything after storage was replaced (e.g. a backup restore). */
+  const reloadFromStorage = async () => {
+    setProfileState({});
+    setSubscriptionState(DEFAULT_SUB);
+    setEntriesState([]);
+    setBurnedByDate({});
+    setExercisePlanState(null);
+    setWeightLogState([]);
+    await loadFromStorage();
+    setDataVersion((v) => v + 1);
+  };
 
   const persistBurned = (updater: (prev: Record<string, number>) => Record<string, number>) => {
     setBurnedByDate((prev) => {
@@ -396,7 +428,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const reschedule = (next: Partial<UserProfile>, force = false): Promise<void> => {
     const p = buildPrefs(next);
-    const key = `${p.mealsPerDay}|${p.masterEnabled ? 1 : 0}|${p.mealsEnabled ? 1 : 0}|${p.waterEnabled ? 1 : 0}|${p.summaryEnabled ? 1 : 0}|${p.morningEnabled ? 1 : 0}`;
+    const key = `${next.language ?? "uz"}|${p.mealsPerDay}|${p.masterEnabled ? 1 : 0}|${p.mealsEnabled ? 1 : 0}|${p.waterEnabled ? 1 : 0}|${p.summaryEnabled ? 1 : 0}|${p.morningEnabled ? 1 : 0}`;
     if (!force && key === lastSchedKey.current) return Promise.resolve();
     const myId = ++schedReqId.current;
     // Mutexga qo'yamiz — oldingi scheduling tugamaguncha kutadi.
@@ -422,6 +454,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const RESCHED_KEYS = [
+    "language",
     "mealsPerDay",
     "notificationsEnabled",
     "mealRemindersEnabled",
@@ -431,6 +464,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   ] as const;
 
   const setProfile = (updates: Partial<UserProfile>) => {
+    // Reminders rescheduled below must already use the new language.
+    if ("language" in updates) setLanguage(updates.language);
     setProfileState((prev) => {
       const next = { ...prev, ...updates };
       AsyncStorage.setItem("user_profile", JSON.stringify(next)).catch(() => {});
@@ -512,18 +547,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .then(() => cancelAllReminders().catch(() => {}));
     schedQueue.current = cancelJob;
     await cancelJob;
-    await AsyncStorage.multiRemove([
-      "onboarding_complete",
-      "user_profile",
-      "subscription",
-      "diary_entries",
-      "burned_by_date",
-      "ratsion_plan",
-      "exercise_plan",
-      "weight_log",
-    ]);
+    await AsyncStorage.multiRemove([...ALL_DATA_KEYS, ...BACKUP_META_KEYS]);
     if (FileSystem.documentDirectory) {
       FileSystem.deleteAsync(`${FileSystem.documentDirectory}food_images`, {
+        idempotent: true,
+      }).catch(() => {});
+      FileSystem.deleteAsync(`${FileSystem.documentDirectory}progress_photos`, {
         idempotent: true,
       }).catch(() => {});
     }
@@ -534,6 +563,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setBurnedByDate({});
     setExercisePlanState(null);
     setWeightLogState([]);
+    setDataVersion((v) => v + 1);
   };
 
   const startTrial = () => {
@@ -604,11 +634,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addEntry = (entry: Omit<DiaryEntry, "id" | "time" | "date">, date?: string) => {
+    const time = nowTime();
     const e: DiaryEntry = {
       ...entry,
       id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      time: nowTime(),
+      time,
       date: date ?? todayStr(),
+      meal: entry.meal ?? mealForTime(),
     };
     persistEntries((prev) => [e, ...prev]);
   };
@@ -621,6 +653,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       id: `e-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
       time: t,
       date: d,
+      meal: entry.meal ?? mealForTime(),
     }));
     persistEntries((prev) => [...newOnes, ...prev]);
   };
@@ -654,6 +687,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
   };
+
+  // Module-level so tr()/Text can read it without a hook; set before children render.
+  setLanguage(profile.language);
 
   return (
     <AppContext.Provider
@@ -690,6 +726,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         todayKey: todayStr(),
         yesterdayKey: yesterdayStr(),
         loading,
+        dataVersion,
+        reloadFromStorage,
         addFoodModalVisible,
         setAddFoodModalVisible,
       }}

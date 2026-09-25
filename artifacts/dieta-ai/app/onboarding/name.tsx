@@ -2,11 +2,10 @@ import { router } from "expo-router";
 import React, { useState, useRef } from "react";
 import {
   StyleSheet,
-  Text,
-  TextInput,
   View,
   Platform,
 } from "react-native";
+import { Text, TextInput } from "@/components/i18n/Text";
 import {
   useFonts,
   Inter_400Regular,
@@ -21,7 +20,7 @@ export default function NameScreen() {
   const { profile, setProfile } = useApp();
   const colors = useColors();
   const [name, setName] = useState<string>((profile.name as string) ?? "");
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<React.ElementRef<typeof TextInput>>(null);
 
   useFonts({ Inter_400Regular, Inter_600SemiBold, Inter_700Bold });
 

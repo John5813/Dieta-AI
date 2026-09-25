@@ -14,12 +14,11 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
   useWindowDimensions,
 } from "react-native";
+import { Text, TextInput } from "@/components/i18n/Text";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import {
@@ -33,12 +32,30 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { TRIAL_DAILY_SCAN_LIMIT, useApp, type ScanBlockReason } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { MEAL_INFO, MEAL_ORDER, mealForTime, type MealType } from "@/lib/meals";
+import { BarcodeScanner } from "@/components/BarcodeScanner";
+import { CustomFoodEditor } from "@/components/CustomFoodEditor";
+import { QuickAddStrip } from "@/components/QuickAddStrip";
+import { foodKey, useTracker, type SavedFood } from "@/context/TrackerContext";
+
+function savedFoodFields(f: SavedFood): Omit<SavedFood, "id"> {
+  return {
+    name: f.name,
+    emoji: f.emoji,
+    portion: f.portion,
+    cal: f.cal,
+    protein: f.protein,
+    carbs: f.carbs,
+    fat: f.fat,
+  };
+}
 import {
   CATEGORIES,
   FOOD_DB,
   type FoodCategory,
   type FoodItem,
 } from "@/lib/foodDatabase";
+import { getLanguage, tr, trText } from "@/lib/i18n";
 
 type ColorPalette = ReturnType<typeof useColors>;
 type ImageMime = "image/png" | "image/webp" | "image/jpeg";
@@ -62,6 +79,9 @@ interface AiResult {
   protein: number;
   carbs: number;
   fat: number;
+  /** Whole-portion sugar (g) and sodium (mg) from the AI, when given. */
+  sugar?: number;
+  sodium?: number;
   caloriesPer100?: number;
   unitPer100?: "g" | "ml";
   unitName?: string;
@@ -130,6 +150,9 @@ export interface AddedFood {
   portion?: string;
   emoji?: string;
   imageUri?: string;
+  meal?: MealType;
+  sugar?: number;
+  sodiumMg?: number;
 }
 
 interface AiUserContext {
@@ -152,6 +175,8 @@ interface AddFoodModalProps {
   onClose: () => void;
   /** One call per confirm; a photo of a full plate yields several foods. */
   onAdd: (foods: AddedFood[]) => void;
+  /** Meal to preselect; defaults to the one matching the current time. */
+  meal?: MealType;
   remainingCal?: number;
   dailyCalories?: number;
   userContext?: AiUserContext;
@@ -164,7 +189,15 @@ const ACCENT: Record<Source, string> = {
   catalog: "#E07A1F",
 };
 
-export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalories, userContext }: AddFoodModalProps) {
+export function AddFoodModal({
+  visible,
+  onClose,
+  onAdd: onAddProp,
+  meal: initialMeal,
+  remainingCal,
+  dailyCalories,
+  userContext,
+}: AddFoodModalProps) {
   const buildCtx = (): AiUserContext | undefined => {
     if (!userContext && remainingCal == null && dailyCalories == null) return undefined;
     const merged: AiUserContext = { ...(userContext ?? {}) };
@@ -174,7 +207,30 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
   };
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { subscription, canScan, registerScan } = useApp();
+  const { subscription, canScan, registerScan, entries } = useApp();
+  const { favorites, customFoods, isFavorite, toggleFavorite } = useTracker();
+  // Latest distinct foods the user logged, newest first (entries are stored newest first).
+  const recentFoods = React.useMemo(() => {
+    const seen = new Set<string>();
+    const out: SavedFood[] = [];
+    for (const e of entries) {
+      const k = foodKey(e.name);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push({
+        id: e.id,
+        name: e.name,
+        emoji: e.emoji,
+        portion: e.portion,
+        cal: e.cal,
+        protein: e.protein,
+        carbs: e.carbs,
+        fat: e.fat,
+      });
+      if (out.length >= 15) break;
+    }
+    return out;
+  }, [entries]);
   const [step, setStep] = useState<Step>("choose");
   const [activeSource, setActiveSource] = useState<Source | null>(null);
   const [textInput, setTextInput] = useState("");
@@ -186,6 +242,10 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [errorDetected, setErrorDetected] = useState<string | null>(null);
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
+  const [meal, setMeal] = useState<MealType>(() => initialMeal ?? mealForTime());
+  const [creatingFood, setCreatingFood] = useState(false);
+  const [barcodeOpen, setBarcodeOpen] = useState(false);
+  const onAdd = (foods: AddedFood[]) => onAddProp(foods.map((f) => ({ ...f, meal: f.meal ?? meal })));
 
   const fade = useRef(new Animated.Value(0)).current;
   const sheetY = useRef(new Animated.Value(40)).current;
@@ -193,6 +253,7 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
 
   useEffect(() => {
     if (visible) {
+      setMeal(initialMeal ?? mealForTime());
       setStep("choose");
       setActiveSource(null);
       setTextInput("");
@@ -244,6 +305,23 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
         useNativeDriver: true,
       }).start();
     });
+  };
+
+  const handleQuickAdd = (f: SavedFood) => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    onAdd([
+      {
+        name: f.name,
+        cal: f.cal,
+        protein: f.protein,
+        carbs: f.carbs,
+        fat: f.fat,
+        portion: f.portion,
+        emoji: f.emoji,
+        source: "catalog",
+      },
+    ]);
+    onClose();
   };
 
   const handlePickVariant = (src: Source) => {
@@ -325,6 +403,8 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
         protein: analysis.protein ?? 0,
         carbs: analysis.carbs ?? 0,
         fat: analysis.fat ?? 0,
+        sugar: analysis.sugar,
+        sodium: analysis.sodium,
         caloriesPer100: analysis.caloriesPer100,
         unitPer100: analysis.unitPer100 ?? "g",
         unitName: analysis.unitName,
@@ -400,7 +480,7 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
   ) => {
     setLoading(source);
     try {
-      const res = await aiAnalyzeImage({ imageBase64: base64, mimeType, userContext: buildCtx() });
+      const res = await aiAnalyzeImage({ imageBase64: base64, mimeType, userContext: buildCtx(), language: getLanguage() });
       // Only a recognised dish uses up a trial scan; blurry or non-food shots don't.
       if (res.status === "ok") registerScan();
       showAnalysisResult(res, source, imageUri);
@@ -492,7 +572,7 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
     triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
     setLoading("text");
     try {
-      const res = await aiAnalyzeText({ text: textInput.trim(), userContext: buildCtx() });
+      const res = await aiAnalyzeText({ text: textInput.trim(), userContext: buildCtx(), language: getLanguage() });
       showAnalysisResult(res, "text");
     } catch {
       setErrorMsg("Internet bilan bog'lanishda xatolik. Qaytadan urinib ko'ring.");
@@ -522,6 +602,10 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
       source: aiResult.source,
       imageUri: aiResult.imageUri,
     };
+    // Sugar/sodium come for the full AI portion; follow the portion the user settled on.
+    const ratio = aiResult.cal > 0 ? totals.cal / aiResult.cal : 1;
+    if (aiResult.sugar != null) main.sugar = Math.round(aiResult.sugar * ratio);
+    if (aiResult.sodium != null) main.sodiumMg = Math.round(aiResult.sodium * ratio);
     const sides: AddedFood[] = (aiResult.sides ?? [])
       .filter((s) => s.included)
       .map((s) => ({
@@ -615,7 +699,7 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
         `Faqat shu QO'SHIMCHA mahsulot(lar)ning kaloriya va makrolarini hisobla: "${note}". ` +
         `Asosiy taom (palov, manti va h.k.) HAQIDA o'ylash kerak emas — faqat shu qo'shimchaning ` +
         `o'zining qiymatlarini qaytar. Masalan: "30g sariyog'" → ~220 kkal, oqsil 0g, uglevod 0g, yog' 24g.`;
-      const res = await aiAnalyzeText({ text: prompt, userContext: buildCtx() });
+      const res = await aiAnalyzeText({ text: prompt, userContext: buildCtx(), language: getLanguage() });
       // "30g sariyog' va smetana" may come back split into a main item plus
       // sides — the extra is all of it together.
       const withSides = sumSides(res.sides?.map((s) => ({ ...s, included: true })));
@@ -712,9 +796,23 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
                   colors={colors}
                   onPick={handlePickVariant}
                   onClose={onClose}
+                  meal={meal}
+                  onMealChange={setMeal}
+                  onBarcode={() => setBarcodeOpen(true)}
+                  quickAdd={
+                    <QuickAddStrip
+                      recent={recentFoods}
+                      favorites={favorites}
+                      mine={customFoods}
+                      isFavorite={isFavorite}
+                      onToggleFavorite={(f) => toggleFavorite(savedFoodFields(f))}
+                      onAdd={handleQuickAdd}
+                      onCreateMine={() => setCreatingFood(true)}
+                    />
+                  }
                   scanNote={
                     subscription.status === "trial"
-                      ? `Sinov: bugun ${canScan().remaining} / ${TRIAL_DAILY_SCAN_LIMIT} ta rasm tahlili qoldi`
+                      ? tr("Sinov: bugun {0} / {1} ta rasm tahlili qoldi", canScan().remaining, TRIAL_DAILY_SCAN_LIMIT)
                       : undefined
                   }
                 />
@@ -795,6 +893,16 @@ export function AddFoodModal({ visible, onClose, onAdd, remainingCal, dailyCalor
           </Animated.View>
         </Animated.View>
       </KeyboardAvoidingView>
+      <CustomFoodEditor visible={creatingFood} onClose={() => setCreatingFood(false)} />
+      <BarcodeScanner
+        visible={barcodeOpen}
+        onClose={() => setBarcodeOpen(false)}
+        onAdd={(f) => {
+          setBarcodeOpen(false);
+          onAdd([{ ...f, emoji: "🏷️", source: "catalog" }]);
+          onClose();
+        }}
+      />
     </Modal>
   );
 }
@@ -931,7 +1039,7 @@ function SidesList({
 function scanBlockMessage(reason?: ScanBlockReason): string {
   switch (reason) {
     case "daily_limit":
-      return `Sinov davrida kuniga ${TRIAL_DAILY_SCAN_LIMIT} ta rasm tahlil qilinadi — bugungisi tugadi. Ovqatni ro'yxatdan yoki matn bilan qo'shishingiz mumkin, yoki Premium bilan cheksiz foydalaning.`;
+      return tr("Sinov davrida kuniga {0} ta rasm tahlil qilinadi — bugungisi tugadi. Ovqatni ro'yxatdan yoki matn bilan qo'shishingiz mumkin, yoki Premium bilan cheksiz foydalaning.", TRIAL_DAILY_SCAN_LIMIT);
     case "premium_expired":
       return "Premium muddati tugagan. Rasm tahlilidan foydalanish uchun Premiumni yangilang.";
     case "trial_expired":
@@ -946,19 +1054,65 @@ function ChooseStep({
   onPick,
   onClose,
   scanNote,
+  meal,
+  onMealChange,
+  quickAdd,
+  onBarcode,
 }: {
   colors: ColorPalette;
   onPick: (s: Source) => void;
   onClose: () => void;
+  meal: MealType;
+  onMealChange: (m: MealType) => void;
+  quickAdd?: React.ReactNode;
+  onBarcode: () => void;
   /** Trial allowance line shown under the photo options. */
   scanNote?: string;
 }) {
+  // Recent/favorite cards make this step taller than small phones — let it scroll.
+  const { height } = useWindowDimensions();
   return (
-    <View style={styles.stepWrap}>
+    <ScrollView
+      style={{ maxHeight: height * 0.86 }}
+      contentContainerStyle={styles.stepWrap}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={[styles.title, { color: colors.text }]}>Ovqat qo'shish</Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-        Bugungi kunga qaysi yo'l bilan qo'shasiz?
+        Qaysi ovqatga va qaysi yo'l bilan qo'shasiz?
       </Text>
+
+      <View style={styles.mealRow}>
+        {MEAL_ORDER.map((m) => {
+          const on = m === meal;
+          return (
+            <Pressable
+              key={m}
+              onPress={() => onMealChange(m)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              style={[
+                styles.mealChip,
+                {
+                  backgroundColor: on ? colors.primary : colors.background,
+                  borderColor: on ? colors.primary : colors.border,
+                },
+              ]}
+            >
+              <Text style={styles.mealChipEmoji}>{MEAL_INFO[m].emoji}</Text>
+              <Text
+                style={[styles.mealChipText, { color: on ? "#FFFFFF" : colors.text }]}
+                numberOfLines={1}
+              >
+                {m === "kechki" ? "Kechki" : MEAL_INFO[m].label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {quickAdd}
 
       <View style={styles.tileList}>
         <Tile
@@ -985,6 +1139,14 @@ function ChooseStep({
           desc="Telefon xotirasidagi tayyor rasmni yuklash"
           onPress={() => onPick("gallery")}
         />
+        <Tile
+          colors={colors}
+          accent="#0F766E"
+          icon="maximize"
+          title="Shtrix-kod skaneri"
+          desc="Do'kondan olingan qadoqli mahsulot kodini skanerlang"
+          onPress={onBarcode}
+        />
         {scanNote ? (
           <View style={[styles.scanNote, { backgroundColor: "#FEF3C7" }]}>
             <Feather name="clock" size={13} color="#92400E" />
@@ -1004,7 +1166,7 @@ function ChooseStep({
       <TouchableOpacity onPress={onClose} style={styles.cancelBtn} accessibilityRole="button">
         <Text style={[styles.cancelText, { color: colors.mutedForeground }]}>Bekor qilish</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -1963,22 +2125,22 @@ function AiConfirmStep({
       const cal = Math.round(recommendedUnits * calPerUnit);
       const base =
         remainingCal != null && dailyCalories != null
-          ? `Kunlik normangiz ${dailyCalories} kkal, qolgan ${remainingCal} kkal. `
+          ? tr("Kunlik normangiz {0} kkal, qolgan {1} kkal. ", dailyCalories, remainingCal)
           : "";
-      return `${base}Sizga ~${fmtUnits(recommendedUnits)} ${unitNamePlural} (≈${cal} kkal) optimal.`;
+      return tr("{0}Sizga ~{1} {2} (≈{3} kkal) optimal.", base, fmtUnits(recommendedUnits), trText(unitNamePlural), cal);
     }
     if (recommendedGrams && per100Cal) {
       const cal = Math.round((recommendedGrams * per100Cal) / 100);
       const base =
         remainingCal != null && dailyCalories != null
-          ? `Kunlik normangiz ${dailyCalories} kkal, qolgan ${remainingCal} kkal. `
+          ? tr("Kunlik normangiz {0} kkal, qolgan {1} kkal. ", dailyCalories, remainingCal)
           : "";
-      return `${base}Sizga ~${recommendedGrams}${unit} (≈${cal} kkal) tavsiya etiladi.`;
+      return tr("{0}Sizga ~{1}{2} (≈{3} kkal) tavsiya etiladi.", base, recommendedGrams, unit, cal);
     }
     if (remainingCal != null && dailyCalories != null) {
       return displayCal > remainingCal
-        ? `Kunlik normangiz ${dailyCalories} kkal. Hozir ${remainingCal} kkal qolgan — bu porsiya normadan oshadi. Porsiyani kamaytirish tavsiya etiladi.`
-        : `Kunlik normangiz ${dailyCalories} kkal. Bu porsiya (${displayCal} kkal) norma doirasida.`;
+        ? tr("Kunlik normangiz {0} kkal. Hozir {1} kkal qolgan — bu porsiya normadan oshadi. Porsiyani kamaytirish tavsiya etiladi.", dailyCalories, remainingCal)
+        : tr("Kunlik normangiz {0} kkal. Bu porsiya ({1} kkal) norma doirasida.", dailyCalories, displayCal);
     }
     return "Bu porsiyani me'yorida iste'mol qilish tavsiya etiladi.";
   })();
@@ -2026,7 +2188,7 @@ function AiConfirmStep({
   const extrasSummary = (() => {
     if (extras.length === 0) return undefined;
     if (extras.length === 1) return extras[0].note.length > 30 ? `${extras[0].note.slice(0, 30)}…` : extras[0].note;
-    return `${extras.length} qo'shimcha`;
+    return tr("{0} qo'shimcha", extras.length);
   })();
 
   // Porsiya yorlig'i — saqlanganda ko'rinadi
@@ -2210,8 +2372,8 @@ function AiConfirmStep({
                 ]}
               >
                 {kcalLeftAfter >= 0
-                  ? `Keyin qoladi: ${kcalLeftAfter} kkal`
-                  : `Normadan +${-kcalLeftAfter} kkal`}
+                  ? tr("Keyin qoladi: {0} kkal", kcalLeftAfter)
+                  : tr("Normadan +{0} kkal", -kcalLeftAfter)}
               </Text>
             ) : null}
           </View>
@@ -2352,7 +2514,7 @@ function AiConfirmStep({
             <TextInput
               value={customPortionText}
               onChangeText={setCustomPortionText}
-              placeholder={isCountUnit ? `Boshqa miqdor (${unitNamePlural}), masalan 1.5` : "Boshqa miqdor, masalan 1.5"}
+              placeholder={isCountUnit ? tr("Boshqa miqdor ({0}), masalan 1.5", unitNamePlural) : "Boshqa miqdor, masalan 1.5"}
               placeholderTextColor={colors.mutedForeground}
               keyboardType="decimal-pad"
               style={[ac.input, ac.flex1, { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
@@ -2432,7 +2594,7 @@ function AiConfirmStep({
           {extras.map((it, idx) => (
             <View key={`${it.note}-${idx}`} style={[ac.extraRow, { borderTopColor: colors.border }]}>
               <Text style={[ac.extraName, { color: colors.text }]} numberOfLines={2}>+ {it.note}</Text>
-              <Text style={[ac.extraCal, { color: colors.text }]}>{it.cal > 0 ? `${it.cal} kkal` : "?"}</Text>
+              <Text style={[ac.extraCal, { color: colors.text }]}>{it.cal > 0 ? tr("{0} kkal", it.cal) : "?"}</Text>
               <Pressable
                 onPress={() => onRemoveIngredient(idx)}
                 hitSlop={8}
@@ -2497,7 +2659,7 @@ function AiConfirmStep({
         >
           <Feather name="check" size={20} color="#FFFFFF" />
           <Text style={ac.confirmText} numberOfLines={1}>
-            {sides.count > 0 ? `${sides.count + 1} ta taomni qo'shish` : "Kundalikka qo'shish"} · {plateCal} kkal
+            {sides.count > 0 ? tr("{0} ta taomni qo'shish", sides.count + 1) : "Kundalikka qo'shish"} · {plateCal} kkal
           </Text>
         </Pressable>
       </View>
@@ -2855,6 +3017,17 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 6,
   },
+  mealRow: { flexDirection: "row", gap: 6, marginBottom: 4 },
+  mealChip: {
+    flex: 1,
+    alignItems: "center",
+    gap: 2,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  mealChipEmoji: { fontSize: 16 },
+  mealChipText: { fontSize: 11.5, fontFamily: "Inter_600SemiBold" },
   scanNote: {
     flexDirection: "row",
     alignItems: "center",

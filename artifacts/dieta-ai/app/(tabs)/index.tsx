@@ -3,15 +3,15 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Modal } from "react-native";
+import { ActivityIndicator, Modal } from "react-native";
 import {
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, LinearGradient as SvgLinGrad, Stop } from "react-native-svg";
 import { AddFoodModal, type AddedFood } from "@/components/AddFoodModal";
@@ -20,8 +20,18 @@ import { SuccessToast } from "@/components/SuccessToast";
 import { MacroCard } from "@/components/MacroCard";
 import { TourOverlay } from "@/components/TourOverlay";
 import { useApp, type DiaryEntry } from "@/context/AppContext";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useThemeScheme } from "@/hooks/useColors";
+import { MealSections } from "@/components/home/MealSections";
+import { SugarSaltRow } from "@/components/home/SugarSaltRow";
+import { FastingCard } from "@/components/home/FastingCard";
+import { StepsCard } from "@/components/home/StepsCard";
+import { WaterCard } from "@/components/home/WaterCard";
+import { calculatePlan } from "@/lib/nutrition";
+import { confirmAction } from "@/lib/confirm";
 import { formatDateKeyUz, shiftDateKey } from "@/lib/date";
+import { loggingStreak } from "@/lib/insights";
+import { getLanguage, tr, trText } from "@/lib/i18n";
+import { MEAL_INFO, type MealType } from "@/lib/meals";
 
 /** How far back the home screen lets you browse / log forgotten meals. */
 const MAX_DAYS_BACK = 30;
@@ -125,6 +135,7 @@ export default function HomeScreen() {
     setAddFoodModalVisible,
   } = useApp();
   const colors = useColors();
+  const isDark = useThemeScheme() === "dark";
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const modalOpen = addFoodModalVisible;
@@ -169,6 +180,11 @@ export default function HomeScreen() {
   );
 
   const dayEntries = entries.filter((e) => e.date === selectedKey);
+  const prevDayKey = shiftDateKey(selectedKey, -1);
+  const prevDayEntries = entries.filter((e) => e.date === prevDayKey);
+  const streak = loggingStreak(entries, todayKey);
+  // Meal chosen with a section's "+" button; the tab bar camera leaves it unset.
+  const [presetMeal, setPresetMeal] = useState<MealType | undefined>(undefined);
 
   const rawCal = dayEntries.reduce((s, e) => s + (Number.isFinite(e.cal) ? e.cal : 0), 0);
   const totalProtein = dayEntries.reduce((s, e) => s + (Number.isFinite(e.protein) ? e.protein : 0), 0);
@@ -198,34 +214,57 @@ export default function HomeScreen() {
         portion: food.portion,
         emoji: food.emoji,
         imageUri: food.imageUri,
+        meal: food.meal,
+        sugar: food.sugar,
+        sodiumMg: food.sodiumMg,
       })),
       isToday ? undefined : selectedKey,
     );
     const totalAdded = Math.round(foods.reduce((t, f) => t + f.cal, 0));
-    const what = foods.length === 1 ? foods[0].name : `${foods[0].name} va yana ${foods.length - 1} ta taom`;
+    const what = foods.length === 1 ? foods[0].name : tr("{0} va yana {1} ta taom", foods[0].name, foods.length - 1);
     setToast({
       visible: true,
-      message: `${what} qo'shildi${isToday ? "" : ` (${dayLabel})`} · +${totalAdded} kkal`,
+      message: tr("{0} qo'shildi{1} · +{2} kkal", what, isToday ? "" : ` (${dayLabel})`, totalAdded),
     });
   };
 
-  const handleDeleteEntry = (id: string, name: string) => {
-    Alert.alert(
-      "Yozuvni o'chirish",
-      `"${name}" yozuvini o'chirmoqchimisiz?`,
-      [
-        { text: "Bekor qilish", style: "cancel" },
-        {
-          text: "O'chirish",
-          style: "destructive",
-          onPress: () => removeEntry(id),
-        },
-      ],
+  const handleDeleteEntry = async (id: string, name: string) => {
+    const ok = await confirmAction({
+      title: "Yozuvni o'chirish",
+      message: tr("\"{0}\" yozuvini o'chirmoqchimisiz?", name),
+      confirmText: "O'chirish",
+      destructive: true,
+    });
+    if (ok) removeEntry(id);
+  };
+
+  const handleRepeat = (meal: MealType, from: DiaryEntry[]) => {
+    addEntries(
+      from.map((e) => ({
+        name: e.name,
+        cal: e.cal,
+        protein: e.protein,
+        carbs: e.carbs,
+        fat: e.fat,
+        source: e.source,
+        emoji: e.emoji,
+        portion: e.portion,
+        imageUri: e.imageUri,
+        sugar: e.sugar,
+        sodiumMg: e.sodiumMg,
+        meal,
+      })),
+      isToday ? undefined : selectedKey,
     );
+    const total = from.reduce((t, e) => t + e.cal, 0);
+    setToast({ visible: true, message: tr("{0} takrorlandi · +{1} kkal", trText(MEAL_INFO[meal].label), total) });
   };
 
   return (
-    <LinearGradient colors={["#FFFFFF", "#EDF7ED", "#E2F5E2"]} style={styles.root}>
+    <LinearGradient
+      colors={isDark ? ["#0E130E", "#101810", "#12200F"] : ["#FFFFFF", "#EDF7ED", "#E2F5E2"]}
+      style={styles.root}
+    >
       <ScrollView
         contentContainerStyle={[
           styles.content,
@@ -348,6 +387,11 @@ export default function HomeScreen() {
           />
         </View>
 
+        <SugarSaltRow entries={dayEntries} />
+        <WaterCard dateKey={selectedKey} goalMl={calculatePlan(profile).waterMl} />
+        <StepsCard dateKey={selectedKey} isToday={isToday} weightKg={profile.currentWeight ?? 70} />
+        {isToday ? <FastingCard /> : null}
+
         {showCelebration ? (
           <View
             style={[
@@ -384,10 +428,10 @@ export default function HomeScreen() {
           if (anyOver) wasOverRef.current = true;
           if (!anyOver) return null;
           const overChips: string[] = [];
-          if (overCal > 0) overChips.push(`+${overCal} kkal`);
-          if (overP > 0) overChips.push(`+${overP}g oqsil`);
-          if (overC > 0) overChips.push(`+${overC}g uglevod`);
-          if (overF > 0) overChips.push(`+${overF}g yog'`);
+          if (overCal > 0) overChips.push(tr("+{0} kkal", overCal));
+          if (overP > 0) overChips.push(tr("+{0}g oqsil", overP));
+          if (overC > 0) overChips.push(tr("+{0}g uglevod", overC));
+          if (overF > 0) overChips.push(tr("+{0}g yog'", overF));
           return (
             <View
               style={[
@@ -506,8 +550,14 @@ export default function HomeScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            {isToday ? "Yaqinda iste'mol qilindi" : `${dayLabel} ovqatlari`}
+            {isToday ? "Bugungi ovqatlar" : tr("{0} ovqatlari", dayLabel)}
           </Text>
+          {isToday && streak >= 2 ? (
+            <View style={styles.streakChip}>
+              <Text style={styles.streakText}>🔥 {streak} kun</Text>
+            </View>
+          ) : null}
+          <View style={{ flex: 1 }} />
           <Pressable
             onPress={() => router.push("/stats")}
             hitSlop={8}
@@ -525,95 +575,18 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {dayEntries.length === 0 ? (
-          <View
-            style={[styles.emptyCard, { backgroundColor: colors.secondary, borderColor: colors.border }]}
-          >
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              {isToday ? "Hozircha ma'lumot yo'q!" : `${dayLabel} uchun yozuv yo'q`}
-            </Text>
-            <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-              {isToday
-                ? "Bugungi ovqatlaringizni tez suratga olib kuzatishni boshlang"
-                : "Unutilgan ovqatni shu kunga qo'shish uchun pastdagi kamera tugmasini bosing"}
-            </Text>
-          </View>
-        ) : (
-          dayEntries.map((e) => (
-            <Pressable
-              key={e.id}
-              onPress={() => setEditingEntry(e)}
-              onLongPress={() => handleDeleteEntry(e.id, e.name)}
-              delayLongPress={400}
-              accessibilityRole="button"
-              accessibilityLabel={`${e.name}, ${e.cal} kaloriya`}
-              accessibilityHint="Tahrirlash uchun bosing, o'chirish uchun bosib turing"
-              style={({ pressed }) => [
-                styles.entryCard,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                  opacity: pressed ? 0.85 : 1,
-                },
-              ]}
-            >
-              {e.imageUri ? (
-                <Image
-                  source={{ uri: e.imageUri }}
-                  style={styles.entryThumb}
-                  contentFit="cover"
-                  transition={120}
-                  cachePolicy="memory-disk"
-                />
-              ) : (
-                <View style={[styles.entryIcon, { backgroundColor: colors.secondary }]}>
-                  {e.emoji ? (
-                    <Text style={styles.entryIconEmoji}>{e.emoji}</Text>
-                  ) : (
-                    <Feather
-                      name={
-                        e.source === "camera"
-                          ? "camera"
-                          : e.source === "gallery"
-                          ? "image"
-                          : e.source === "plan"
-                          ? "calendar"
-                          : e.source === "catalog"
-                          ? "book-open"
-                          : "edit-3"
-                      }
-                      size={18}
-                      color={colors.primary}
-                    />
-                  )}
-                </View>
-              )}
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.entryName, { color: colors.text }]} numberOfLines={1}>
-                  {e.name}
-                </Text>
-                <Text style={[styles.entryMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
-                  {e.time}{e.portion ? ` · ${e.portion}` : ""} · {e.protein}g B · {e.carbs}g U · {e.fat}g Y
-                </Text>
-              </View>
-              <View style={styles.entryRight}>
-                <Text style={[styles.entryCal, { color: colors.primary }]}>{e.cal} kal</Text>
-                <Pressable
-                  onPress={() => handleDeleteEntry(e.id, e.name)}
-                  hitSlop={10}
-                  accessibilityRole="button"
-                  accessibilityLabel="O'chirish"
-                  style={({ pressed }) => [
-                    styles.deleteBtn,
-                    { opacity: pressed ? 0.5 : 1 },
-                  ]}
-                >
-                  <Feather name="trash-2" size={16} color={colors.destructive} />
-                </Pressable>
-              </View>
-            </Pressable>
-          ))
-        )}
+        <MealSections
+          entries={dayEntries}
+          yesterdayEntries={prevDayEntries}
+          canRepeat
+          onEdit={setEditingEntry}
+          onDelete={(e) => handleDeleteEntry(e.id, e.name)}
+          onAddToMeal={(m) => {
+            setPresetMeal(m);
+            setModalOpen(true);
+          }}
+          onRepeat={handleRepeat}
+        />
       </ScrollView>
 
       <SuccessToast
@@ -639,8 +612,12 @@ export default function HomeScreen() {
 
       <AddFoodModal
         visible={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          setPresetMeal(undefined);
+        }}
         onAdd={handleAdd}
+        meal={presetMeal}
         dailyCalories={goal}
         remainingCal={Math.max(goal - totalCal, 0)}
         userContext={{
@@ -791,7 +768,7 @@ function ExerciseModal({
       const res = await fetch(`${API_BASE_EX}/api/ai/exercise-plan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: JSON.stringify({ language: getLanguage(),
           profile: {
             gender: profile.gender,
             age,
@@ -872,7 +849,7 @@ function ExerciseModal({
       const res = await fetch(`${API_BASE_EX}/api/ai/exercise-plan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: JSON.stringify({ language: getLanguage(),
           profile: {
             gender: profile.gender,
             age,
@@ -1523,6 +1500,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
+  streakChip: { backgroundColor: "#FFEDD5", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8 },
+  streakText: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#C2410C" },
   statsBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   emptyCard: {
     borderRadius: 16,

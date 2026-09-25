@@ -7,10 +7,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { Feather } from "@expo/vector-icons";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,6 +18,7 @@ import { MacroDonut } from "@/components/MacroDonut";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { calculatePlan, formatUzDate } from "@/lib/nutrition";
+import { tr, trText } from "@/lib/i18n";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -189,13 +190,13 @@ export default function PlanScreen() {
     : isGain
       ? `Siz qo'shishingiz kerak`
       : `Siz yo'qotishingiz kerak`;
-  const targetValue = isMaintain ? "Ideal" : `${diff} kg`;
+  const targetValue = isMaintain ? "Ideal" : tr("{0} kg", diff);
 
   const goalKcalLine = isMaintain
     ? "Vaznni saqlash uchun kunlik norma"
     : isGain
-      ? `+${Math.round(plan.calories - plan.tdee)} kkal kunlik profitsit`
-      : `−${Math.round(plan.tdee - plan.calories)} kkal kunlik defitsit`;
+      ? tr("+{0} kkal kunlik profitsit", Math.round(plan.calories - plan.tdee))
+      : tr("−{0} kkal kunlik defitsit", Math.round(plan.tdee - plan.calories));
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -379,14 +380,14 @@ export default function PlanScreen() {
           <Text style={[styles.summaryTitle, { color: colors.text }]}>
             Hisob-kitob asoslari
           </Text>
-          <SummaryRow label="Yosh" value={`${plan.ageYears} yosh`} />
+          <SummaryRow label="Yosh" value={tr("{0} yosh", plan.ageYears)} />
           <SummaryRow label="Jinsi" value={profile.gender === "ayol" ? "Ayol" : "Erkak"} />
-          <SummaryRow label="Bo'y" value={`${profile.height ?? "—"} sm`} />
-          <SummaryRow label="Hozirgi vazn" value={`${profile.currentWeight ?? "—"} kg`} />
+          <SummaryRow label="Bo'y" value={tr("{0} sm", profile.height ?? "—")} />
+          <SummaryRow label="Hozirgi vazn" value={tr("{0} kg", profile.currentWeight ?? "—")} />
           {!isMaintain && (
             <SummaryRow
               label="Maqsad vazn"
-              value={`${profile.targetWeight ?? "—"} kg`}
+              value={tr("{0} kg", profile.targetWeight ?? "—")}
             />
           )}
           <SummaryRow
@@ -394,12 +395,12 @@ export default function PlanScreen() {
             value={
               isMaintain
                 ? "Saqlash"
-                : `${(profile.speedKgPerWeek ?? 0).toFixed(1)} kg/hafta`
+                : tr("{0} kg/hafta", (profile.speedKgPerWeek ?? 0).toFixed(1))
             }
           />
           <SummaryRow
             label="Faollik darajasi"
-            value={`${activityLabel} (${activityLevel})`}
+            value={`${trText(activityLabel)} (${activityLevel})`}
             last
           />
         </View>

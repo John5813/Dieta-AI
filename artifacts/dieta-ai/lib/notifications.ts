@@ -1,5 +1,6 @@
 import { Alert, Linking, Platform } from "react-native";
 import * as Notifications from "expo-notifications";
+import { tr, trText } from "@/lib/i18n";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -124,18 +125,18 @@ export async function requestPermissionWithRationale(): Promise<boolean> {
 
     return new Promise((resolve) => {
       Alert.alert(
-        "Eslatmalarni yoqish",
-        "UzDieta AI ovqatlanish va suv ichish eslatmalarini yuborishi uchun ruxsat bering. Bu sog'lom rejimni saqlashga yordam beradi.",
+        trText("Eslatmalarni yoqish"),
+        trText("UzDieta AI ovqatlanish va suv ichish eslatmalarini yuborishi uchun ruxsat bering. Bu sog'lom rejimni saqlashga yordam beradi."),
         [
           {
-            text: "Ruxsat berish",
+            text: trText("Ruxsat berish"),
             onPress: async () => {
               const { status } = await Notifications.requestPermissionsAsync();
               resolve(status === "granted");
             },
           },
           {
-            text: "Keyinroq",
+            text: trText("Keyinroq"),
             style: "cancel",
             onPress: () => resolve(false),
           },
@@ -155,20 +156,66 @@ export async function cancelAllReminders(): Promise<void> {
   } catch {}
 }
 
+/** One-off notifications (fast finished, weekly report) survive reminder rescheduling. */
+const ONE_OFF_PREFIX = "uzd-oneoff-";
+
+async function cancelRoutineReminders(): Promise<void> {
+  try {
+    const all = await Notifications.getAllScheduledNotificationsAsync();
+    await Promise.all(
+      all
+        .filter((n) => !n.identifier.startsWith(ONE_OFF_PREFIX))
+        .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier).catch(() => {})),
+    );
+  } catch {}
+}
+
+/** Schedules (or replaces) a single notification at `date`; false without permission. */
+export async function scheduleOneOff(
+  id: string,
+  date: Date,
+  title: string,
+  body: string,
+  opts: { askPermission?: boolean } = {},
+): Promise<boolean> {
+  if (Platform.OS === "web" || date.getTime() <= Date.now()) return false;
+  try {
+    const granted =
+      opts.askPermission === false
+        ? (await getPermissionStatus()) === "granted"
+        : await ensureNotificationPermission();
+    if (!granted) return false;
+    await Notifications.cancelScheduledNotificationAsync(ONE_OFF_PREFIX + id).catch(() => {});
+    await Notifications.scheduleNotificationAsync({
+      identifier: ONE_OFF_PREFIX + id,
+      content: { title: trText(title), body: trText(body), sound: true },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function cancelOneOff(id: string): Promise<void> {
+  if (Platform.OS === "web") return;
+  await Notifications.cancelScheduledNotificationAsync(ONE_OFF_PREFIX + id).catch(() => {});
+}
+
 export async function scheduleAllReminders(
   prefs: ReminderPreferences,
 ): Promise<ScheduleResult> {
   if (Platform.OS === "web") return { scheduled: 0, permissionGranted: false };
 
   if (!prefs.masterEnabled) {
-    await cancelAllReminders();
+    await cancelRoutineReminders();
     return { scheduled: 0, permissionGranted: false };
   }
 
   const granted = await ensureNotificationPermission();
   if (!granted) return { scheduled: 0, permissionGranted: false };
 
-  await cancelAllReminders();
+  await cancelRoutineReminders();
 
   let scheduled = 0;
 
@@ -178,8 +225,8 @@ export async function scheduleAllReminders(
       try {
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: `🍽️ ${m.label} vaqti!`,
-            body: "Ovqatingizni yeb, kaloriyangizni kuzatishni unutmang.",
+            title: tr("🍽️ {0} vaqti!", trText(m.label)),
+            body: trText("Ovqatingizni yeb, kaloriyangizni kuzatishni unutmang."),
             sound: true,
           },
           trigger: {
@@ -207,8 +254,8 @@ export async function scheduleAllReminders(
       try {
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: "💧 Suv ichish vaqti",
-            body: waterMessages[i % waterMessages.length],
+            title: trText("💧 Suv ichish vaqti"),
+            body: trText(waterMessages[i % waterMessages.length]!),
             sound: false,
           },
           trigger: {
@@ -227,8 +274,8 @@ export async function scheduleAllReminders(
     try {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: "📊 Kunlik hisobot",
-          body: "Bugun necha kaloriya iste'mol qildingiz? Statistikangizni tekshiring.",
+          title: trText("📊 Kunlik hisobot"),
+          body: trText("Bugun necha kaloriya iste'mol qildingiz? Statistikangizni tekshiring."),
           sound: true,
         },
         trigger: {
@@ -246,8 +293,8 @@ export async function scheduleAllReminders(
     try {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: "🌅 Xayrli tong!",
-          body: "Bugungi ovqatlanish rejangizni boshlang. Birinchi ovqat eng muhimi!",
+          title: trText("🌅 Xayrli tong!"),
+          body: trText("Bugungi ovqatlanish rejangizni boshlang. Birinchi ovqat eng muhimi!"),
           sound: true,
         },
         trigger: {
@@ -270,8 +317,8 @@ export async function sendTestNotification(): Promise<boolean> {
     if (!granted) return false;
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: "✅ Eslatmalar faol!",
-        body: "UzDieta AI eslatmalari muvaffaqiyatli sozlandi.",
+        title: trText("✅ Eslatmalar faol!"),
+        body: trText("UzDieta AI eslatmalari muvaffaqiyatli sozlandi."),
         sound: true,
       },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 1 },
@@ -280,4 +327,14 @@ export async function sendTestNotification(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Next Sunday 20:00 (today if it's Sunday before 20:00). */
+export function nextWeeklyReportTime(now = new Date()): Date {
+  const d = new Date(now);
+  d.setHours(20, 0, 0, 0);
+  const add = (7 - d.getDay()) % 7;
+  d.setDate(d.getDate() + add);
+  if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 7);
+  return d;
 }

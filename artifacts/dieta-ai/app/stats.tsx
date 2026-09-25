@@ -6,14 +6,19 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { AchievementsGrid } from "@/components/stats/AchievementsGrid";
+import { WeeklyReportCard } from "@/components/stats/WeeklyReportCard";
+import { useInsights } from "@/lib/useInsights";
+import { dateMonth } from "@/lib/i18n";
 import { WeightProgressCard } from "@/components/WeightProgressCard";
+import { tr } from "@/lib/i18n";
 
 type Range = "week" | "month";
 
@@ -63,7 +68,7 @@ function buildBuckets(
     const net = Math.max(0, cal - burned);
     buckets.push({
       date: key,
-      label: `${d.getDate()} ${UZ_MONTHS[d.getMonth()]}`,
+      label: `${d.getDate()} ${dateMonth(d.getMonth())}`,
       short: days <= 7 ? UZ_WEEKDAYS_SHORT[d.getDay()] : String(d.getDate()),
       cal: net,
       protein,
@@ -85,6 +90,7 @@ export default function StatsScreen() {
   const [showTodayFoods, setShowTodayFoods] = useState(false);
 
   const goal = profile.dailyCalories ?? 1993;
+  const insights = useInsights();
   const days = range === "week" ? 7 : 30;
 
   const buckets = useMemo(
@@ -282,6 +288,8 @@ export default function StatsScreen() {
           </View>
         )}
 
+        <WeeklyReportCard report={insights.report} goalCal={goal} />
+
         <View style={[styles.toggleWrap, { backgroundColor: colors.secondary }]}>
           {(["week", "month"] as Range[]).map((r) => (
             <Pressable
@@ -313,7 +321,7 @@ export default function StatsScreen() {
             icon="zap"
             label="O'rtacha kun/kkal"
             value={`${avgCal}`}
-            sub={`Maqsad: ${goal}`}
+            sub={tr("Maqsad: {0}", goal)}
             tint={colors.primary}
           />
           <SummaryCard
@@ -321,7 +329,7 @@ export default function StatsScreen() {
             icon="check-circle"
             label="Maqsadda kun"
             value={`${daysHitGoal}`}
-            sub={`${days} kundan`}
+            sub={tr("{0} kundan", days)}
             tint="#16A34A"
           />
           <SummaryCard
@@ -329,7 +337,7 @@ export default function StatsScreen() {
             icon="alert-circle"
             label="Oshib ketgan"
             value={`${daysOverGoal}`}
-            sub={`${days} kundan`}
+            sub={tr("{0} kundan", days)}
             tint={colors.destructive}
           />
           <SummaryCard
@@ -337,7 +345,7 @@ export default function StatsScreen() {
             icon="trending-up"
             label="Faol kunlar"
             value={`${activeBuckets.length}`}
-            sub={`Davomli: ${streak}`}
+            sub={tr("Davomli: {0}", streak)}
             tint={colors.accent}
           />
         </View>
@@ -510,7 +518,7 @@ export default function StatsScreen() {
           <SummaryItem
             colors={colors}
             label="Past kkal"
-            value={`${daysUnderGoal} kun`}
+            value={tr("{0} kun", daysUnderGoal)}
           />
         </View>
 
@@ -534,6 +542,8 @@ export default function StatsScreen() {
             </Text>
           </View>
         ) : null}
+
+        <AchievementsGrid badges={insights.badges} />
       </ScrollView>
     </View>
   );

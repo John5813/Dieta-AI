@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import React from "react";
-import { Dimensions, StyleSheet, Text, View } from "react-native";
+import { Dimensions, StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { DietitianAnimation } from "@/components/DietitianAnimation";
 import { OnboardingLayout } from "@/components/OnboardingLayout";
 import { useColors } from "@/hooks/useColors";

@@ -6,9 +6,9 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
   View,
 } from "react-native";
+import { Text } from "@/components/i18n/Text";
 
 const { width: SW, height: SH } = Dimensions.get("window");
 const PAD = 10;

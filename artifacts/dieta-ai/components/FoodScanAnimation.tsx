@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Image, ImageSourcePropType, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, Image, ImageSourcePropType, StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n/Text";
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 

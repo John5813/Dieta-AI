@@ -12,16 +12,16 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "@/components/i18n/Text";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { tr, trText } from "@/lib/i18n";
 
 const API_BASE = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
@@ -105,8 +105,8 @@ export default function PaymentScreen() {
       const token = current?.linkToken;
       if (!token) {
         Alert.alert(
-          "Ulanish xatosi",
-          "Serverga ulanib bo'lmadi. Internetni tekshirib, qaytadan urinib ko'ring.",
+          trText("Ulanish xatosi"),
+          trText("Serverga ulanib bo'lmadi. Internetni tekshirib, qaytadan urinib ko'ring."),
         );
         return;
       }
@@ -126,7 +126,7 @@ export default function PaymentScreen() {
         await WebBrowser.openBrowserAsync(httpsUrl);
         return;
       } catch {
-        Alert.alert("Telegram topilmadi", `Iltimos botni qo'lda oching: @${username}`);
+        Alert.alert(trText("Telegram topilmadi"), tr("Iltimos botni qo'lda oching: @{0}", username));
       }
     } finally {
       setOpening(false);
@@ -260,7 +260,7 @@ export default function PaymentScreen() {
               <>
                 <Feather name="send" size={18} color="#fff" style={{ marginRight: 8 }} />
                 <Text style={styles.tgBtnText}>
-                  {init?.botUsername ? `@${init.botUsername} — botni ochish` : "Telegram botni ochish"}
+                  {init?.botUsername ? tr("@{0} — botni ochish", init.botUsername) : "Telegram botni ochish"}
                 </Text>
               </>
             )}
