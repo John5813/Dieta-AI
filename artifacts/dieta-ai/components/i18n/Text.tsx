@@ -19,8 +19,9 @@ function translateChildren(children: React.ReactNode): React.ReactNode {
  * Drop-in for react-native's Text that shows its string children in the
  * user's language (see lib/i18n). Non-string children render unchanged.
  */
-export const Text = forwardRef<RNText, TextProps>(function Text(props, ref) {
-  return <RNText ref={ref} {...props}>{translateChildren(props.children)}</RNText>;
+export const Text = forwardRef<RNText, TextProps & { raw?: boolean }>(function Text({ raw, ...props }, ref) {
+  // `raw` shows text as-is (language names, codes) even in another language/script.
+  return <RNText ref={ref} {...props}>{raw ? props.children : translateChildren(props.children)}</RNText>;
 });
 
 /** TextInput whose placeholder follows the user's language. */

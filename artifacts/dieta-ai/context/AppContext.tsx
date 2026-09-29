@@ -9,12 +9,13 @@ import {
   todayStr,
   yesterdayStr,
 } from "@/lib/date";
-import { setLanguage } from "@/lib/i18n";
+import { setLanguage, type AppLanguage } from "@/lib/i18n";
+import { askToRestartForDirection, syncLayoutDirection } from "@/lib/rtl";
 import { mealForTime, type MealType } from "@/lib/meals";
 import { ALL_DATA_KEYS, BACKUP_META_KEYS } from "@/lib/storageKeys";
 import { cancelAllReminders, scheduleAllReminders } from "@/lib/notifications";
 
-export type Language = "uz" | "uz-kril" | "ru" | "en";
+export type Language = AppLanguage;
 export type Gender = "erkak" | "ayol";
 export type Goal = "oshirish" | "saqlash" | "ozish";
 
@@ -690,6 +691,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Module-level so tr()/Text can read it without a hook; set before children render.
   setLanguage(profile.language);
+
+  // Right-to-left languages need the layout direction flipped (after a restart on phones).
+  const lastDirLang = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (loading) return;
+    const needsRestart = syncLayoutDirection(profile.language);
+    // Only ask when the user just switched, not on every launch.
+    if (needsRestart && lastDirLang.current !== undefined) askToRestartForDirection();
+    lastDirLang.current = profile.language ?? "uz";
+  }, [loading, profile.language]);
 
   return (
     <AppContext.Provider

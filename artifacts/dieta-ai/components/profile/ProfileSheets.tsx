@@ -219,6 +219,8 @@ export function NumberSheet({
 export interface ChoiceOption<T> {
   value: T;
   label: string;
+  /** Show the label untranslated (e.g. a language's own name). */
+  raw?: boolean;
   desc?: string;
   icon?: IconName;
 }
@@ -276,7 +278,7 @@ export function ChoiceSheet<T extends string | number>({
                 </View>
               ) : null}
               <View style={s.flex1}>
-                <Text style={[s.optionLabel, { color: colors.text }]}>{opt.label}</Text>
+                <Text raw={opt.raw} style={[s.optionLabel, { color: colors.text }]}>{opt.label}</Text>
                 {opt.desc ? (
                   <Text style={[s.optionDesc, { color: colors.mutedForeground }]}>{opt.desc}</Text>
                 ) : null}

@@ -45,7 +45,7 @@ import {
   getPermissionStatus,
   type PermissionStatus,
 } from "@/lib/notifications";
-import { dateMonth, tr, trText } from "@/lib/i18n";
+import { dateMonth, LANGUAGES, tr, trText, type AppLanguage } from "@/lib/i18n";
 
 type Editor =
   | "currentWeight"
@@ -97,12 +97,12 @@ const GENDER_OPTIONS: ChoiceOption<Gender>[] = [
   { value: "ayol", label: "Ayol", icon: "user" },
 ];
 
-// Labels are in their own language/script; the Text wrapper leaves Cyrillic alone.
-const LANGUAGE_OPTIONS: ChoiceOption<"uz" | "uz-kril" | "ru">[] = [
-  { value: "uz", label: "O'zbekcha (lotin)", icon: "globe" },
-  { value: "uz-kril", label: "Ўзбекча (кирилл)", icon: "globe" },
-  { value: "ru", label: "Русский", icon: "globe" },
-];
+// Each language is listed under its own name, untranslated.
+const LANGUAGE_OPTIONS: ChoiceOption<AppLanguage>[] = LANGUAGES.map((l) => ({
+  value: l.code,
+  label: `${l.flag}  ${l.native}`,
+  raw: true,
+}));
 
 const THEME_OPTIONS: ChoiceOption<"light" | "dark" | "system">[] = [
   { value: "light", label: "Yorug'", icon: "sun" },
@@ -469,7 +469,7 @@ export default function ProfileScreen() {
         <SettingRow
           icon="globe"
           label="Til"
-          value={LANGUAGE_OPTIONS.find((o) => o.value === (profile.language ?? "uz"))?.label}
+          value={LANGUAGES.find((l) => l.code === (profile.language ?? "uz"))?.native}
           onPress={() => setLangOpen(true)}
         />
         <SettingRow icon="shield" label="Maxfiylik siyosati" onPress={() => setPrivacyOpen(true)} />
@@ -618,7 +618,7 @@ export default function ProfileScreen() {
         title="Til"
         desc="Ilova matnlari va AI javoblari shu tilda bo'ladi."
         options={LANGUAGE_OPTIONS}
-        current={(profile.language === "en" ? "uz" : profile.language) ?? "uz"}
+        current={profile.language ?? "uz"}
         onSelect={(v) => {
           setProfile({ language: v });
           setLangOpen(false);
