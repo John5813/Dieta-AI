@@ -6,6 +6,7 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import privacyRouter from "./routes/privacy";
 import deleteAccountRouter from "./routes/delete-account";
+import { payPages } from "./routes/pay";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -45,6 +46,8 @@ app.use("/privacy", privacyRouter);
 app.use("/api/privacy", privacyRouter);
 app.use("/delete-account", deleteAccountRouter);
 app.use("/api/delete-account", deleteAccountRouter);
+// Website payments (Click, Payme, Uzum, cards). Must come before the SPA fallback below.
+app.use("/pay", payPages);
 
 // Ishlab chiqarishda (masalan DigitalOcean) bitta server ham /api, ham web
 // statik fayllarini xizmat qiladi. WEB_DIR o'rnatilmagan bo'lsa (Replit dev),
