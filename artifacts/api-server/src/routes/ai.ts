@@ -573,14 +573,24 @@ function sanitizeUserStr(v: unknown, max = 40): string | null {
  * Extra system-prompt line asking for replies in the app's language.
  * JSON keys and the fixed Uzbek unit codes stay as they are.
  */
+const LANGUAGE_NAMES: Record<string, string> = {
+  ru: "RUS tilida",
+  en: "INGLIZ tilida (English)",
+  kk: "QOZOQ tilida (kirill alifbosida)",
+  ky: "QIRG'IZ tilida (kirill alifbosida)",
+  tg: "TOJIK tilida (kirill alifbosida)",
+  tk: "TURKMAN tilida (lotin alifbosida)",
+  tr: "TURK tilida",
+  fa: "FORS tilida",
+};
+
 function languageLine(lang: unknown): string {
-  if (lang === "ru") {
-    return "\n\nTIL: Foydalanuvchi ilovani RUS tilida ishlatadi. Barcha matnli qiymatlarni (name, portion, coachAdvice, reason, detected, variantQuestion, variant label, side name/portion, tips, ingredients, summary, warning, instruction, reply) RUS tilida yoz. JSON kalitlari, status qiymatlari, unitName va unitPer100 o'zgarmaydi.";
-  }
   if (lang === "uz-kril") {
     return "\n\nTIL: Foydalanuvchi o'zbek tilining KIRILL alifbosini ishlatadi. Barcha matnli qiymatlarni o'zbekcha KIRILL harflarida yoz. JSON kalitlari, status qiymatlari, unitName va unitPer100 lotinda o'zgarmay qoladi.";
   }
-  return "";
+  const name = typeof lang === "string" ? LANGUAGE_NAMES[lang] : undefined;
+  if (!name) return "";
+  return `\n\nTIL: Foydalanuvchi ilovani ${name} ishlatadi. Barcha matnli qiymatlarni (name, portion, coachAdvice, reason, detected, variantQuestion, variant label, side name/portion, tips, ingredients, summary, warning, instruction, reply) ${name} yoz. JSON kalitlari, status qiymatlari, unitName va unitPer100 o'zgarmaydi.`;
 }
 
 function buildUserContextLine(ctx: UserCtx | undefined | null): string {

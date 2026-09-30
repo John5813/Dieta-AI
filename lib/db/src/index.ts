@@ -131,6 +131,50 @@ export async function ensureSchema(): Promise<void> {
       updated_at timestamp NOT NULL DEFAULT now()
     );
   `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS web_orders (
+      no bigserial PRIMARY KEY,
+      secret_hash text NOT NULL,
+      plan text NOT NULL,
+      months integer NOT NULL,
+      amount integer NOT NULL,
+      provider text NOT NULL,
+      status text NOT NULL DEFAULT 'created',
+      lang text NOT NULL DEFAULT 'uz',
+      login text NOT NULL,
+      is_renewal integer NOT NULL DEFAULT 0,
+      password_enc text,
+      password_hash text,
+      password_salt text,
+      payment_id text,
+      paid_at timestamp,
+      cancelled_at timestamp,
+      created_at timestamp NOT NULL DEFAULT now(),
+      updated_at timestamp NOT NULL DEFAULT now()
+    );
+  `);
+  // Order numbers are shown to payment providers; start them at a
+  // non-trivial value so they don't look like row counts.
+  await db.execute(sql`SELECT setval(pg_get_serial_sequence('web_orders', 'no'), GREATEST((SELECT COALESCE(MAX(no), 0) FROM web_orders), 100000), true);`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS web_orders_login ON web_orders (login);`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS pay_transactions (
+      id bigserial PRIMARY KEY,
+      provider text NOT NULL,
+      ext_id text NOT NULL,
+      order_no bigint NOT NULL,
+      amount bigint NOT NULL,
+      state integer NOT NULL DEFAULT 1,
+      ext_time bigint,
+      create_time bigint NOT NULL,
+      perform_time bigint NOT NULL DEFAULT 0,
+      cancel_time bigint NOT NULL DEFAULT 0,
+      reason integer,
+      extra text
+    );
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS pay_transactions_provider_ext ON pay_transactions (provider, ext_id);`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS pay_transactions_order ON pay_transactions (order_no);`);
 }
 
 export * from "./schema";

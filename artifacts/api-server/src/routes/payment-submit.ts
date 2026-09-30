@@ -241,7 +241,7 @@ router.post("/payment/:id/redeem", async (req, res) => {
     if (target.status === "redeemed" || target.passwordUsed) {
       const until = target.premiumUntil;
       if (!until || until.getTime() <= Date.now()) {
-        res.status(409).json({ error: "Premium muddati tugagan. Yangi toʻlov qiling." });
+        res.status(409).json({ error: "Premium muddati tugagan." });
         return;
       }
       const restored = await db
@@ -259,7 +259,7 @@ router.post("/payment/:id/redeem", async (req, res) => {
         .returning({ id: paymentsTable.id });
       if (restored.length === 0) {
         res.status(409).json({
-          error: "Tiklash chegarasi tugadi. Telegram bot orqali admin bilan bogʻlaning.",
+          error: "Tiklash chegarasi tugadi. Qoʻllab-quvvatlash xizmatiga murojaat qiling.",
         });
         return;
       }

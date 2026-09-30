@@ -264,7 +264,7 @@ export function BackupModal({
               {busy === "restore" ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>Tiklash</Text>}
             </Pressable>
             <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-              Premium zaxiradan tiklanmaydi — uni botdan olingan login va parol bilan tiklang. Ovqat rasmlari faqat eski
+              Premium zaxiradan tiklanmaydi — uni login va parolingiz bilan tiklang. Ovqat rasmlari faqat eski
               telefonda qoladi.
             </Text>
           </View>

@@ -18,6 +18,7 @@ import { isPremiumExpired, useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { calculatePlan } from "@/lib/nutrition";
 import { tr } from "@/lib/i18n";
+import { CAN_BUY_IN_APP, openPurchasePage } from "@/lib/premium";
 
 const { width } = Dimensions.get("window");
 const chartW = width - 80;
@@ -93,14 +94,19 @@ export default function PremiumScreen() {
   const isLocked = isExpired || premiumEnded;
   const insets = useSafeAreaInsets();
   const [showTrialOffer, setShowTrialOffer] = useState(false);
+  // Offer the free trial once; closing again just leaves (the free app stays usable).
+  const [trialOffered, setTrialOffered] = useState(false);
 
   const handleClose = async () => {
-    if (subscription.status === "none") {
+    if (subscription.status === "none" && !trialOffered) {
+      setTrialOffered(true);
       setShowTrialOffer(true);
       return;
     }
+    // The free part of the app always stays open; only AI photo analysis needs Premium.
     await completeOnboarding();
-    router.replace("/(tabs)");
+    if (router.canGoBack()) router.back();
+    else router.replace("/(tabs)");
   };
 
   const acceptTrial = async () => {
@@ -110,7 +116,7 @@ export default function PremiumScreen() {
     router.replace("/(tabs)");
   };
 
-  const goToBot = () => {
+  const goToSignIn = () => {
     setShowTrialOffer(false);
     router.push("/onboarding/payment");
   };
@@ -118,14 +124,13 @@ export default function PremiumScreen() {
   useFocusEffect(
     useCallback(() => {
       const onBack = () => {
-        if (isLocked) return true;
         handleClose();
         return true;
       };
       const sub = BackHandler.addEventListener("hardwareBackPress", onBack);
       return () => sub.remove();
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [subscription.status, isLocked]),
+    }, [subscription.status]),
   );
 
   const plan = calculatePlan(profile);
@@ -149,12 +154,9 @@ export default function PremiumScreen() {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
         showsVerticalScrollIndicator={false}
       >
-        {!isLocked && (
-          <TouchableOpacity onPress={handleClose} style={styles.closeBtn} hitSlop={10}>
-            <Feather name="x" size={24} color={colors.text} />
-          </TouchableOpacity>
-        )}
-        {isLocked && <View style={styles.closeBtn} />}
+        <TouchableOpacity onPress={handleClose} style={styles.closeBtn} hitSlop={10}>
+          <Feather name="x" size={24} color={colors.text} />
+        </TouchableOpacity>
 
         <Text style={[styles.title, { color: colors.text }]}>
           {premiumEnded ? "Premium muddati tugadi" : "Shaxsiy reja tayyor"}
@@ -210,20 +212,31 @@ export default function PremiumScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
-        <Pressable
-          onPress={() => router.push("/onboarding/payment")}
-          style={({ pressed }) => [
-            styles.cta,
-            { backgroundColor: colors.text, opacity: pressed ? 0.85 : 1 },
-          ]}
-        >
-          <Text style={styles.ctaText}>Faollashtirish</Text>
-        </Pressable>
-        {!isLocked && (
-          <TouchableOpacity onPress={handleClose} style={styles.skip}>
-            <Text style={[styles.skipText, { color: colors.mutedForeground }]}>Keyinroq</Text>
-          </TouchableOpacity>
+        {CAN_BUY_IN_APP ? (
+          <>
+            <Pressable
+              onPress={() => openPurchasePage(profile.language, subscription.login)}
+              style={({ pressed }) => [styles.cta, { backgroundColor: colors.text, opacity: pressed ? 0.85 : 1 }]}
+            >
+              <Text style={styles.ctaText}>Premium olish</Text>
+            </Pressable>
+            <TouchableOpacity onPress={goToSignIn} style={styles.skip}>
+              <Text style={[styles.skipText, { color: colors.text }]}>Hisobim bor — kirish</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <Pressable
+            onPress={goToSignIn}
+            style={({ pressed }) => [styles.cta, { backgroundColor: colors.text, opacity: pressed ? 0.85 : 1 }]}
+          >
+            <Text style={styles.ctaText}>Hisobga kirish</Text>
+          </Pressable>
         )}
+        <TouchableOpacity onPress={handleClose} style={styles.skip}>
+          <Text style={[styles.skipText, { color: colors.mutedForeground }]}>
+            {isLocked ? "Bepul davom etish" : "Keyinroq"}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <Modal
@@ -241,8 +254,7 @@ export default function PremiumScreen() {
               1 kun bepul sinab ko'ring
             </Text>
             <Text style={[styles.modalDesc, { color: colors.mutedForeground }]}>
-              Ilovani 24 soat davomida to'liq bepul ishlating. Sinov muddati tugagach, davom etish
-              uchun Telegram botdan login va parol olishingiz kerak bo'ladi.
+              AI rasm tahlilini 24 soat bepul sinab ko'ring. Kundalik, suv, qadam va boshqa asosiy funksiyalar keyin ham bepul qoladi.
             </Text>
             <Pressable
               onPress={acceptTrial}
@@ -253,8 +265,8 @@ export default function PremiumScreen() {
             >
               <Text style={styles.modalPrimaryText}>Bepul boshlash</Text>
             </Pressable>
-            <TouchableOpacity onPress={goToBot} style={styles.modalSecondary}>
-              <Text style={[styles.modalSecondaryText, { color: colors.text }]}>Botga o'tish</Text>
+            <TouchableOpacity onPress={goToSignIn} style={styles.modalSecondary}>
+              <Text style={[styles.modalSecondaryText, { color: colors.text }]}>Hisobim bor — kirish</Text>
             </TouchableOpacity>
           </View>
         </View>

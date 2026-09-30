@@ -43,7 +43,7 @@ router.get("/", (_req, res) => {
     <li><strong>Shaxsiy ma'lumotlar:</strong> ism, jins, yosh, bo'y, vazn — ilova sozlamalari uchun.</li>
     <li><strong>Sog'liq ma'lumotlari:</strong> kunlik kaloriya, taom ro'yxati, faollik darajasi — kaloriya hisobi va dieta tahlili uchun.</li>
     <li><strong>Rasmlar:</strong> ovqat rasmlarini AI tahlil qilishi uchun yuboriladi, serverda saqlanmaydi.</li>
-    <li><strong>To'lov ma'lumotlari:</strong> to'lov cheki rasmi (Telegram orqali) — faqat obuna tasdiqlash uchun.</li>
+    <li><strong>To'lov ma'lumotlari:</strong> saytda to'lov Click, Payme, Uzum Bank yoki bank kartasi sahifasida amalga oshiriladi — karta ma'lumotlari bizga kelmaydi. Biz faqat buyurtma raqami, summa, Premium login va muddatini saqlaymiz. Telegram bot orqali to'langan bo'lsa, to'lov cheki rasmi ham saqlanadi.</li>
     <li><strong>Qurilma ma'lumotlari:</strong> ilova ishlashi uchun texnik ma'lumotlar.</li>
   </ul>
 

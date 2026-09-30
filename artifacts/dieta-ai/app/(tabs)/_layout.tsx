@@ -41,6 +41,8 @@ function CameraTabButton({ onPress, bottomPad }: { onPress: () => void; bottomPa
   );
 }
 
+let paywallShownThisLaunch = false;
+
 export default function TabLayout() {
   const colors = useColors();
   const colorScheme = useThemeScheme();
@@ -50,14 +52,17 @@ export default function TabLayout() {
   const router = useRouter();
   const isDark = colorScheme === "dark";
 
-  // Trial tugagach yoki obuna yo'q bo'lsa premium ekraniga yo'naltirish
+  // When the trial or premium runs out, show the premium screen once per app
+  // launch. It can always be closed: the diary, water, steps and the rest stay
+  // free, and store review rejects apps that lock everything behind a purchase.
   useEffect(() => {
     // Until storage is loaded, subscription is the "none" default — checking
     // it then would bounce paying users to the paywall on a deep link.
-    if (loading) return;
+    if (loading || paywallShownThisLaunch) return;
     const result = canScan();
     if (!result.allowed && result.reason !== "daily_limit") {
-      router.replace("/onboarding/premium" as never);
+      paywallShownThisLaunch = true;
+      router.push("/onboarding/premium" as never);
     }
   }, [loading, subscription.status, subscription.trialStartedAt, subscription.premiumUntil]);
 
