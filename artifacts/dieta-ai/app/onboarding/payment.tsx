@@ -1,12 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
-import * as Linking from "expo-linking";
-import * as WebBrowser from "expo-web-browser";
 import { router, useFocusEffect } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   BackHandler,
   Modal,
   Pressable,
@@ -21,164 +18,63 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
-import { tr, trText } from "@/lib/i18n";
+import { CAN_BUY_IN_APP, openPurchasePage, signInPremium } from "@/lib/premium";
 
-const API_BASE = process.env.EXPO_PUBLIC_DOMAIN
-  ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-  : "https://dietaai-lexhk.ondigitalocean.app";
-
-const FALLBACK_BOT_USERNAME =
-  process.env.EXPO_PUBLIC_BOT_USERNAME || "UzDieta_AI_bot";
-
-type InitResponse = {
-  paymentId: string;
-  linkToken: string;
-  botUsername: string | null;
-  botUrl: string | null;
-  amount: number;
-};
-
-const PAYMENT_STORAGE_KEY = "active_payment_session";
-
-export default function PaymentScreen() {
+/**
+ * Premium sign-in. Store builds only take an existing account's login and
+ * password; buying happens on the website (see lib/premium.ts). The route keeps
+ * its old name so existing links into it still work.
+ */
+export default function PremiumSignInScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { activateSubscription, completeOnboarding, profile, startTrial, subscription } = useApp();
+  const { activateSubscription, completeOnboarding, onboardingComplete, profile, startTrial, subscription } = useApp();
 
-  const [init, setInit] = useState<InitResponse | null>(null);
-  const [login, setLogin] = useState("");
+  const [login, setLogin] = useState(subscription.login ?? "");
   const [password, setPassword] = useState("");
-  const [redeeming, setRedeeming] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [credErr, setCredErr] = useState<string | null>(null);
   const [activated, setActivated] = useState(false);
-  const [opening, setOpening] = useState(false);
   const [showTrialOffer, setShowTrialOffer] = useState(false);
+  // Offer the free trial once; closing again just leaves (the free app stays usable).
+  const [trialOffered, setTrialOffered] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(PAYMENT_STORAGE_KEY);
-        if (raw) {
-          try {
-            const saved = JSON.parse(raw) as InitResponse;
-            if (saved.botUrl && saved.botUsername) {
-              if (!cancelled) setInit(saved);
-              return;
-            }
-          } catch {}
-        }
-        await createSession();
-      } catch {
-        if (!cancelled) await createSession();
-      }
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const createSession = async (): Promise<InitResponse | null> => {
-    try {
-      const r = await fetch(`${API_BASE}/api/payment/init`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: profile.name, phone: profile.phone }),
-      });
-      if (!r.ok) return null;
-      const data = (await r.json()) as InitResponse;
-      setInit(data);
-      await AsyncStorage.setItem(PAYMENT_STORAGE_KEY, JSON.stringify(data));
-      return data;
-    } catch {
-      return null;
-    }
-  };
-
-  const openBot = async () => {
-    if (opening) return;
-    setOpening(true);
-    try {
-      let current = init;
-      if (!current?.botUrl || !current?.linkToken) {
-        current = await createSession();
-      }
-      const token = current?.linkToken;
-      if (!token) {
-        Alert.alert(
-          trText("Ulanish xatosi"),
-          trText("Serverga ulanib bo'lmadi. Internetni tekshirib, qaytadan urinib ko'ring."),
-        );
-        return;
-      }
-      const username = current?.botUsername || FALLBACK_BOT_USERNAME;
-      const httpsUrl = current?.botUrl || `https://t.me/${username}?start=${token}`;
-      const deepLink = `tg://resolve?domain=${username}&start=${token}`;
-
-      try {
-        await Linking.openURL(deepLink);
-        return;
-      } catch {}
-      try {
-        await Linking.openURL(httpsUrl);
-        return;
-      } catch {}
-      try {
-        await WebBrowser.openBrowserAsync(httpsUrl);
-        return;
-      } catch {
-        Alert.alert(trText("Telegram topilmadi"), tr("Iltimos botni qo'lda oching: @{0}", username));
-      }
-    } finally {
-      setOpening(false);
-    }
-  };
-
-  const redeemCredentials = async () => {
+  const signIn = async () => {
     setCredErr(null);
     if (!login.trim() || !password.trim()) {
       setCredErr("Login va parolni kiriting");
       return;
     }
-    setRedeeming(true);
-    try {
-      // Server finds the payment by login, so an old purchase can be restored
-      // even before (or without) a new payment session being created.
-      const r = await fetch(`${API_BASE}/api/payment/${init?.paymentId ?? "restore"}/redeem`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ login: login.trim(), password: password.trim() }),
-      });
-      const data = await r.json();
-      if (!r.ok || !data.success) {
-        setCredErr(data?.error || "Login yoki parol noto'g'ri");
+    setBusy(true);
+    const res = await signInPremium(login, password);
+    setBusy(false);
+    if (!res.ok) {
+      setCredErr(res.error);
+      return;
+    }
+    activateSubscription(res.premiumUntil, login.trim().toUpperCase());
+    setActivated(true);
+    setTimeout(async () => {
+      if (onboardingComplete) {
+        router.replace("/(tabs)");
         return;
       }
-      const until = data.premiumUntil ? new Date(data.premiumUntil).getTime() : undefined;
-      activateSubscription(until, login.trim());
       await completeOnboarding();
       try {
         await AsyncStorage.setItem("onboarding_complete", "true");
-        await AsyncStorage.removeItem(PAYMENT_STORAGE_KEY);
       } catch {}
-      setActivated(true);
-      setTimeout(() => router.replace("/(tabs)"), 1200);
-    } catch (err: any) {
-      setCredErr(err?.message || "Tarmoq xatosi");
-    } finally {
-      setRedeeming(false);
-    }
+      router.replace("/(tabs)");
+    }, 1200);
   };
 
   const handleSkip = () => {
-    if (subscription.status === "none") {
+    if (subscription.status === "none" && !trialOffered) {
+      setTrialOffered(true);
       setShowTrialOffer(true);
       return;
     }
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace("/onboarding/premium");
-    }
+    if (router.canGoBack()) router.back();
+    else router.replace("/(tabs)");
   };
 
   const acceptTrial = async () => {
@@ -215,11 +111,7 @@ export default function PaymentScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      behavior="padding"
-      keyboardVerticalOffset={0}
-    >
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior="padding" keyboardVerticalOffset={0}>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
         showsVerticalScrollIndicator={false}
@@ -229,76 +121,50 @@ export default function PaymentScreen() {
           <TouchableOpacity onPress={handleSkip} hitSlop={10} style={styles.closeBtn}>
             <Feather name="x" size={22} color={colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Faollashtirish</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Hisobga kirish</Text>
           <View style={{ width: 40 }} />
-        </View>
-
-        <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={[styles.sectionIconWrap, { backgroundColor: "#E3F2FD" }]}>
-            <Feather name="send" size={22} color="#229ED9" />
-          </View>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            1-qadam — Telegram botga o'ting
-          </Text>
-          <Text style={[styles.sectionDesc, { color: colors.mutedForeground }]}>
-            <Text style={{ fontFamily: "Inter_600SemiBold", color: colors.text }}>Login va parol</Text>{" "}
-            olish uchun Telegram botga o'ting. Botdagi ko'rsatmalarga amal qiling — login va parol
-            sizga shu yerda beriladi.
-          </Text>
-
-          <Pressable
-            onPress={openBot}
-            disabled={opening}
-            style={({ pressed }) => [
-              styles.tgBtn,
-              { backgroundColor: "#229ED9", opacity: pressed || opening ? 0.85 : 1 },
-            ]}
-          >
-            {opening ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Feather name="send" size={18} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.tgBtnText}>
-                  {init?.botUsername ? tr("@{0} — botni ochish", init.botUsername) : "Telegram botni ochish"}
-                </Text>
-              </>
-            )}
-          </Pressable>
         </View>
 
         <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.sectionIconWrap, { backgroundColor: colors.secondary }]}>
             <Feather name="key" size={22} color={colors.primary} />
           </View>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            2-qadam — Login va parolni kiriting
-          </Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Premium hisobingizga kiring</Text>
           <Text style={[styles.sectionDesc, { color: colors.mutedForeground }]}>
-            Telegram bot tomonidan yuborilgan login va parolni kiriting. Avval premium sotib
-            olgan bo'lsangiz, o'sha login va parol bilan premiumingiz tiklanadi.
+            Premium hisobingizning login va parolini kiriting. Telefon almashtirsangiz ham shu ma'lumotlar bilan kirasiz.
           </Text>
 
           <Text style={[styles.label, { color: colors.text }]}>Login</Text>
           <TextInput
             value={login}
-            onChangeText={(v) => { setLogin(v); setCredErr(null); }}
-            placeholder="Botdan olgan loginingiz"
+            onChangeText={(v) => {
+              setLogin(v);
+              setCredErr(null);
+            }}
+            placeholder="Masalan: DAI-ABC234"
             placeholderTextColor={colors.mutedForeground}
-            autoCapitalize="none"
+            autoCapitalize="characters"
             autoCorrect={false}
+            autoComplete="username"
+            textContentType="username"
             style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.background }]}
           />
 
           <Text style={[styles.label, { color: colors.text }]}>Parol</Text>
           <TextInput
             value={password}
-            onChangeText={(v) => { setPassword(v); setCredErr(null); }}
-            placeholder="Botdan olgan parolingiz"
+            onChangeText={(v) => {
+              setPassword(v);
+              setCredErr(null);
+            }}
+            placeholder="Parol"
             placeholderTextColor={colors.mutedForeground}
             secureTextEntry
-            autoCapitalize="none"
+            autoCapitalize="characters"
             autoCorrect={false}
+            autoComplete="password"
+            textContentType="password"
+            onSubmitEditing={signIn}
             style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.background }]}
           />
 
@@ -310,62 +176,63 @@ export default function PaymentScreen() {
           )}
 
           <Pressable
-            onPress={redeemCredentials}
-            disabled={redeeming}
+            onPress={signIn}
+            disabled={busy}
             style={({ pressed }) => [
               styles.cta,
-              { backgroundColor: colors.primary, opacity: pressed || redeeming ? 0.8 : 1, marginTop: 8 },
+              { backgroundColor: colors.primary, opacity: pressed || busy ? 0.8 : 1, marginTop: 8 },
             ]}
           >
-            {redeeming ? (
+            {busy ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Feather name="unlock" size={18} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.ctaText}>Faollashtirish</Text>
+                <Feather name="log-in" size={18} color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.ctaText}>Kirish</Text>
               </>
             )}
           </Pressable>
         </View>
 
+        {CAN_BUY_IN_APP ? (
+          <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Premium hisobingiz yo'qmi?</Text>
+            <Text style={[styles.sectionDesc, { color: colors.mutedForeground }]}>
+              Click, Payme, Uzum yoki bank kartasi orqali to'lang — login va parol darhol beriladi.
+            </Text>
+            <Pressable
+              onPress={() => openPurchasePage(profile.language, subscription.login)}
+              style={({ pressed }) => [styles.cta, { backgroundColor: colors.text, opacity: pressed ? 0.85 : 1 }]}
+            >
+              <Text style={styles.ctaText}>Premium olish</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         <View style={[styles.helpNote, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
           <Feather name="info" size={14} color={colors.mutedForeground} style={{ marginTop: 2 }} />
           <Text style={[styles.helpText, { color: colors.mutedForeground }]}>
-            Login va parolni saqlab qo'ying — telefon almashtirsangiz yoki ilovani qayta
-            o'rnatsangiz, premiumni shu bilan tiklaysiz. Muammolar bo'lsa, Telegram botda yordam so'rang.
+            Login va parolni saqlab qo'ying — telefon almashtirsangiz yoki ilovani qayta o'rnatsangiz, Premiumni shu bilan tiklaysiz.
           </Text>
         </View>
       </ScrollView>
 
-      <Modal
-        visible={showTrialOffer}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowTrialOffer(false)}
-      >
+      <Modal visible={showTrialOffer} transparent animationType="fade" onRequestClose={() => setShowTrialOffer(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
             <View style={[styles.modalIconWrap, { backgroundColor: colors.secondary }]}>
               <Feather name="gift" size={28} color={colors.primary} />
             </View>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              1 kun bepul sinab ko'ring
-            </Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>1 kun bepul sinab ko'ring</Text>
             <Text style={[styles.modalDesc, { color: colors.mutedForeground }]}>
-              Ilovani 24 soat davomida to'liq bepul ishlating. Sinov muddati tugagach, davom etish
-              uchun Telegram botdan login va parol olishingiz kerak bo'ladi.
+              AI rasm tahlilini 24 soat bepul sinab ko'ring. Kundalik, suv, qadam va boshqa asosiy funksiyalar keyin ham bepul qoladi.
             </Text>
-
             <Pressable
               onPress={acceptTrial}
-              style={({ pressed }) => [
-                styles.modalPrimary,
-                { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
-              ]}
+              style={({ pressed }) => [styles.modalPrimary, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
             >
               <Text style={styles.modalPrimaryText}>Bepul boshlash</Text>
             </Pressable>
-
             <TouchableOpacity onPress={() => setShowTrialOffer(false)} style={styles.modalSecondary}>
               <Text style={[styles.modalSecondaryText, { color: colors.text }]}>Yopish</Text>
             </TouchableOpacity>
@@ -386,8 +253,6 @@ const styles = StyleSheet.create({
   sectionIconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 2 },
   sectionTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
   sectionDesc: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20 },
-  tgBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 48, borderRadius: 24, marginTop: 4 },
-  tgBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#fff" },
   label: { fontSize: 13, fontFamily: "Inter_500Medium", marginBottom: -4 },
   input: { height: 48, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, fontSize: 15, fontFamily: "Inter_400Regular" },
   errBox: { flexDirection: "row", alignItems: "flex-start", gap: 6, padding: 10, borderRadius: 10 },

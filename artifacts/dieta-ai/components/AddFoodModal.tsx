@@ -56,6 +56,7 @@ import {
   type FoodItem,
 } from "@/lib/foodDatabase";
 import { getLanguage, tr, trText } from "@/lib/i18n";
+import { CAN_BUY_IN_APP } from "@/lib/premium";
 
 type ColorPalette = ReturnType<typeof useColors>;
 type ImageMime = "image/png" | "image/webp" | "image/jpeg";
@@ -873,7 +874,7 @@ export function AddFoodModal({
                   onRetakeGallery={handleStartGallery}
                   onGetPremium={() => {
                     onClose();
-                    router.push("/onboarding/premium");
+                    router.push(CAN_BUY_IN_APP ? "/onboarding/premium" : "/onboarding/payment");
                   }}
                 />
               ) : (
@@ -1037,15 +1038,16 @@ function SidesList({
 }
 
 function scanBlockMessage(reason?: ScanBlockReason): string {
+  // No "buy" wording: store builds may not point to purchases made elsewhere.
   switch (reason) {
     case "daily_limit":
-      return tr("Sinov davrida kuniga {0} ta rasm tahlil qilinadi — bugungisi tugadi. Ovqatni ro'yxatdan yoki matn bilan qo'shishingiz mumkin, yoki Premium bilan cheksiz foydalaning.", TRIAL_DAILY_SCAN_LIMIT);
+      return tr("Sinov davrida kuniga {0} ta rasm tahlil qilinadi — bugungisi tugadi. Ovqatni ro'yxatdan yoki matn bilan qo'shishingiz mumkin.", TRIAL_DAILY_SCAN_LIMIT);
     case "premium_expired":
-      return "Premium muddati tugagan. Rasm tahlilidan foydalanish uchun Premiumni yangilang.";
+      return "Premium muddati tugagan. Ovqatni ro'yxatdan, shtrix-kod yoki matn bilan qo'shishda davom etishingiz mumkin.";
     case "trial_expired":
-      return "Bepul sinov muddati tugadi. Rasm tahlilidan foydalanish uchun Premium oling.";
+      return "Bepul sinov muddati tugadi. Rasm tahlili Premium hisob bilan ishlaydi. Ovqatni ro'yxatdan, shtrix-kod yoki matn bilan qo'shishingiz mumkin.";
     default:
-      return "Rasm tahlili Premium foydalanuvchilar uchun. Premium oling yoki bepul sinovni boshlang.";
+      return "Rasm tahlili Premium hisob bilan ishlaydi. Ovqatni ro'yxatdan, shtrix-kod yoki matn bilan qo'shishingiz mumkin.";
   }
 }
 
@@ -2883,8 +2885,8 @@ function ErrorStep({
               { backgroundColor: "#2C5F1A", opacity: pressed ? 0.85 : 1 },
             ]}
           >
-            <Feather name="award" size={18} color="#FFFFFF" />
-            <Text style={styles.ctaText}>Premium olish</Text>
+            <Feather name={CAN_BUY_IN_APP ? "award" : "log-in"} size={18} color="#FFFFFF" />
+            <Text style={styles.ctaText}>{CAN_BUY_IN_APP ? "Premium olish" : "Hisobga kirish"}</Text>
           </Pressable>
           <Pressable
             onPress={onBack}

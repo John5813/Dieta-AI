@@ -46,6 +46,7 @@ import {
   type PermissionStatus,
 } from "@/lib/notifications";
 import { dateMonth, LANGUAGES, tr, trText, type AppLanguage } from "@/lib/i18n";
+import { openPurchasePage } from "@/lib/premium";
 
 type Editor =
   | "currentWeight"
@@ -291,8 +292,8 @@ export default function ProfileScreen() {
   const handleReset = async () => {
     setPrivacyOpen(false);
     const restoreNote = subscription.login
-      ? tr("Premium yo'qolmaydi: \"{0}\" login va botdagi parol bilan qayta tiklaysiz.", subscription.login)
-      : "Premium yo'qolmaydi: botdan olgan login va parol bilan qayta tiklaysiz.";
+      ? tr("Premium yo'qolmaydi: \"{0}\" login va parolingiz bilan qayta kirasiz.", subscription.login)
+      : "Premium yo'qolmaydi: login va parolingiz bilan qayta kirasiz.";
     const ok = await confirmAction({
       title: "Barcha ma'lumotlarni o'chirish",
       message: tr("Ovqat tarixi, vazn o'lchovlari, rejalar va sozlamalar shu telefondan butunlay o'chiriladi. Buni qaytarib bo'lmaydi.\n\n{0}", restoreNote),
@@ -349,8 +350,8 @@ export default function ProfileScreen() {
 
         <PremiumCard
           subscription={subscription}
-          onBuy={() => router.push("/onboarding/payment")}
-          onRestore={() => router.push("/onboarding/payment")}
+          onBuy={() => openPurchasePage(profile.language, subscription.login)}
+          onSignIn={() => router.push("/onboarding/payment")}
         />
 
         <View style={styles.statsRow}>
@@ -1093,12 +1094,11 @@ function PrivacyModal({
         "yuboriladi. Serverimiz rasm va matnlarni saqlamaydi.",
     },
     {
-      title: "Premium to'lovi",
+      title: "Premium hisobi",
       body:
-        "Premium sotib olayotganda ismingiz, telefon raqamingiz, Telegram akkauntingiz va to'lov " +
-        "cheki serverimizda saqlanadi. Ular to'lovni tasdiqlash va keyinchalik Premiumni login " +
-        "orqali tiklash uchun kerak. Bu ma'lumotlarni o'chirishni Telegram bot orqali so'rashingiz " +
-        "mumkin.",
+        "Premium hisobingiz uchun serverda login, parolning xeshi va amal qilish muddati saqlanadi. " +
+        "To'lov bank yoki to'lov tizimi sahifasida amalga oshiriladi — karta ma'lumotlari bizga kelmaydi. " +
+        "Hisob ma'lumotlarini o'chirishni biz bilan bog'lanib so'rashingiz mumkin.",
     },
     {
       title: "Xavfsizlik",

@@ -6,6 +6,7 @@ import { isPremiumExpired, TRIAL_DAYS, type Subscription } from "@/context/AppCo
 import { useColors, useTint } from "@/hooks/useColors";
 import { formatUzDate } from "@/lib/nutrition";
 import { tr } from "@/lib/i18n";
+import { CAN_BUY_IN_APP } from "@/lib/premium";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Start nudging to renew this many days before premium runs out. */
@@ -34,11 +35,12 @@ function getState(sub: Subscription, now: number): State {
 export function PremiumCard({
   subscription,
   onBuy,
-  onRestore,
+  onSignIn,
 }: {
   subscription: Subscription;
+  /** Web build only — store builds never link to a purchase. */
   onBuy: () => void;
-  onRestore: () => void;
+  onSignIn: () => void;
 }) {
   const colors = useColors();
   const tintOf = useTint();
@@ -63,8 +65,8 @@ export function PremiumCard({
         : state.kind === "expired"
           ? state.until
             ? tr("{0} da tugagan", formatUzDate(new Date(state.until)))
-            : "AI tahlildan foydalanish uchun Premium oling"
-          : "Cheksiz AI tahlil va shaxsiy reja uchun Premium oling";
+            : "AI rasm tahlili Premium hisob bilan ishlaydi"
+          : "Cheksiz AI rasm tahlili Premium hisob bilan ishlaydi";
 
   const accent = isActive && !renewSoon ? colors.primary : "#E07A1F";
   const tint = isActive && !renewSoon ? colors.secondary : tintOf("#FEF3C7", "#E07A1F");
@@ -91,11 +93,11 @@ export function PremiumCard({
       ) : null}
       {isActive ? (
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-          Telefon almashsa yoki ilova qayta o'rnatilsa, shu login va botdagi parol bilan Premium tiklanadi.
+          Telefon almashsa yoki ilova qayta o'rnatilsa, shu login va parol bilan Premium tiklanadi.
         </Text>
       ) : null}
 
-      {!isActive || renewSoon ? (
+      {CAN_BUY_IN_APP && (!isActive || renewSoon) ? (
         <View style={styles.actions}>
           <Pressable
             onPress={onBuy}
@@ -104,10 +106,19 @@ export function PremiumCard({
             <Text style={styles.primaryText}>{isActive ? "Muddatni uzaytirish" : "Premium olish"}</Text>
           </Pressable>
           {!isActive ? (
-            <Pressable onPress={onRestore} style={({ pressed }) => [styles.linkBtn, { opacity: pressed ? 0.6 : 1 }]}>
-              <Text style={[styles.linkText, { color: colors.primary }]}>Sotib olganman — login bilan tiklash</Text>
+            <Pressable onPress={onSignIn} style={({ pressed }) => [styles.linkBtn, { opacity: pressed ? 0.6 : 1 }]}>
+              <Text style={[styles.linkText, { color: colors.primary }]}>Hisobim bor — kirish</Text>
             </Pressable>
           ) : null}
+        </View>
+      ) : !CAN_BUY_IN_APP && !isActive ? (
+        <View style={styles.actions}>
+          <Pressable
+            onPress={onSignIn}
+            style={({ pressed }) => [styles.primaryBtn, { backgroundColor: accent, opacity: pressed ? 0.85 : 1 }]}
+          >
+            <Text style={styles.primaryText}>Hisobga kirish</Text>
+          </Pressable>
         </View>
       ) : null}
     </View>
