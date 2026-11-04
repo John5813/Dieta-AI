@@ -712,7 +712,7 @@ interface ExercisePlanResp {
 
 const API_BASE_EX = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-  : "https://dietaai-lexhk.ondigitalocean.app";
+  : "https://dietaai-aj7r4.ondigitalocean.app";
 
 import type {
   ExercisePlanItem as CtxExItem,

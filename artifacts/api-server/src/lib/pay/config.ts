@@ -50,7 +50,7 @@ export function publicBaseUrl(fallbackHost?: string): string {
   const configured = env("PUBLIC_BASE_URL").replace(/\/+$/, "");
   if (configured) return configured;
   if (fallbackHost) return `https://${fallbackHost}`;
-  return "https://dietaai-lexhk.ondigitalocean.app";
+  return "https://dietaai-aj7r4.ondigitalocean.app";
 }
 
 export const click = {

@@ -50,7 +50,7 @@ Faqat kalitlari to'liq kiritilgan to'lov usuli saytda ko'rinadi.
 
 | O'zgaruvchi | Tavsif |
 |---|---|
-| `PUBLIC_BASE_URL` | Saytning https manzili, masalan `https://dietaai-lexhk.ondigitalocean.app` |
+| `PUBLIC_BASE_URL` | Saytning https manzili, masalan `https://dietaai-aj7r4.ondigitalocean.app` |
 | `PREMIUM_PLANS` | Tariflar (ixtiyoriy). Standart: 1 yil — 260 000 so'm. Misol: `[{"id":"month","months":1,"amount":49000},{"id":"year","months":12,"amount":260000}]` |
 | `CLICK_SERVICE_ID`, `CLICK_MERCHANT_ID`, `CLICK_SECRET_KEY` | Click kabinetidan |
 | `PAYME_MERCHANT_ID`, `PAYME_KEY` | Payme kabinetidan (kassa ID va kalit) |

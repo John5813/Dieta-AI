@@ -20,7 +20,7 @@ import { getLanguage, tr } from "@/lib/i18n";
 
 const API_BASE = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-  : "https://dietaai-lexhk.ondigitalocean.app";
+  : "https://dietaai-aj7r4.ondigitalocean.app";
 
 type DietKey = "national" | "diet" | "vegetarian" | "sport";
 interface PlanMeal {

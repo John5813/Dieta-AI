@@ -24,7 +24,7 @@ import { StatusBar } from "expo-status-bar";
 
 const apiBase = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-  : "https://dietaai-lexhk.ondigitalocean.app";
+  : "https://dietaai-aj7r4.ondigitalocean.app";
 setBaseUrl(apiBase);
 installApiHeaders(apiBase);
 

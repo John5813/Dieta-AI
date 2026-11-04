@@ -3,7 +3,7 @@ import * as WebBrowser from "expo-web-browser";
 
 const API_BASE = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-  : "https://dietaai-lexhk.ondigitalocean.app";
+  : "https://dietaai-aj7r4.ondigitalocean.app";
 
 /**
  * Premium is sold on our website, never inside the store builds: App Store and
