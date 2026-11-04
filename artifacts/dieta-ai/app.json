@@ -71,6 +71,11 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "owner": "javlon5813"
+    "owner": "javlon5813",
+    "extra": {
+      "eas": {
+        "projectId": "183cee9f-376d-42fe-9c23-0991a59ca9a9"
+      }
+    }
   }
 }
