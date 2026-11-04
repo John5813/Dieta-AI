@@ -104,6 +104,8 @@ function fmtAmount(n: number) {
   return n.toLocaleString("ru-RU").replace(/,/g, " ") + " so'm";
 }
 
+const escHtml = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 function buildPaymentCaption(p: {
   id: string;
   name: string | null;
@@ -128,16 +130,16 @@ function buildPaymentCaption(p: {
             : "💳 <b>Yangi so'rov</b>\n\n";
 
   const tgLine = p.telegramUsername
-    ? `📨 Telegram: @${p.telegramUsername}\n`
+    ? `📨 Telegram: @${escHtml(p.telegramUsername)}\n`
     : p.telegramName
-      ? `📨 Telegram: ${p.telegramName}\n`
+      ? `📨 Telegram: ${escHtml(p.telegramName)}\n`
       : "";
 
   const paid = p.paidAmount ?? 0;
   const remaining = Math.max(0, p.amount - paid);
 
   const promoLine = p.promoCode
-    ? `🎟 Promokod: <code>${p.promoCode}</code> (asl: ${fmtAmount(p.originalAmount ?? p.amount)})\n`
+    ? `🎟 Promokod: <code>${escHtml(p.promoCode)}</code> (asl: ${fmtAmount(p.originalAmount ?? p.amount)})\n`
     : "";
 
   const amountBlock =
@@ -149,8 +151,8 @@ function buildPaymentCaption(p: {
 
   return (
     `${tag}` +
-    `👤 Ism: <b>${p.name || "—"}</b>\n` +
-    (p.phone ? `📱 Tel: ${p.phone}\n` : "") +
+    `👤 Ism: <b>${escHtml(p.name || "—")}</b>\n` +
+    (p.phone ? `📱 Tel: ${escHtml(p.phone)}\n` : "") +
     tgLine +
     promoLine +
     amountBlock +

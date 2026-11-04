@@ -30,7 +30,7 @@ export async function openPurchasePage(language?: string, renewLogin?: string): 
   else await WebBrowser.openBrowserAsync(url);
 }
 
-export type SignInResult = { ok: true; premiumUntil?: number } | { ok: false; error: string };
+export type SignInResult = { ok: true; premiumUntil?: number; token?: string } | { ok: false; error: string };
 
 /** Signs in with a premium account (login + password from the website or the bot). */
 export async function signInPremium(login: string, password: string): Promise<SignInResult> {
@@ -40,13 +40,25 @@ export async function signInPremium(login: string, password: string): Promise<Si
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ login: login.trim(), password: password.trim() }),
     });
-    const data = (await r.json().catch(() => ({}))) as { success?: boolean; premiumUntil?: string; error?: string };
+    const data = (await r.json().catch(() => ({}))) as { success?: boolean; premiumUntil?: string; token?: string; error?: string };
     if (!r.ok || !data.success) {
       // The server writes Uzbek with ʻ; the app's dictionary keys use a plain apostrophe.
       return { ok: false, error: (data.error || "Login yoki parol noto'g'ri").replace(/[ʻʼ’]/g, "'") };
     }
-    return { ok: true, premiumUntil: data.premiumUntil ? new Date(data.premiumUntil).getTime() : undefined };
+    return { ok: true, premiumUntil: data.premiumUntil ? new Date(data.premiumUntil).getTime() : undefined, token: data.token };
   } catch {
     return { ok: false, error: "Internet bilan bog'lanib bo'lmadi. Qaytadan urinib ko'ring." };
+  }
+}
+
+/** Swaps the stored token for a fresh one; null when the server no longer accepts it. */
+export async function refreshPremiumToken(): Promise<string | null> {
+  try {
+    const r = await fetch(`${API_BASE}/api/premium/refresh`, { method: "POST" });
+    if (!r.ok) return null;
+    const data = (await r.json().catch(() => ({}))) as { token?: string };
+    return typeof data.token === "string" ? data.token : null;
+  } catch {
+    return null;
   }
 }

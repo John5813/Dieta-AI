@@ -1,10 +1,11 @@
-import { Router, type IRouter } from "express";
+import express, { Router, type IRouter } from "express";
 import {
   AiAnalyzeImageBody,
   AiAnalyzeTextBody,
   AiChatBody,
 } from "@workspace/api-zod";
 import { APP_KNOWLEDGE } from "../lib/aiKnowledge";
+import { aiGuard, flatClean } from "../lib/guard";
 
 const router: IRouter = Router();
 
@@ -643,7 +644,7 @@ async function chatComplete(
   const body: Record<string, unknown> = {
     model,
     messages,
-    max_tokens: opts.maxTokens ?? 8192,
+    max_tokens: opts.maxTokens ?? 4096,
   };
 
   if (!isReasoner) {
@@ -697,14 +698,16 @@ async function chatComplete(
   }
 }
 
-router.post("/ai/chat", async (req, res) => {
+router.post("/ai/chat", aiGuard("chat"), async (req, res) => {
   const parsed = AiChatBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
     return;
   }
 
-  const { messages, userContext } = parsed.data;
+  const { userContext } = parsed.data;
+  // Only the recent turns matter; this also bounds the prompt size.
+  const messages = parsed.data.messages.slice(-20);
 
   interface DiaryItem { name: string; cal: number; protein: number; carbs: number; fat: number; time?: string }
   interface DiaryCtx { today?: DiaryItem[]; yesterday?: DiaryItem[]; todayDate?: string; yesterdayDate?: string }
@@ -713,7 +716,16 @@ router.post("/ai/chat", async (req, res) => {
     : null) as DiaryCtx | null;
 
   const fmtDay = (label: string, items: DiaryItem[] | undefined): string => {
-    if (!items || items.length === 0) return `${label}: hech narsa yozilmagan.`;
+    if (!items || !Array.isArray(items) || items.length === 0) return `${label}: hech narsa yozilmagan.`;
+    items = items.slice(0, 60).map((x) => ({
+      ...x,
+      name: String(x?.name ?? "").replace(/[\r\n]+/g, " ").slice(0, 80),
+      time: x?.time ? String(x.time).slice(0, 8) : undefined,
+      cal: Number(x?.cal) || 0,
+      protein: Number(x?.protein) || 0,
+      carbs: Number(x?.carbs) || 0,
+      fat: Number(x?.fat) || 0,
+    }));
     const sumCal = items.reduce((s, x) => s + (Number(x.cal) || 0), 0);
     const sumP = items.reduce((s, x) => s + (Number(x.protein) || 0), 0);
     const sumC = items.reduce((s, x) => s + (Number(x.carbs) || 0), 0);
@@ -745,8 +757,8 @@ router.post("/ai/chat", async (req, res) => {
 
   let diaryLine = "";
   if (diary && (diary.today || diary.yesterday)) {
-    const todayLabel = diary.todayDate ? `BUGUN (${diary.todayDate})` : "BUGUN";
-    const yLabel = diary.yesterdayDate ? `KECHA (${diary.yesterdayDate})` : "KECHA";
+    const todayLabel = diary.todayDate ? `BUGUN (${String(diary.todayDate).slice(0, 12)})` : "BUGUN";
+    const yLabel = diary.yesterdayDate ? `KECHA (${String(diary.yesterdayDate).slice(0, 12)})` : "KECHA";
     diaryLine =
       `\n\nFOYDALANUVCHI OVQAT KUNDALIGI:\n` +
       fmtDay(todayLabel, diary.today) +
@@ -761,7 +773,7 @@ router.post("/ai/chat", async (req, res) => {
         { role: "system", content: CHAT_SYSTEM + contextLine + diaryLine + languageLine(req.body?.language) },
         ...messages,
       ],
-      { temperature: 0.5 },
+      { temperature: 0.5, maxTokens: 1200, tag: "chat" },
     );
 
     if (!content) {
@@ -776,7 +788,7 @@ router.post("/ai/chat", async (req, res) => {
   }
 });
 
-router.post("/ai/analyze-text", async (req, res) => {
+router.post("/ai/analyze-text", aiGuard("text"), async (req, res) => {
   const parsed = AiAnalyzeTextBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request" });
@@ -795,7 +807,7 @@ router.post("/ai/analyze-text", async (req, res) => {
           content: `Foydalanuvchi yozdi: "${parsed.data.text}"\n\nShu matnni tahlil qil va JSON qaytar.`,
         },
       ],
-      { temperature: 0.2, jsonMode: true, model: CHAT_MODEL },
+      { temperature: 0.2, jsonMode: true, model: CHAT_MODEL, maxTokens: 2048, tag: "analyze-text" },
     );
 
     res.json(normalizeAnalysis(extractJson(content)));
@@ -887,19 +899,19 @@ function normalizePlan(raw: unknown): PlanResponse {
   };
 }
 
-router.post("/ai/meal-plan", async (req, res) => {
+router.post("/ai/meal-plan", aiGuard("plan"), async (req, res) => {
   const body = (req.body ?? {}) as Record<string, unknown>;
-  const profile = (body.profile ?? {}) as Record<string, unknown>;
+  const profile = flatClean(body.profile) as Record<string, unknown>;
   const regenerate = body.regenerate === true;
   const excludeNames = Array.isArray(body.excludeNames)
     ? (body.excludeNames as unknown[])
         .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
-        .map((s) => s.trim())
+        .map((s) => s.trim().slice(0, 80))
         .slice(0, 30)
     : [];
   const alternativeFor =
     typeof body.alternativeFor === "string" && body.alternativeFor.trim().length > 0
-      ? body.alternativeFor.trim()
+      ? body.alternativeFor.trim().slice(0, 80)
       : null;
   const dietKey =
     typeof body.dietKey === "string" &&
@@ -908,7 +920,7 @@ router.post("/ai/meal-plan", async (req, res) => {
       : null;
   const mealLabel =
     typeof body.mealLabel === "string" && body.mealLabel.trim().length > 0
-      ? body.mealLabel.trim()
+      ? body.mealLabel.trim().slice(0, 60)
       : null;
   const targetCal = Number.isFinite(body.targetCal) ? Number(body.targetCal) : null;
   const parts: string[] = [];
@@ -1160,18 +1172,19 @@ function normalizeExercisePlan(raw: unknown): ExercisePlanResponse {
   };
 }
 
-router.post("/ai/exercise-plan", async (req, res) => {
+router.post("/ai/exercise-plan", aiGuard("plan"), async (req, res) => {
   const body = (req.body ?? {}) as Record<string, unknown>;
-  const profile = (body.profile ?? {}) as Record<string, unknown>;
-  const overshoot = (body.overshoot ?? {}) as Record<string, unknown>;
+  const profile = flatClean(body.profile) as Record<string, unknown>;
+  const overshoot = flatClean(body.overshoot, 20) as Record<string, unknown>;
   const alternativeFor =
     typeof body.alternativeFor === "string" && body.alternativeFor.trim().length > 0
-      ? body.alternativeFor.trim()
+      ? body.alternativeFor.trim().slice(0, 80)
       : null;
   const excludeNames = Array.isArray(body.excludeNames)
-    ? (body.excludeNames as unknown[]).filter(
-        (s): s is string => typeof s === "string" && s.trim().length > 0,
-      )
+    ? (body.excludeNames as unknown[])
+        .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+        .map((s) => s.trim().slice(0, 80))
+        .slice(0, 30)
     : [];
 
   const overParts: string[] = [];
@@ -1230,7 +1243,7 @@ router.post("/ai/exercise-plan", async (req, res) => {
   }
 });
 
-router.post("/ai/analyze-image", async (req, res) => {
+router.post("/ai/analyze-image", aiGuard("image"), express.json({ limit: "8mb" }), async (req, res) => {
   const parsed = AiAnalyzeImageBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request" });
@@ -1257,7 +1270,7 @@ router.post("/ai/analyze-image", async (req, res) => {
           ],
         },
       ],
-      { temperature: 0.2, jsonMode: true, model: VISION_MODEL },
+      { temperature: 0.2, jsonMode: true, model: VISION_MODEL, maxTokens: 2048, tag: "analyze-image" },
     );
 
     res.json(normalizeAnalysis(extractJson(content)));

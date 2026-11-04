@@ -52,7 +52,7 @@ export default function PremiumSignInScreen() {
       setCredErr(res.error);
       return;
     }
-    activateSubscription(res.premiumUntil, login.trim().toUpperCase());
+    activateSubscription(res.premiumUntil, login.trim().toUpperCase(), res.token);
     setActivated(true);
     setTimeout(async () => {
       if (onboardingComplete) {

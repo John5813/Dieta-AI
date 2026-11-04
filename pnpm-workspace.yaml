@@ -158,4 +158,11 @@ overrides:
   # drizzle-kit uses esbuild internally on an older version that's vulnerable, this overrides it
   "@esbuild-kit/esm-loader": "npm:tsx@^4.21.0"
   esbuild: "0.27.3"
+  # Security fixes for transitive dependencies of express / expo tooling
+  # (found with `pnpm audit --prod`).
+  "proxy-addr": "^2.0.8"
+  "body-parser": "^2.4.0"
+  "qs": "^6.16.1"
+  "node-forge": "^1.4.1"
+  "shell-quote": "^1.11.0"
 

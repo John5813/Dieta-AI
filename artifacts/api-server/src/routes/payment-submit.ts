@@ -7,12 +7,39 @@ import { logger } from "../lib/logger";
 import * as tg from "../lib/telegram";
 import { adminKeyboard, buildAdminCaption } from "../lib/bot";
 import { normalizeLogin, normalizePassword, verifyPassword } from "../lib/credentials";
+import { clientIp, failures, rateLimit } from "../lib/guard";
+import { bearerFrom, signPremiumToken, verifyPremiumToken } from "../lib/premiumToken";
+import { timingSafeEqual, createHash } from "crypto";
 
 const router = Router();
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 8 * 1024 * 1024, files: 1, fields: 10, fieldSize: 1024 },
 });
+
+/** Receipts must really be images (checked by magic bytes, not the client's claim). */
+function imageKind(buf: Buffer): "jpg" | "png" | "webp" | null {
+  if (buf.length > 12 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "jpg";
+  if (buf.length > 12 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "png";
+  if (buf.length > 12 && buf.subarray(0, 4).toString("latin1") === "RIFF" && buf.subarray(8, 12).toString("latin1") === "WEBP") return "webp";
+  return null;
+}
+
+const UUID_RE = /^[0-9a-f-]{36}$/i;
+
+// Redeem is the only place passwords are guessed: strict per-IP and per-login limits.
+const REDEEM_IP_FAILS = 10;
+const REDEEM_LOGIN_FAILS = 8;
+const REDEEM_WINDOW = 15 * 60 * 1000;
+// Used so that unknown logins cost the same CPU as known ones.
+const DUMMY_HASH = "0".repeat(64);
+const DUMMY_SALT = "0".repeat(32);
+
+const safeEq = (a: string, b: string) => {
+  const x = createHash("sha256").update(a).digest();
+  const y = createHash("sha256").update(b).digest();
+  return timingSafeEqual(x, y);
+};
 
 const DEFAULT_AMOUNT = 260_000;
 // How many times already-redeemed credentials may re-activate premium on a
@@ -30,9 +57,11 @@ function makeLinkToken() {
  * Creates a new payment record and returns a Telegram deep link the user
  * should open to bind their chat to this payment request.
  */
-router.post("/payment/init", async (req, res) => {
+router.post("/payment/init", rateLimit("pay-init", 10, 60 * 60 * 1000), async (req, res) => {
   try {
     const { name, phone } = (req.body ?? {}) as { name?: string; phone?: string };
+    const cleanName = typeof name === "string" ? name.trim().slice(0, 80) : "";
+    const cleanPhone = typeof phone === "string" ? phone.trim().slice(0, 40) : "";
     const id = randomUUID();
     const linkToken = makeLinkToken();
     // Bot username keshda bo'lmasa (server endi ko'tarilgan / polling
@@ -49,8 +78,8 @@ router.post("/payment/init", async (req, res) => {
     await db.insert(paymentsTable).values({
       id,
       linkToken,
-      name: name?.trim() || null,
-      phone: phone?.trim() || null,
+      name: cleanName || null,
+      phone: cleanPhone || null,
       amount: DEFAULT_AMOUNT,
       status: "pending",
     });
@@ -72,8 +101,12 @@ router.post("/payment/init", async (req, res) => {
  * GET /api/payment/:id
  * Returns current state of a payment. Used by the app to poll.
  */
-router.get("/payment/:id", async (req, res) => {
+router.get("/payment/:id", rateLimit("pay-get", 120, 60 * 60 * 1000), async (req, res) => {
   try {
+    if (!UUID_RE.test(String(req.params.id))) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
     const rows = await db
       .select()
       .from(paymentsTable)
@@ -103,11 +136,20 @@ router.get("/payment/:id", async (req, res) => {
  * Fields: name, phone, receipt(file)
  * Sends the receipt photo to the admin chat with action buttons.
  */
-router.post("/payment/:id/submit", upload.single("receipt"), async (req, res) => {
+router.post("/payment/:id/submit", rateLimit("pay-submit", 10, 60 * 60 * 1000), upload.single("receipt"), async (req, res) => {
   try {
-    const { name, phone } = req.body as { name?: string; phone?: string };
+    const { name, phone } = (req.body ?? {}) as { name?: string; phone?: string };
+    if (!UUID_RE.test(String(req.params.id))) {
+      res.status(404).json({ error: "Toʻlov topilmadi" });
+      return;
+    }
     if (!req.file) {
       res.status(400).json({ error: "Chek rasmi talab qilinadi" });
+      return;
+    }
+    const kind = imageKind(req.file.buffer);
+    if (!kind) {
+      res.status(400).json({ error: "Faqat rasm (JPG, PNG yoki WEBP) yuboring" });
       return;
     }
     const rows = await db
@@ -162,7 +204,7 @@ router.post("/payment/:id/submit", upload.single("receipt"), async (req, res) =>
     const result: any = await tg.sendPhotoBuffer(
       adminChatId,
       req.file.buffer,
-      req.file.originalname || "receipt.jpg",
+      `receipt.${kind}`,
       caption,
       adminKeyboard(p.id),
     );
@@ -197,26 +239,44 @@ router.post("/payment/:id/submit", upload.single("receipt"), async (req, res) =>
  */
 router.post("/payment/:id/redeem", async (req, res) => {
   try {
-    const { login, password } = (req.body ?? {}) as { login?: string; password?: string };
-    if (!login || !password) {
+    const ip = clientIp(req);
+    const ipKey = `redeem-ip:${ip}`;
+    if (failures.blocked(ipKey, REDEEM_IP_FAILS)) {
+      res.setHeader("Retry-After", String(REDEEM_WINDOW / 1000));
+      res.status(429).json({ error: "Juda ko'p urinish. 15 daqiqadan keyin qayta urinib ko'ring." });
+      return;
+    }
+    const { login, password } = (req.body ?? {}) as { login?: unknown; password?: unknown };
+    if (typeof login !== "string" || typeof password !== "string" || !login || !password || login.length > 40 || password.length > 40) {
       res.status(400).json({ error: "Login va parolni kiriting" });
       return;
     }
     const normLogin = normalizeLogin(login);
     const normPass = normalizePassword(password);
+    const loginKey = `redeem-login:${normLogin}`;
+    if (failures.blocked(loginKey, REDEEM_LOGIN_FAILS)) {
+      res.status(429).json({ error: "Bu login uchun juda ko'p urinish. 15 daqiqadan keyin qayta urinib ko'ring." });
+      return;
+    }
+    const bad = () => {
+      failures.fail(ipKey, REDEEM_WINDOW);
+      failures.fail(loginKey, REDEEM_WINDOW);
+    };
 
-    // Universal master credential — istalgan qurilmada premium faollashtiradi
+    // Universal master credential. Disabled unless both values are long enough
+    // to be unguessable (12+ characters each).
     const masterLogin = normalizeLogin(process.env["MASTER_LOGIN"] ?? "");
     const masterPassword = normalizePassword(process.env["MASTER_PASSWORD"] ?? "");
-    if (
-      masterLogin &&
-      masterPassword &&
-      normLogin === masterLogin &&
-      normPass === masterPassword
-    ) {
-      const premiumUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-      res.json({ success: true, premiumUntil: premiumUntil.toISOString() });
-      return;
+    if (masterLogin.length >= 12 && masterPassword.length >= 12) {
+      const okLogin = safeEq(normLogin, masterLogin);
+      const okPass = safeEq(normPass, masterPassword);
+      if (okLogin && okPass) {
+        const premiumUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+        const { token } = signPremiumToken({ login: masterLogin, premiumUntil: premiumUntil.getTime(), master: true });
+        failures.reset(ipKey);
+        res.json({ success: true, premiumUntil: premiumUntil.toISOString(), token });
+        return;
+      }
     }
 
     // Login is globally unique, so look it up directly instead of by the
@@ -228,15 +288,17 @@ router.post("/payment/:id/redeem", async (req, res) => {
       .where(eq(paymentsTable.login, normLogin));
     const target = rows[0];
 
-    if (
-      !target ||
-      !target.passwordHash ||
-      !target.passwordSalt ||
-      !verifyPassword(normPass, target.passwordHash, target.passwordSalt)
-    ) {
+    const credsOk =
+      !!target?.passwordHash &&
+      !!target?.passwordSalt &&
+      verifyPassword(normPass, target?.passwordHash ?? DUMMY_HASH, target?.passwordSalt ?? DUMMY_SALT);
+    if (!target || !credsOk) {
+      if (!target) verifyPassword(normPass, DUMMY_HASH, DUMMY_SALT);
+      bad();
       res.status(401).json({ error: "Login yoki parol notoʻgʻri" });
       return;
     }
+    failures.reset(loginKey);
 
     if (target.status === "redeemed" || target.passwordUsed) {
       const until = target.premiumUntil;
@@ -263,7 +325,8 @@ router.post("/payment/:id/redeem", async (req, res) => {
         });
         return;
       }
-      res.json({ success: true, restored: true, premiumUntil: until.toISOString() });
+      const { token } = signPremiumToken({ login: normLogin, premiumUntil: until.getTime() });
+      res.json({ success: true, restored: true, premiumUntil: until.toISOString(), token });
       return;
     }
 
@@ -324,12 +387,49 @@ router.post("/payment/:id/redeem", async (req, res) => {
       }
     }
 
+    const { token } = signPremiumToken({ login: normLogin, premiumUntil: premiumUntil.getTime() });
     res.json({
       success: true,
       premiumUntil: premiumUntil.toISOString(),
+      token,
     });
   } catch (err) {
     logger.error({ err }, "payment redeem error");
+    res.status(500).json({ error: "Server xatoligi" });
+  }
+});
+
+/**
+ * POST /api/premium/refresh — swaps a still-valid token for a fresh one while
+ * the purchase itself is still within its premium period.
+ */
+router.post("/premium/refresh", rateLimit("premium-refresh", 30, 60 * 60 * 1000), async (req, res) => {
+  const old = verifyPremiumToken(bearerFrom(req.header("authorization")), 400 * 24 * 60 * 60 * 1000);
+  if (!old) {
+    res.status(401).json({ error: "Token yaroqsiz" });
+    return;
+  }
+  try {
+    if (old.m) {
+      const ml = normalizeLogin(process.env["MASTER_LOGIN"] ?? "");
+      if (ml.length < 12 || old.l !== ml) {
+        res.status(401).json({ error: "Token yaroqsiz" });
+        return;
+      }
+      const until = Date.now() + 365 * 24 * 60 * 60 * 1000;
+      const { token } = signPremiumToken({ login: ml, premiumUntil: until, master: true });
+      res.json({ success: true, token });
+      return;
+    }
+    const [row] = await db.select().from(paymentsTable).where(eq(paymentsTable.login, old.l));
+    if (!row?.premiumUntil || row.premiumUntil.getTime() <= Date.now() || (row.status !== "redeemed" && row.status !== "approved")) {
+      res.status(401).json({ error: "Premium muddati tugagan" });
+      return;
+    }
+    const { token } = signPremiumToken({ login: old.l, premiumUntil: row.premiumUntil.getTime() });
+    res.json({ success: true, token, premiumUntil: row.premiumUntil.toISOString() });
+  } catch (err) {
+    logger.error({ err }, "premium refresh error");
     res.status(500).json({ error: "Server xatoligi" });
   }
 });

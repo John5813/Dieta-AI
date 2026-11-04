@@ -2,6 +2,7 @@ import { Router } from "express";
 import { barcodeProductsTable, db, type BarcodeProduct } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { rateLimit } from "../lib/guard";
 
 const router = Router();
 
@@ -9,8 +10,8 @@ const CODE_RE = /^\d{8,14}$/;
 const OFF_TIMEOUT_MS = 6000;
 const OFF_BASE = (process.env.OPEN_FOOD_FACTS_URL || "https://world.openfoodfacts.org").replace(/\/$/, "");
 // Community submissions per IP per hour — enough for a shopping trip, not for spam.
-const SUBMIT_LIMIT = 30;
-const submitHits = new Map<string, { count: number; resetAt: number }>();
+const submitLimit = rateLimit("barcode-submit", 30, 3600_000, "Juda ko'p so'rov. Birozdan keyin urinib ko'ring.");
+const lookupLimit = rateLimit("barcode-lookup", 120, 3600_000, "Juda ko'p so'rov. Birozdan keyin urinib ko'ring.");
 
 interface ProductOut {
   code: string;
@@ -109,7 +110,7 @@ async function fetchOpenFoodFacts(code: string): Promise<Omit<BarcodeProduct, "s
 }
 
 /** GET /api/food/barcode/:code — community table first, then Open Food Facts (cached). */
-router.get("/food/barcode/:code", async (req, res) => {
+router.get("/food/barcode/:code", lookupLimit, async (req, res) => {
   const code = String(req.params.code ?? "");
   if (!CODE_RE.test(code)) {
     res.status(400).json({ error: "Shtrix-kod noto'g'ri" });
@@ -142,15 +143,7 @@ router.get("/food/barcode/:code", async (req, res) => {
 });
 
 /** POST /api/food/barcode — a user adds a product from its label; first submission wins. */
-router.post("/food/barcode", async (req, res) => {
-  const ip = req.ip ?? "unknown";
-  const now = Date.now();
-  const hit = submitHits.get(ip);
-  if (hit && hit.resetAt > now && hit.count >= SUBMIT_LIMIT) {
-    res.status(429).json({ error: "Juda ko'p so'rov. Birozdan keyin urinib ko'ring." });
-    return;
-  }
-  submitHits.set(ip, hit && hit.resetAt > now ? { ...hit, count: hit.count + 1 } : { count: 1, resetAt: now + 3600_000 });
+router.post("/food/barcode", submitLimit, async (req, res) => {
 
   const b = (req.body ?? {}) as Record<string, unknown>;
   const per100 = (b.per100 ?? {}) as Record<string, unknown>;

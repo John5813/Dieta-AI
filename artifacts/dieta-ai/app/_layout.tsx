@@ -7,6 +7,7 @@ import {
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setBaseUrl } from "@/lib/api-client";
+import { installApiHeaders } from "@/lib/apiAuth";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
@@ -25,6 +26,7 @@ const apiBase = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
   : "https://dietaai-lexhk.ondigitalocean.app";
 setBaseUrl(apiBase);
+installApiHeaders(apiBase);
 
 if (Platform.OS === "web") {
   LogBox.ignoreLogs([

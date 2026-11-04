@@ -11,6 +11,7 @@ import { db, payTransactionsTable, type WebOrder } from "@workspace/db";
 import { and, desc, eq } from "drizzle-orm";
 import { normalizeLogin } from "../lib/credentials";
 import { logger } from "../lib/logger";
+import { rateLimit } from "../lib/guard";
 
 // ─── Pages: /pay, /pay/o/:no, /pay/offer ────────────────────────────────────
 
@@ -73,24 +74,6 @@ payPages.get("/o/:no", (req, res) => {
 
 export const payApi = Router();
 
-/** Small per-IP limit on order creation so logins can't be probed in bulk. */
-const hits = new Map<string, number[]>();
-function rateLimit(max: number, windowMs: number) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const ip = String(req.headers["x-forwarded-for"] ?? req.ip ?? "").split(",")[0]!.trim();
-    const now = Date.now();
-    const list = (hits.get(ip) ?? []).filter((t) => now - t < windowMs);
-    if (list.length >= max) {
-      res.status(429).json({ error: "too_many_requests" });
-      return;
-    }
-    list.push(now);
-    hits.set(ip, list);
-    if (hits.size > 10_000) hits.clear();
-    next();
-  };
-}
-
 function statusUrl(base: string, order: WebOrder, token: string) {
   return `${base}/pay/o/${order.no}?t=${encodeURIComponent(token)}&lang=${order.lang}`;
 }
@@ -113,7 +96,7 @@ payApi.get("/pay/config", (_req, res) => {
   res.json({ plans: getPlans(), providers: enabledProviders() });
 });
 
-payApi.post("/pay/orders", rateLimit(20, 10 * 60 * 1000), async (req, res) => {
+payApi.post("/pay/orders", rateLimit("pay-orders", 20, 10 * 60 * 1000), async (req, res) => {
   const { plan: planId, provider, lang, login } = (req.body ?? {}) as Record<string, unknown>;
   const plan = typeof planId === "string" ? findPlan(planId) : undefined;
   if (!plan || typeof provider !== "string" || !enabledProviders().includes(provider as ProviderId)) {
@@ -140,7 +123,7 @@ payApi.post("/pay/orders", rateLimit(20, 10 * 60 * 1000), async (req, res) => {
   }
 });
 
-payApi.get("/pay/orders/:no", async (req, res) => {
+payApi.get("/pay/orders/:no", rateLimit("pay-order-get", 300, 10 * 60 * 1000), async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   const token = typeof req.query.t === "string" ? req.query.t : "";
   const order = await getOrder(Number(req.params.no));

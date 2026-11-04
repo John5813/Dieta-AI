@@ -32,7 +32,7 @@ export default function ActivateScreen() {
         setError(res.error);
         return;
       }
-      activateSubscription(res.premiumUntil, String(login).trim().toUpperCase());
+      activateSubscription(res.premiumUntil, String(login).trim().toUpperCase(), res.token);
       setDone(true);
       // A fresh install still needs its profile set up; premium is already on.
       setTimeout(() => router.replace(onboardingComplete ? "/(tabs)" : "/onboarding/language"), 1200);

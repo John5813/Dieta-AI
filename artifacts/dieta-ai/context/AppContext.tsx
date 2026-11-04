@@ -14,6 +14,8 @@ import { askToRestartForDirection, syncLayoutDirection } from "@/lib/rtl";
 import { mealForTime, type MealType } from "@/lib/meals";
 import { ALL_DATA_KEYS, BACKUP_META_KEYS } from "@/lib/storageKeys";
 import { cancelAllReminders, scheduleAllReminders } from "@/lib/notifications";
+import { setPremiumToken } from "@/lib/apiAuth";
+import { refreshPremiumToken } from "@/lib/premium";
 
 export type Language = AppLanguage;
 export type Gender = "erkak" | "ayol";
@@ -64,6 +66,8 @@ export interface Subscription {
   premiumUntil?: number;
   /** Bot-issued login of the redeemed purchase, kept so the user can restore it later. */
   login?: string;
+  /** Server-signed proof of the purchase; sent to the API for premium AI quotas. */
+  token?: string;
 }
 
 export type ScanBlockReason = "trial_expired" | "premium_expired" | "daily_limit" | "locked";
@@ -137,7 +141,7 @@ interface AppContextType {
   completeOnboarding: () => Promise<void>;
   resetApp: () => Promise<void>;
   startTrial: () => void;
-  activateSubscription: (premiumUntil?: number, login?: string) => void;
+  activateSubscription: (premiumUntil?: number, login?: string, token?: string) => void;
   incrementSpinAttempts: () => void;
   tourPending: boolean;
   clearTourPending: () => void;
@@ -284,7 +288,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       setWeightLogState(sortWeights(loadedWeights));
       if (subRaw[1]) {
-        try { setSubscriptionState(JSON.parse(subRaw[1])); } catch {}
+        try {
+          const saved = JSON.parse(subRaw[1]) as Subscription;
+          setSubscriptionState(saved);
+          if (saved.token) {
+            setPremiumToken(saved.token);
+            // Tokens are short-lived: swap for a fresh one on every start.
+            refreshPremiumToken().then((fresh) => {
+              if (!fresh) return;
+              setPremiumToken(fresh);
+              setSubscriptionState((cur) => {
+                const next = { ...cur, token: fresh };
+                AsyncStorage.setItem("subscription", JSON.stringify(next)).catch(() => {});
+                return next;
+              });
+            });
+          }
+        } catch {}
       }
       if (entriesRaw[1]) {
         try {
@@ -334,6 +354,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   /** Re-reads everything after storage was replaced (e.g. a backup restore). */
   const reloadFromStorage = async () => {
     setProfileState({});
+    setPremiumToken(null);
     setSubscriptionState(DEFAULT_SUB);
     setEntriesState([]);
     setBurnedByDate({});
@@ -559,6 +580,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setOnboardingComplete(false);
     setProfileState({});
+    setPremiumToken(null);
     setSubscriptionState(DEFAULT_SUB);
     setEntriesState([]);
     setBurnedByDate({});
@@ -577,12 +599,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const activateSubscription = (premiumUntil?: number, login?: string) => {
+  const activateSubscription = (premiumUntil?: number, login?: string, token?: string) => {
+    setPremiumToken(token ?? subscription.token);
     persistSub({
       ...subscription,
       status: "active",
       premiumUntil: premiumUntil ?? Date.now() + 365 * 24 * 60 * 60 * 1000,
       login: login ?? subscription.login,
+      token: token ?? subscription.token,
     });
     setTourPendingState(true);
   };
