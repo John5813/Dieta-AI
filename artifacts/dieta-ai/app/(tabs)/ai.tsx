@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -18,7 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
-import { getLanguage } from "@/lib/i18n";
+import { getLanguage, trText } from "@/lib/i18n";
 
 interface ChatMsg {
   id: string;
@@ -163,6 +164,33 @@ export default function AiScreen() {
     setError(null);
   }, []);
 
+  // Store policy for AI chat: users can flag an answer without leaving the app.
+  const reportAnswer = useCallback((answer: string) => {
+    Alert.alert(
+      trText("Shikoyat qilish"),
+      trText("Bu javob noto'g'ri yoki nomaqbul bo'lsa, bizga yuboring. Javob matni tekshirish uchun bizga jo'natiladi."),
+      [
+        { text: trText("Bekor qilish"), style: "cancel" },
+        {
+          text: trText("Yuborish"),
+          onPress: async () => {
+            try {
+              const res = await fetch(`${API_BASE}/api/ai/report`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ answer: answer.slice(0, 4000), language: getLanguage() }),
+              });
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              Alert.alert(trText("Shikoyat qilish"), trText("Rahmat! Shikoyatingiz qabul qilindi."));
+            } catch {
+              Alert.alert(trText("Shikoyat qilish"), trText("Shikoyatni yuborib bo'lmadi. Keyinroq urinib ko'ring."));
+            }
+          },
+        },
+      ],
+    );
+  }, []);
+
   const isEmpty = messages.length === 0;
 
   const keyboardVisible = useKeyboardState((s) => s.isVisible);
@@ -286,6 +314,17 @@ export default function AiScreen() {
                   {m.role === "assistant" ? cleanMarkdown(m.content) : m.content}
                 </Text>
               </View>
+              {m.role === "assistant" ? (
+                <Pressable
+                  onPress={() => reportAnswer(m.content)}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel={trText("Shikoyat qilish")}
+                  style={({ pressed }) => [styles.reportBtn, { opacity: pressed ? 0.5 : 1 }]}
+                >
+                  <Feather name="flag" size={14} color={colors.mutedForeground} />
+                </Pressable>
+              ) : null}
             </View>
           ))
         )}
@@ -324,6 +363,10 @@ export default function AiScreen() {
           </View>
         ) : null}
       </ScrollView>
+
+      <Text style={[styles.disclaimer, { color: colors.mutedForeground }]}>
+        AI javoblari umumiy ma'lumot uchun, tibbiy maslahat emas.
+      </Text>
 
       <View
         style={[
@@ -461,6 +504,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
   },
+  reportBtn: { alignSelf: "flex-end", padding: 6, marginLeft: 2 },
+  disclaimer: { fontSize: 11, fontFamily: "Inter_400Regular", textAlign: "center", paddingHorizontal: 20, paddingBottom: 6 },
   errorText: { color: "#991B1B", fontSize: 13, fontFamily: "Inter_500Medium", flex: 1 },
   inputBar: {
     paddingHorizontal: 14,

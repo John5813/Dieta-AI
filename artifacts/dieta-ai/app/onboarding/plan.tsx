@@ -155,7 +155,6 @@ const STAT_INFO: Record<string, StatInfoData> = {
     tips: [
       "Mashq paytida +500 ml qo'shing",
       "Issiq havoda +300–500 ml ko'proq iching",
-      "Och qorin suv ichish metabolizmni 30% tezlashtiradi",
       "Kuniga kamida 8 ta stakan (≈ 2 litr) tavsiya etiladi",
     ],
   },

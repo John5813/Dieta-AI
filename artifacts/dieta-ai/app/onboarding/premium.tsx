@@ -177,7 +177,7 @@ export default function PremiumScreen() {
         </View>
 
         <Text style={[styles.tagline, { color: colors.text }]}>
-          Maqsadingizga 4 barobar tezroq erishing{"\n"}shaxsiy AI-yordamchi bilan
+          Maqsadingizga ishonch bilan erishing{"\n"}shaxsiy AI-yordamchi bilan
         </Text>
 
         <View style={styles.brandRow}>
@@ -195,7 +195,7 @@ export default function PremiumScreen() {
             { icon: "camera", label: "Cheksiz AI kamera tahlili" },
             { icon: "trending-down", label: "Shaxsiy ozish rejasi" },
             { icon: "bar-chart-2", label: "Batafsil statistika" },
-            { icon: "heart", label: "Ekspert tomonidan tasdiqlangan" },
+            { icon: "heart", label: "Ilmiy formulalar asosida" },
           ].map((b) => (
             <View key={b.label} style={styles.benefitRow}>
               <View style={[styles.benefitDot, { backgroundColor: colors.secondary }]}>

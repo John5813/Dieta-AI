@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   NativeScrollEvent,
   NativeSyntheticEvent,
   ScrollView,
@@ -9,6 +10,7 @@ import {
 } from "react-native";
 import { Text } from "@/components/i18n/Text";
 import { OnboardingLayout } from "@/components/OnboardingLayout";
+import { trText } from "@/lib/i18n";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -20,7 +22,9 @@ const MONTHS = [
 ];
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
 const currentYear = new Date().getFullYear();
-const YEARS = Array.from({ length: 80 }, (_, i) => currentYear - 5 - i);
+// The app is for adults: the store listing and privacy policy say 18+.
+const MIN_AGE = 18;
+const YEARS = Array.from({ length: 80 }, (_, i) => currentYear - MIN_AGE - i);
 
 interface WheelProps {
   data: (string | number)[];
@@ -97,6 +101,17 @@ export default function BirthdateScreen() {
   const [yearIdx, setYearIdx] = useState(initialYearIdx >= 0 ? initialYearIdx : 25);
 
   const handleNext = () => {
+    // The year list starts 18 years back, but the birthday may not have come yet.
+    const born = new Date(YEARS[yearIdx] ?? 2000, month, day + 1);
+    const cutoff = new Date();
+    cutoff.setFullYear(cutoff.getFullYear() - MIN_AGE);
+    if (born.getTime() > cutoff.getTime()) {
+      Alert.alert(
+        trText("Yosh cheklovi"),
+        trText("Kaloria.uz 18 yoshdan katta foydalanuvchilar uchun mo'ljallangan."),
+      );
+      return;
+    }
     setProfile({
       birthDate: {
         month,

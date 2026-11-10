@@ -50,7 +50,7 @@ export default function TransformationScreen() {
   const infoText = isMaintain
     ? "Sizning vazningiz ideal! Kaloria.uz sizga sog'lom ovqatlanish odatlarini saqlab qolish va energiyangizni yuqori darajada ushlab turishda yordam beradi."
     : tr(
-        "Sizning {0} kg/hafta sur'atingizda Kaloria.uz tarixiy ma'lumotlariga ko'ra, dastlabki natijalar 7-10 kunda ko'rinadi va {1} ichida to'liq maqsadga erishasiz.",
+        "Sizning {0} kg/hafta sur'atingizda maqsadingizga taxminan {1} ichida yetishingiz mumkin. Natija har kimda turlicha bo'ladi.",
         speed.toFixed(1),
         totalLabel,
       );

@@ -5,7 +5,9 @@ import {
   AiChatBody,
 } from "@workspace/api-zod";
 import { APP_KNOWLEDGE } from "../lib/aiKnowledge";
-import { aiGuard, flatClean } from "../lib/guard";
+import { aiGuard, flatClean, rateLimit } from "../lib/guard";
+import * as tg from "../lib/telegram";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -786,6 +788,30 @@ router.post("/ai/chat", aiGuard("chat"), async (req, res) => {
     req.log.error({ err }, "AI chat failure");
     res.status(502).json({ error: "AI provider error" });
   }
+});
+
+/**
+ * POST /api/ai/report — a user flags an AI answer as wrong or inappropriate.
+ * Only the flagged answer is forwarded to the admin for review; nothing about
+ * the user is attached and nothing is stored in the database.
+ */
+router.post("/ai/report", rateLimit("ai-report", 10, 60 * 60 * 1000), async (req, res) => {
+  const answer = typeof req.body?.answer === "string" ? req.body.answer.trim().slice(0, 1500) : "";
+  if (answer.length < 2) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  const lang = typeof req.body?.language === "string" ? req.body.language.slice(0, 10) : "uz";
+  logger.warn({ lang, length: answer.length }, "AI answer reported by a user");
+  try {
+    if (tg.isConfigured() && tg.getAdminChatId()) {
+      const esc = answer.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      await tg.sendMessage(tg.getAdminChatId(), `🚩 <b>AI javobiga shikoyat</b> (${lang.replace(/[^a-z-]/gi, "")})\n\n${esc}`);
+    }
+  } catch (err) {
+    logger.error({ err }, "AI report forward failed");
+  }
+  res.json({ success: true });
 });
 
 router.post("/ai/analyze-text", aiGuard("text"), async (req, res) => {
