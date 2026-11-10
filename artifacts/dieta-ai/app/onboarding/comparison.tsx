@@ -107,7 +107,7 @@ function ComparisonChart() {
       </View>
 
       <View style={[styles.endLabelOur, { backgroundColor: colors.primary }]}>
-        <Text style={styles.endLabelText}>UzDieta AI</Text>
+        <Text style={styles.endLabelText}>Kaloria.uz</Text>
       </View>
 
       <View style={[styles.endLabelOther, { backgroundColor: colors.chartRed }]}>
@@ -135,7 +135,7 @@ export default function ComparisonScreen() {
     <OnboardingLayout
       step={4}
       total={18}
-      title="UzDieta AI va boshqa ilovalarni farqi"
+      title="Kaloria.uz va boshqa ilovalarni farqi"
       onNext={() => router.push("/onboarding/birthdate")}
       onBack={() => router.back()}
     >
@@ -144,7 +144,7 @@ export default function ComparisonScreen() {
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
           <Text style={[styles.legendText, { color: colors.text }]}>
-            UzDieta AI — barqaror o'sish
+            Kaloria.uz — barqaror o'sish
           </Text>
         </View>
         <View style={styles.legendItem}>
@@ -156,7 +156,7 @@ export default function ComparisonScreen() {
       </View>
       <Text style={[styles.description, { color: colors.mutedForeground }]}>
         Boshqa ilovalarda foydalanuvchilar boshida tez ozadi, lekin 2-3 oy o'tgach eski vazniga
-        qaytib qoladi. UzDieta AI esa ozganingizdan keyin natijani ushlab turishga yordam beradi.
+        qaytib qoladi. Kaloria.uz esa ozganingizdan keyin natijani ushlab turishga yordam beradi.
       </Text>
     </OnboardingLayout>
   );

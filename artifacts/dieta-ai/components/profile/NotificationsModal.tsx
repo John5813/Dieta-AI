@@ -395,7 +395,7 @@ export function NotificationsModal({
                   <Feather name="info" size={14} color={colors.mutedForeground} />
                   <Text style={[styles.batteryHintText, { color: colors.mutedForeground }]}>
                     Xiaomi, Samsung yoki Huawei qurilmalarida eslatma kelmasa,
-                    Sozlamalar → Ilovalar → UzDieta AI → Batareya bo'limidan
+                    Sozlamalar → Ilovalar → Kaloria.uz → Batareya bo'limidan
                     &quot;Cheklanmagan&quot; rejimini yoqing.
                   </Text>
                 </View>

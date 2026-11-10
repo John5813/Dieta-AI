@@ -34,7 +34,7 @@ export default function RegisterScreen() {
     >
       <View style={[styles.sheet, { backgroundColor: colors.card }]}>
         <View style={[styles.handle, { backgroundColor: colors.border }]} />
-        <Text style={[styles.appName, { color: colors.primary }]}>UzDieta AI</Text>
+        <Text style={[styles.appName, { color: colors.primary }]}>Kaloria.uz</Text>
 
         <Text style={[styles.title, { color: colors.text }]}>
           Telefon raqam bilan kirish

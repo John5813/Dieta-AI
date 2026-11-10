@@ -7,7 +7,7 @@ export type PayKey = "pageTitle" | "tagline" | "b1" | "b2" | "b3" | "b4" | "choo
 
 export const PAY_STRINGS: Record<PayLang, Record<PayKey, string>> = {
   "uz": {
-    pageTitle: "UzDieta AI Premium — to'lov",
+    pageTitle: "Kaloria.uz Premium — to'lov",
     tagline: "AI bilan kaloriya hisobi, shaxsiy ovqat rejasi va AI murabbiy — cheklovsiz.",
     b1: "Cheksiz AI kamera tahlili",
     b2: "Shaxsiy ovqat va mashq rejasi",
@@ -68,7 +68,7 @@ export const PAY_STRINGS: Record<PayLang, Record<PayKey, string>> = {
     back: "Orqaga",
   },
   "uz-kril": {
-    pageTitle: "UzDieta AI Премиум — тўлов",
+    pageTitle: "Kaloria.uz Премиум — тўлов",
     tagline: "AI билан калория ҳисоби, шахсий овқат режаси ва AI мураббий — чекловсиз.",
     b1: "Чексиз AI камера таҳлили",
     b2: "Шахсий овқат ва машқ режаси",
@@ -129,7 +129,7 @@ export const PAY_STRINGS: Record<PayLang, Record<PayKey, string>> = {
     back: "Орқага",
   },
   "ru": {
-    pageTitle: "UzDieta AI Премиум — оплата",
+    pageTitle: "Kaloria.uz Премиум — оплата",
     tagline: "Подсчёт калорий с ИИ, личный план питания и ИИ-тренер — без ограничений.",
     b1: "Безлимитный ИИ-анализ фото",
     b2: "Личный план питания и тренировок",
@@ -190,7 +190,7 @@ export const PAY_STRINGS: Record<PayLang, Record<PayKey, string>> = {
     back: "Назад",
   },
   "en": {
-    pageTitle: "UzDieta AI Premium — payment",
+    pageTitle: "Kaloria.uz Premium — payment",
     tagline: "AI calorie tracking, a personal meal plan and an AI coach — no limits.",
     b1: "Unlimited AI photo analysis",
     b2: "Personal meal and workout plan",
@@ -251,7 +251,7 @@ export const PAY_STRINGS: Record<PayLang, Record<PayKey, string>> = {
     back: "Back",
   },
   "kk": {
-    pageTitle: "UzDieta AI Премиум — төлем",
+    pageTitle: "Kaloria.uz Премиум — төлем",
     tagline: "ЖИ көмегімен калория есебі, жеке тамақтану жоспары және ЖИ-жаттықтырушы — шектеусіз.",
     b1: "Шектеусіз ЖИ сурет талдауы",
     b2: "Жеке тамақтану және жаттығу жоспары",
@@ -312,7 +312,7 @@ export const PAY_STRINGS: Record<PayLang, Record<PayKey, string>> = {
     back: "Артқа",
   },
   "ky": {
-    pageTitle: "UzDieta AI Премиум — төлөм",
+    pageTitle: "Kaloria.uz Премиум — төлөм",
     tagline: "ЖИ менен калория эсеби, жеке тамактануу планы жана ЖИ-машыктыруучу — чексиз.",
     b1: "Чексиз ЖИ сүрөт талдоосу",
     b2: "Жеке тамактануу жана машыгуу планы",
@@ -373,7 +373,7 @@ export const PAY_STRINGS: Record<PayLang, Record<PayKey, string>> = {
     back: "Артка",
   },
   "tg": {
-    pageTitle: "UzDieta AI Премиум — пардохт",
+    pageTitle: "Kaloria.uz Премиум — пардохт",
     tagline: "Ҳисоби калория бо ЗС, нақшаи шахсии хӯрок ва мураббии ЗС — бе маҳдудият.",
     b1: "Таҳлили беҳудуди акс бо ЗС",
     b2: "Нақшаи шахсии хӯрок ва машқ",
@@ -434,7 +434,7 @@ export const PAY_STRINGS: Record<PayLang, Record<PayKey, string>> = {
     back: "Ба қафо",
   },
   "tk": {
-    pageTitle: "UzDieta AI Premium — töleg",
+    pageTitle: "Kaloria.uz Premium — töleg",
     tagline: "AI bilen kaloriýa hasaby, şahsy iýmit meýilnamasy we AI tälimçi — çäksiz.",
     b1: "Çäksiz AI surat seljermesi",
     b2: "Şahsy iýmit we türgenleşik meýilnamasy",
@@ -495,7 +495,7 @@ export const PAY_STRINGS: Record<PayLang, Record<PayKey, string>> = {
     back: "Yza",
   },
   "tr": {
-    pageTitle: "UzDieta AI Premium — ödeme",
+    pageTitle: "Kaloria.uz Premium — ödeme",
     tagline: "Yapay zekâ ile kalori takibi, kişisel beslenme planı ve yapay zekâ koçu — sınırsız.",
     b1: "Sınırsız yapay zekâ fotoğraf analizi",
     b2: "Kişisel beslenme ve antrenman planı",
@@ -556,7 +556,7 @@ export const PAY_STRINGS: Record<PayLang, Record<PayKey, string>> = {
     back: "Geri",
   },
   "fa": {
-    pageTitle: "UzDieta AI پریمیوم — پرداخت",
+    pageTitle: "Kaloria.uz پریمیوم — پرداخت",
     tagline: "شمارش کالری با هوش مصنوعی، برنامهٔ غذایی شخصی و مربی هوش مصنوعی — بدون محدودیت.",
     b1: "تحلیل نامحدود عکس با هوش مصنوعی",
     b2: "برنامهٔ شخصی غذا و تمرین",
@@ -621,8 +621,8 @@ export const PAY_STRINGS: Record<PayLang, Record<PayKey, string>> = {
 /** Public offer text: [heading, paragraph]. {seller} and {details} are filled in at render time. */
 export const OFFER: Partial<Record<PayLang, [string, string][]>> = {
   "uz": [
-    ["1. Umumiy qoidalar", "Ushbu ommaviy oferta {seller} (keyingi o'rinlarda — Sotuvchi) tomonidan UzDieta AI Premium xizmatini sotish shartlarini belgilaydi. Saytda to'lovni amalga oshirish ushbu oferta shartlarini to'liq qabul qilish hisoblanadi."],
-    ["2. Xizmat tavsifi", "UzDieta AI Premium — UzDieta AI mobil ilovasidagi qo'shimcha imkoniyatlarga tanlangan muddatga kirish: cheksiz AI rasm tahlili, shaxsiy ovqat va mashq rejasi, AI murabbiy bilan suhbat va batafsil statistika. Ilovaning asosiy funksiyalari Premiumsiz ham bepul ishlaydi."],
+    ["1. Umumiy qoidalar", "Ushbu ommaviy oferta {seller} (keyingi o'rinlarda — Sotuvchi) tomonidan Kaloria.uz Premium xizmatini sotish shartlarini belgilaydi. Saytda to'lovni amalga oshirish ushbu oferta shartlarini to'liq qabul qilish hisoblanadi."],
+    ["2. Xizmat tavsifi", "Kaloria.uz Premium — Kaloria.uz mobil ilovasidagi qo'shimcha imkoniyatlarga tanlangan muddatga kirish: cheksiz AI rasm tahlili, shaxsiy ovqat va mashq rejasi, AI murabbiy bilan suhbat va batafsil statistika. Ilovaning asosiy funksiyalari Premiumsiz ham bepul ishlaydi."],
     ["3. Narx va to'lov", "Tariflar narxi saytda so'mda ko'rsatilgan. To'lov Click, Payme, Uzum Bank yoki bank kartasi orqali to'lov tizimining xavfsiz sahifasida amalga oshiriladi. Sotuvchi karta ma'lumotlarini olmaydi va saqlamaydi."],
     ["4. Xizmatni taqdim etish", "To'lov tasdiqlangach, saytda ilovaga kirish uchun login va parol ko'rsatiladi (mavjud hisob uzaytirilganda — muddat shu hisobga qo'shiladi). Premium muddati to'lov qabul qilingan paytdan boshlab hisoblanadi."],
     ["5. Pulni qaytarish", "Agar berilgan login ilovada hali ishlatilmagan bo'lsa, to'lovdan keyin 14 kun ichida murojaat qilib, pulni to'liq qaytarib olishingiz mumkin. Sotuvchi aybi bilan xizmatdan foydalanib bo'lmasa, qolgan muddat uchun pul qaytariladi. Pul to'lov qilingan usul orqali qaytariladi."],
@@ -631,8 +631,8 @@ export const OFFER: Partial<Record<PayLang, [string, string][]>> = {
     ["8. Sotuvchi rekvizitlari", "{details}"],
   ],
   "uz-kril": [
-    ["1. Умумий қоидалар", "Ушбу оммавий оферта {seller} (кейинги ўринларда — Сотувчи) томонидан UzDieta AI Премиум хизматини сотиш шартларини белгилайди. Сайтда тўловни амалга ошириш ушбу оферта шартларини тўлиқ қабул қилиш ҳисобланади."],
-    ["2. Хизмат тавсифи", "UzDieta AI Премиум — UzDieta AI мобил иловасидаги қўшимча имкониятларга танланган муддатга кириш: чексиз AI расм таҳлили, шахсий овқат ва машқ режаси, AI мураббий билан суҳбат ва батафсил статистика. Илованинг асосий функсиялари Премиумсиз ҳам бепул ишлайди."],
+    ["1. Умумий қоидалар", "Ушбу оммавий оферта {seller} (кейинги ўринларда — Сотувчи) томонидан Kaloria.uz Премиум хизматини сотиш шартларини белгилайди. Сайтда тўловни амалга ошириш ушбу оферта шартларини тўлиқ қабул қилиш ҳисобланади."],
+    ["2. Хизмат тавсифи", "Kaloria.uz Премиум — Kaloria.uz мобил иловасидаги қўшимча имкониятларга танланган муддатга кириш: чексиз AI расм таҳлили, шахсий овқат ва машқ режаси, AI мураббий билан суҳбат ва батафсил статистика. Илованинг асосий функсиялари Премиумсиз ҳам бепул ишлайди."],
     ["3. Нарх ва тўлов", "Тарифлар нархи сайтда сўмда кўрсатилган. Тўлов Click, Payme, Uzum Bank ёки банк картаси орқали тўлов тизимининг хавфсиз саҳифасида амалга оширилади. Сотувчи карта маълумотларини олмайди ва сақламайди."],
     ["4. Хизматни тақдим этиш", "Тўлов тасдиқлангач, сайтда иловага кириш учун логин ва парол кўрсатилади (мавжуд ҳисоб узайтирилганда — муддат шу ҳисобга қўшилади). Премиум муддати тўлов қабул қилинган пайтдан бошлаб ҳисобланади."],
     ["5. Пулни қайтариш", "Агар берилган логин иловада ҳали ишлатилмаган бўлса, тўловдан кейин 14 кун ичида мурожаат қилиб, пулни тўлиқ қайтариб олишингиз мумкин. Сотувчи айби билан хизматдан фойдаланиб бўлмаса, қолган муддат учун пул қайтарилади. Пул тўлов қилинган усул орқали қайтарилади."],
@@ -641,8 +641,8 @@ export const OFFER: Partial<Record<PayLang, [string, string][]>> = {
     ["8. Сотувчи реквизитлари", "{details}"],
   ],
   "ru": [
-    ["1. Общие положения", "Настоящая публичная оферта определяет условия продажи услуги UzDieta AI Premium продавцом {seller} (далее — Продавец). Оплата на сайте означает полное принятие условий оферты."],
-    ["2. Описание услуги", "UzDieta AI Premium — доступ на выбранный срок к дополнительным возможностям мобильного приложения UzDieta AI: безлимитный ИИ-анализ фото, личный план питания и тренировок, чат с ИИ-тренером и подробная статистика. Основные функции приложения работают бесплатно и без Премиума."],
+    ["1. Общие положения", "Настоящая публичная оферта определяет условия продажи услуги Kaloria.uz Premium продавцом {seller} (далее — Продавец). Оплата на сайте означает полное принятие условий оферты."],
+    ["2. Описание услуги", "Kaloria.uz Premium — доступ на выбранный срок к дополнительным возможностям мобильного приложения Kaloria.uz: безлимитный ИИ-анализ фото, личный план питания и тренировок, чат с ИИ-тренером и подробная статистика. Основные функции приложения работают бесплатно и без Премиума."],
     ["3. Цена и оплата", "Цены тарифов указаны на сайте в сумах. Оплата проходит через Click, Payme, Uzum Bank или банковскую карту на защищённой странице платёжной системы. Продавец не получает и не хранит данные карты."],
     ["4. Предоставление услуги", "После подтверждения оплаты на сайте отображаются логин и пароль для входа в приложение (при продлении существующего аккаунта срок добавляется к нему). Срок Премиума отсчитывается с момента получения оплаты."],
     ["5. Возврат средств", "Если выданный логин ещё не использовался в приложении, в течение 14 дней после оплаты можно обратиться и получить полный возврат. Если услугой невозможно воспользоваться по вине Продавца, возвращается сумма за оставшийся срок. Деньги возвращаются тем же способом, которым была произведена оплата."],
@@ -651,8 +651,8 @@ export const OFFER: Partial<Record<PayLang, [string, string][]>> = {
     ["8. Реквизиты продавца", "{details}"],
   ],
   "en": [
-    ["1. General", "This public offer sets out the terms on which {seller} (the Seller) sells the UzDieta AI Premium service. Paying on this site means you fully accept these terms."],
-    ["2. The service", "UzDieta AI Premium gives access, for the chosen period, to extra features of the UzDieta AI mobile app: unlimited AI photo analysis, a personal meal and workout plan, chat with the AI coach and detailed statistics. The app's core features stay free without Premium."],
+    ["1. General", "This public offer sets out the terms on which {seller} (the Seller) sells the Kaloria.uz Premium service. Paying on this site means you fully accept these terms."],
+    ["2. The service", "Kaloria.uz Premium gives access, for the chosen period, to extra features of the Kaloria.uz mobile app: unlimited AI photo analysis, a personal meal and workout plan, chat with the AI coach and detailed statistics. The app's core features stay free without Premium."],
     ["3. Price and payment", "Plan prices are shown on the site in Uzbek so'm. You pay through Click, Payme, Uzum Bank or a bank card on the payment system's secure page. The Seller never receives or stores card details."],
     ["4. Delivery", "Once payment is confirmed, the site shows a login and password for the app (when extending an existing account, the time is added to it). The Premium period starts when payment is received."],
     ["5. Refunds", "If the login you received hasn't been used in the app yet, you can ask for a full refund within 14 days of payment. If the service can't be used through the Seller's fault, the remaining period is refunded. Refunds go back to the original payment method."],

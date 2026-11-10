@@ -207,7 +207,9 @@ export function toCyrillic(text: string): string {
     // Keep things like "UZD-XXXX", "kkal"-free tech tokens and URLs as they are.
     const before = whole.slice(Math.max(0, offset - 8), offset);
     if (/https?:\/\/\S*$|@\S*$/.test(before)) return m;
-    if (/^(AI|BMI|UZD|OK|kkal|kcal|ml|kg|g|sm|km|L|UzDieta)$/.test(m)) return m === "kkal" ? "ккал" : m === "sm" ? "см" : m === "kg" ? "кг" : m === "km" ? "км" : m === "ml" ? "мл" : m === "g" ? "г" : m;
+    // The brand name "Kaloria.uz" stays in Latin ("uz" is matched separately after the dot).
+    if (m === "uz" && /Kaloria\.$/.test(before)) return m;
+    if (/^(AI|BMI|UZD|OK|kkal|kcal|ml|kg|g|sm|km|L|Kaloria|KALORIA)$/.test(m)) return m === "kkal" ? "ккал" : m === "sm" ? "см" : m === "kg" ? "кг" : m === "km" ? "км" : m === "ml" ? "мл" : m === "g" ? "г" : m;
     if (/^[A-Z0-9]{2,}$/.test(m) && m.length <= 4) return m;
     return translitWord(m);
   });

@@ -193,7 +193,7 @@ async function buildStatsText(): Promise<string> {
     : "";
 
   return (
-    `📊 <b>UZDIETA AI — STATISTIKA</b>\n\n` +
+    `📊 <b>KALORIA.UZ — STATISTIKA</b>\n\n` +
     `👥 Bot foydalanuvchilari: <b>${totalBotUsers}</b>\n\n` +
     `💳 <b>To'lovlar holati:</b>\n` +
     `  ⏳ Kutilmoqda: ${statusMap["pending"] ?? 0}\n` +
@@ -458,12 +458,12 @@ async function handleStartCommand(msg: any, payload: string) {
   logger.info({ chatId, username, payload: payload || "(none)" }, "bot /start received");
 
   if (chatId === adminChatId && !payload) {
-    await tg.sendMessage(chatId, `👋 <b>Salom, Admin!</b>\n\nUzDieta AI boshqaruv paneli:`, { replyMarkup: adminMenuKeyboard() });
+    await tg.sendMessage(chatId, `👋 <b>Salom, Admin!</b>\n\nKaloria.uz boshqaruv paneli:`, { replyMarkup: adminMenuKeyboard() });
     return;
   }
 
   if (!payload) {
-    await tg.sendMessage(chatId, `👋 <b>Salom, ${msg.from?.first_name || "do'st"}!</b>\n\nMen <b>UzDieta AI</b> botiman. Ilovadan faollashtirish uchun mening havolam orqali kiring.`);
+    await tg.sendMessage(chatId, `👋 <b>Salom, ${msg.from?.first_name || "do'st"}!</b>\n\nMen <b>Kaloria.uz</b> botiman. Ilovadan faollashtirish uchun mening havolam orqali kiring.`);
     return;
   }
 
@@ -501,7 +501,7 @@ async function handleStartCommand(msg: any, payload: string) {
   await tg.sendMessage(
     chatId,
     `✅ <b>Hisobingiz botga muvaffaqiyatli bog'landi!</b>\n\n` +
-    `Bu — <b>UzDieta AI</b> ilovasining to'lov boti. Premium versiyani faollashtirish uchun to'lovni shu yerda amalga oshirasiz.\n\n` +
+    `Bu — <b>Kaloria.uz</b> ilovasining to'lov boti. Premium versiyani faollashtirish uchun to'lovni shu yerda amalga oshirasiz.\n\n` +
     `📋 <b>To'lash tartibi:</b>\n` +
     `1️⃣ Karta raqamiga summani o'tkazing\n` +
     `2️⃣ To'lov chekini shu chatga yuboring\n` +
@@ -613,7 +613,7 @@ async function handleClientCallback(cb: any, data: string, chatId: string): Prom
     await tg.sendMessage(
       chatId,
       `❓ <b>Yordam</b>\n\n` +
-      `<b>UzDieta AI</b> premium versiyasini faollashtirish:\n\n` +
+      `<b>Kaloria.uz</b> premium versiyasini faollashtirish:\n\n` +
       `1️⃣ <b>Karta raqami</b> tugmasi orqali rekvizitlarni oling\n` +
       `2️⃣ Summani kartaga o'tkazing\n` +
       `3️⃣ <b>Chek yuborish</b> tugmasini bosib, chek yuboring\n` +

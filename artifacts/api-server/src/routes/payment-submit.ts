@@ -382,7 +382,7 @@ router.post("/payment/:id/redeem", async (req, res) => {
       if (target.telegramChatId) {
         await tg.sendMessage(
           target.telegramChatId,
-          `🎉 <b>Yillik Premium faollashtirildi!</b>\n\nUzDieta AI'dan toʻliq foydalaning. Sogʻlom hayotni boshlash vaqti keldi! 💪`,
+          `🎉 <b>Yillik Premium faollashtirildi!</b>\n\nKaloria.uz ilovasidan toʻliq foydalaning. Sogʻlom hayotni boshlash vaqti keldi! 💪`,
         );
       }
     }

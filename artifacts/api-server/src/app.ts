@@ -63,7 +63,7 @@ const allowedOrigins = new Set(
 app.use(
   cors({
     origin: (origin, cb) => cb(null, !origin || allowedOrigins.has(origin)),
-    methods: ["GET", "POST", "PUT", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     maxAge: 600,
   }),
 );

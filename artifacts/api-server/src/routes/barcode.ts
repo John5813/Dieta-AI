@@ -66,7 +66,7 @@ async function fetchOpenFoodFacts(code: string): Promise<Omit<BarcodeProduct, "s
       "?fields=product_name,product_name_uz,product_name_ru,product_name_en,generic_name,brands,nutriments,serving_quantity,quantity";
     const r = await fetch(url, {
       signal: ctrl.signal,
-      headers: { "User-Agent": "UzDietaAI/1.0 (calorie tracker)" },
+      headers: { "User-Agent": "KaloriaUz/1.0 (calorie tracker)" },
     });
     if (!r.ok) return null;
     const data = (await r.json()) as { status?: number; product?: Record<string, unknown> };

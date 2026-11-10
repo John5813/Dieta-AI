@@ -16,7 +16,7 @@ const TEXT_MODEL = CHAT_MODEL;
 // Rasm tahlili uchun Qwen VL — vision-language model, hajm va bo'laklarni aniq o'lchaydi
 const VISION_MODEL = "google/gemini-2.5-flash";
 
-const CHAT_SYSTEM = `Sen — "UzDieta AI" mobil ilovasining yordamchi sun'iy intellektisan. Foydalanuvchi bilan FAQAT o'zbek tilida (lotin yozuvida) muloqot qilasan.
+const CHAT_SYSTEM = `Sen — "Kaloria.uz" mobil ilovasining yordamchi sun'iy intellektisan. Foydalanuvchi bilan FAQAT o'zbek tilida (lotin yozuvida) muloqot qilasan.
 
 QAT'IY DOIRA — sen FAQAT quyidagi mavzularda yordam berasan:
 1. Sog'lom ovqatlanish (taomlar, kaloriya, makro, dietalar, retseptlar)
@@ -665,8 +665,8 @@ async function chatComplete(
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://dieta-ai.replit.app",
-        "X-Title": "UzDieta AI",
+        "HTTP-Referer": "https://dietaai-aj7r4.ondigitalocean.app",
+        "X-Title": "Kaloria.uz",
       },
       body: JSON.stringify(body),
       signal: ctrl.signal,
@@ -817,7 +817,7 @@ router.post("/ai/analyze-text", aiGuard("text"), async (req, res) => {
   }
 });
 
-const MEAL_PLAN_SYSTEM = `Sen — "UzDieta AI" ilovasining ovqatlanish ratsionini tuzuvchi mutaxassis nutrisiologisan. Foydalanuvchi profili asosida 1 KUNLIK ovqatlanish rejasini tuzasan.
+const MEAL_PLAN_SYSTEM = `Sen — "Kaloria.uz" ilovasining ovqatlanish ratsionini tuzuvchi mutaxassis nutrisiologisan. Foydalanuvchi profili asosida 1 KUNLIK ovqatlanish rejasini tuzasan.
 
 JAVOB FAQAT QAT'IY JSON formatda bo'lsin (markdown, izoh va boshqa matn YOQ):
 
@@ -1064,7 +1064,7 @@ router.post("/ai/meal-plan", aiGuard("plan"), async (req, res) => {
   }
 });
 
-const EXERCISE_SYSTEM = `Sen — "UzDieta AI" ilovasining sport va parhez bo'yicha mutaxassis trenerisan. Foydalanuvchi kunlik ovqat normasidan oshirib ovqatlangan — sen unga ortiqcha kaloriya va makronutrientlarni yo'qotish uchun aniq, shaxsiylashgan mashqlar dasturini tuzasan.
+const EXERCISE_SYSTEM = `Sen — "Kaloria.uz" ilovasining sport va parhez bo'yicha mutaxassis trenerisan. Foydalanuvchi kunlik ovqat normasidan oshirib ovqatlangan — sen unga ortiqcha kaloriya va makronutrientlarni yo'qotish uchun aniq, shaxsiylashgan mashqlar dasturini tuzasan.
 
 JAVOB FAQAT QAT'IY JSON formatda bo'lsin (markdown, izoh va boshqa matn YOQ):
 

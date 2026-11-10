@@ -103,4 +103,31 @@ router.get("/backup", async (req, res) => {
   }
 });
 
+/** DELETE /api/backup — permanently removes the backup for the code in X-Backup-Code. */
+router.delete("/backup", rateLimit("backup-del", 20, HOUR), async (req, res) => {
+  const failKey = `backup-miss:${clientIp(req)}`;
+  if (failures.blocked(failKey, LOOKUP_LIMIT)) {
+    res.status(429).json({ error: "Juda ko'p urinish. Bir soatdan keyin qayta urinib ko'ring." });
+    return;
+  }
+  const code = codeFrom(req);
+  if (!code) {
+    failures.fail(failKey, HOUR);
+    res.status(400).json({ error: "Zaxira kodi noto'g'ri yozilgan" });
+    return;
+  }
+  try {
+    const gone = await db.delete(backupsTable).where(eq(backupsTable.id, idFor(code))).returning({ id: backupsTable.id });
+    if (gone.length === 0) {
+      failures.fail(failKey, HOUR);
+      res.status(404).json({ error: "Bu kod bilan zaxira topilmadi" });
+      return;
+    }
+    res.json({ success: true });
+  } catch (err) {
+    logger.error({ err }, "backup delete failed");
+    res.status(500).json({ error: "Zaxirani o'chirib bo'lmadi" });
+  }
+});
+
 export default router;

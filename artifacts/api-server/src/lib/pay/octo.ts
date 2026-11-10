@@ -31,7 +31,7 @@ export async function octoCheckoutUrl(order: WebOrder, returnUrl: string, notify
     init_time: tashkentTime(),
     total_sum: order.amount,
     currency: "UZS",
-    description: `UzDieta AI Premium · ${order.months}`,
+    description: `Kaloria.uz Premium · ${order.months}`,
     return_url: returnUrl,
     notify_url: notifyUrl,
     language: lang === "ru" ? "ru" : lang === "uz" || lang === "uz-kril" ? "uz" : "en",

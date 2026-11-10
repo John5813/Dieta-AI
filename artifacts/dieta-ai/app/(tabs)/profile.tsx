@@ -1064,7 +1064,7 @@ function PrivacyModal({
   const sections: Array<{ title: string; body: string }> = [
     {
       title: "Ilova va dasturchi",
-      body: "Ilova nomi: UzDieta AI - Kaloriya Hisobi\nDasturchi: Muydinov Javlonbek",
+      body: "Ilova nomi: Kaloria.uz - Kaloriya Hisobi\nDasturchi: Muydinov Javlonbek",
     },
     {
       title: "Qurilmada saqlanadigan ma'lumotlar",

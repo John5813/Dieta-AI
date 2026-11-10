@@ -1,14 +1,14 @@
 /**
- * UzDieta AI — yagona bilim manbasi.
+ * Kaloria.uz — yagona bilim manbasi.
  * AI faqat shu fayldagi ma'lumotlarga tayanib javob beradi.
  * Boshqa joydan ma'lumot olmaydi.
  */
 
 export const APP_KNOWLEDGE = `
-UZDIETA AI — ILOVA BILIM BAZASI
+KALORIA.UZ — ILOVA BILIM BAZASI
 
 ==== ILOVA HAQIDA ====
-"UzDieta AI" — sun'iy intellekt yordamida kaloriya va makro nutrientlarni hisoblaydigan o'zbek tilidagi mobil ilova.
+"Kaloria.uz" — sun'iy intellekt yordamida kaloriya va makro nutrientlarni hisoblaydigan o'zbek tilidagi mobil ilova.
 Maqsad: foydalanuvchiga vazn yo'qotish, oshirish yoki saqlashda yordam berish.
 
 ==== BO'LIMLAR (4 ta tab) ====

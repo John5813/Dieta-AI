@@ -184,9 +184,9 @@ export default function PremiumScreen() {
           <Text style={[styles.brandSub, { color: colors.mutedForeground }]}>Cheksiz kirish</Text>
           <View style={styles.brandBadge}>
             <View style={[styles.brandLogo, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.brandLogoText, { color: colors.primaryForeground }]}>UD</Text>
+              <Text style={[styles.brandLogoText, { color: colors.primaryForeground }]}>K</Text>
             </View>
-            <Text style={[styles.brandName, { color: colors.text }]}>UZDIETA AI</Text>
+            <Text style={[styles.brandName, { color: colors.text }]}>KALORIA.UZ</Text>
           </View>
         </View>
 

@@ -48,9 +48,9 @@ export default function TransformationScreen() {
     : "Sizda maqsadingizga erishish uchun ajoyib salohiyat bor";
 
   const infoText = isMaintain
-    ? "Sizning vazningiz ideal! UzDieta AI sizga sog'lom ovqatlanish odatlarini saqlab qolish va energiyangizni yuqori darajada ushlab turishda yordam beradi."
+    ? "Sizning vazningiz ideal! Kaloria.uz sizga sog'lom ovqatlanish odatlarini saqlab qolish va energiyangizni yuqori darajada ushlab turishda yordam beradi."
     : tr(
-        "Sizning {0} kg/hafta sur'atingizda UzDieta AI tarixiy ma'lumotlariga ko'ra, dastlabki natijalar 7-10 kunda ko'rinadi va {1} ichida to'liq maqsadga erishasiz.",
+        "Sizning {0} kg/hafta sur'atingizda Kaloria.uz tarixiy ma'lumotlariga ko'ra, dastlabki natijalar 7-10 kunda ko'rinadi va {1} ichida to'liq maqsadga erishasiz.",
         speed.toFixed(1),
         totalLabel,
       );

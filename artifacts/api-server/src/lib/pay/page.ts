@@ -159,7 +159,7 @@ function shell(opts: {
 <body>
 <div class="wrap">
 <header>
-  <a class="brand" href="/pay?lang=${lang}"><span class="logo">UD</span><span>UzDieta AI</span></a>
+  <a class="brand" href="/pay?lang=${lang}"><span class="logo">K</span><span>Kaloria.uz</span></a>
   <form method="get" action="${esc(opts.langSwitchPath)}" id="langForm">
     <label class="hidden" for="langSel">${esc(t(lang, "language"))}</label>
     <select id="langSel" name="lang" aria-label="${esc(t(lang, "language"))}">${options}</select>
@@ -219,7 +219,7 @@ export function renderCheckout(opts: {
   const renewing = !!opts.renewLogin;
   const body = `
 <main>
-  <h1>UzDieta AI Premium</h1>
+  <h1>Kaloria.uz Premium</h1>
   <p class="lead">${esc(t(lang, "tagline"))}</p>
   <ul class="benefits">
     <li>${esc(t(lang, "b1"))}</li><li>${esc(t(lang, "b2"))}</li><li>${esc(t(lang, "b3"))}</li><li>${esc(t(lang, "b4"))}</li>
@@ -430,5 +430,5 @@ export function renderOffer(opts: { lang: PayLang; nonce: string }): string {
     .join("\n");
   const body = `<main class="panel offer"><h1>${esc(t(lang, "offer"))}</h1>${html}
   <a class="btn secondary" href="/pay?lang=${lang}">${esc(t(lang, "back"))}</a></main>`;
-  return shell({ lang, title: `${t(lang, "offer")} — UzDieta AI`, nonce: opts.nonce, body, langSwitchPath: "/pay/offer" });
+  return shell({ lang, title: `${t(lang, "offer")} — Kaloria.uz`, nonce: opts.nonce, body, langSwitchPath: "/pay/offer" });
 }

@@ -126,7 +126,7 @@ export async function requestPermissionWithRationale(): Promise<boolean> {
     return new Promise((resolve) => {
       Alert.alert(
         trText("Eslatmalarni yoqish"),
-        trText("UzDieta AI ovqatlanish va suv ichish eslatmalarini yuborishi uchun ruxsat bering. Bu sog'lom rejimni saqlashga yordam beradi."),
+        trText("Kaloria.uz ovqatlanish va suv ichish eslatmalarini yuborishi uchun ruxsat bering. Bu sog'lom rejimni saqlashga yordam beradi."),
         [
           {
             text: trText("Ruxsat berish"),
@@ -318,7 +318,7 @@ export async function sendTestNotification(): Promise<boolean> {
     await Notifications.scheduleNotificationAsync({
       content: {
         title: trText("✅ Eslatmalar faol!"),
-        body: trText("UzDieta AI eslatmalari muvaffaqiyatli sozlandi."),
+        body: trText("Kaloria.uz eslatmalari muvaffaqiyatli sozlandi."),
         sound: true,
       },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 1 },

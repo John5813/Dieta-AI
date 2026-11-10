@@ -1,6 +1,6 @@
 kind = "mobile"
 previewPath = "/"
-title = "Dieta AI"
+title = "Kaloria.uz"
 version = "1.0.0"
 id = "artifacts/dieta-ai"
 router = "expo-domain"

@@ -53,7 +53,7 @@ export default function SpeedScreen() {
           </View>
           <View style={[styles.infoCard, { backgroundColor: colors.secondary }]}>
             <Text style={[styles.infoText, { color: colors.text }]}>
-              UzDieta AI sizga ideal vazningizni oson va sog'lom tarzda saqlab qolishda yordam beradi.
+              Kaloria.uz sizga ideal vazningizni oson va sog'lom tarzda saqlab qolishda yordam beradi.
               Hech qanday qattiq cheklov yo'q — faqat to'g'ri ovqatlanish odatlari.
             </Text>
           </View>

@@ -116,7 +116,7 @@ export function BackupModal({
   const shareCode = () => {
     if (!code) return;
     Share.share({
-      message: tr("UzDieta AI zaxira kodim: {0}\nYangi telefonda Profil → Zaxira nusxa → Tiklash orqali kiriting.", code),
+      message: tr("Kaloria.uz zaxira kodim: {0}\nYangi telefonda Profil → Zaxira nusxa → Tiklash orqali kiriting.", code),
     }).catch(() => {});
   };
 
