@@ -8,6 +8,7 @@ import { useApp } from "@/context/AppContext";
 import { useColors, useThemeScheme } from "@/hooks/useColors";
 import { maybeAutoBackup } from "@/lib/backup";
 import { tr } from "@/lib/i18n";
+import * as Notifications from "expo-notifications";
 import { nextWeeklyReportTime, scheduleOneOff } from "@/lib/notifications";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -42,6 +43,8 @@ function CameraTabButton({ onPress, bottomPad }: { onPress: () => void; bottomPa
 }
 
 let paywallShownThisLaunch = false;
+/** The notification tap already acted on, so a remount doesn't navigate twice. */
+let handledNotificationKey = "";
 
 export default function TabLayout() {
   const colors = useColors();
@@ -66,6 +69,27 @@ export default function TabLayout() {
     }
   }, [loading, subscription.status, subscription.trialStartedAt, subscription.premiumUntil]);
 
+  // Tapping a reminder opens the screen it talks about (the daily and weekly
+  // reports go to statistics; everything else lands on the home tab anyway).
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const open = (response: Notifications.NotificationResponse | null | undefined) => {
+      if (!response) return;
+      const req = response.notification.request;
+      const key = `${req.identifier}:${response.notification.date}`;
+      if (key === handledNotificationKey) return;
+      handledNotificationKey = key;
+      if ((req.content.data as { screen?: string } | null)?.screen === "stats") {
+        router.push("/stats" as never);
+      }
+    };
+    // App was closed and got started by the tap.
+    Notifications.getLastNotificationResponseAsync().then(open).catch(() => {});
+    const sub = Notifications.addNotificationResponseReceivedListener(open);
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Cloud backup (when turned on) refreshes whenever the app goes to the background.
   useEffect(() => {
     if (loading) return;
@@ -77,7 +101,7 @@ export default function TabLayout() {
         nextWeeklyReportTime(),
         "📊 Haftalik hisobotingiz tayyor",
         "Bu hafta qanday o'tganini ko'ring: o'rtacha kaloriya, vazn o'zgarishi va maslahatlar.",
-        { askPermission: false },
+        { askPermission: false, screen: "stats" },
       ).catch(() => {});
     }
     const sub = AppState.addEventListener("change", (state) => {

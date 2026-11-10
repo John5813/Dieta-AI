@@ -149,6 +149,43 @@ export async function requestPermissionWithRationale(): Promise<boolean> {
   }
 }
 
+/**
+ * Android delivers every notification through a channel, and the channel (not
+ * the notification) decides sound and heads-up behaviour. Without our own
+ * channels everything lands in a generic one, so water reminders would ring as
+ * loudly as meal reminders. Safe to call repeatedly; also refreshes the names
+ * when the app language changes.
+ */
+export const CHANNEL_MEALS = "meals";
+export const CHANNEL_WATER = "water";
+export const CHANNEL_GENERAL = "general";
+
+export async function ensureChannels(): Promise<void> {
+  if (Platform.OS !== "android") return;
+  try {
+    await Notifications.setNotificationChannelAsync(CHANNEL_MEALS, {
+      name: trText("Ovqat eslatmalari"),
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 150, 250],
+      lightColor: "#2D7A2D",
+    });
+    await Notifications.setNotificationChannelAsync(CHANNEL_WATER, {
+      name: trText("Suv eslatmasi"),
+      // Visible but quiet: five of these arrive every day.
+      importance: Notifications.AndroidImportance.DEFAULT,
+      sound: null,
+      enableVibrate: false,
+    });
+    await Notifications.setNotificationChannelAsync(CHANNEL_GENERAL, {
+      name: trText("Eslatmalar"),
+      importance: Notifications.AndroidImportance.DEFAULT,
+    });
+  } catch {}
+}
+
+/** Which screen a tapped notification should open. */
+export type NotificationScreen = "home" | "stats";
+
 export async function cancelAllReminders(): Promise<void> {
   if (Platform.OS === "web") return;
   try {
@@ -176,7 +213,7 @@ export async function scheduleOneOff(
   date: Date,
   title: string,
   body: string,
-  opts: { askPermission?: boolean } = {},
+  opts: { askPermission?: boolean; screen?: NotificationScreen } = {},
 ): Promise<boolean> {
   if (Platform.OS === "web" || date.getTime() <= Date.now()) return false;
   try {
@@ -185,11 +222,12 @@ export async function scheduleOneOff(
         ? (await getPermissionStatus()) === "granted"
         : await ensureNotificationPermission();
     if (!granted) return false;
+    await ensureChannels();
     await Notifications.cancelScheduledNotificationAsync(ONE_OFF_PREFIX + id).catch(() => {});
     await Notifications.scheduleNotificationAsync({
       identifier: ONE_OFF_PREFIX + id,
-      content: { title: trText(title), body: trText(body), sound: true },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date },
+      content: { title: trText(title), body: trText(body), sound: true, data: { screen: opts.screen ?? "home" } },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: CHANNEL_GENERAL },
     });
     return true;
   } catch {
@@ -212,9 +250,13 @@ export async function scheduleAllReminders(
     return { scheduled: 0, permissionGranted: false };
   }
 
-  const granted = await ensureNotificationPermission();
+  // Never ask here: this runs in the background (app start, settings change).
+  // The permission dialog is shown only from an explicit user action, after
+  // the explanation in requestPermissionWithRationale().
+  const granted = (await getPermissionStatus()) === "granted";
   if (!granted) return { scheduled: 0, permissionGranted: false };
 
+  await ensureChannels();
   await cancelRoutineReminders();
 
   let scheduled = 0;
@@ -228,11 +270,13 @@ export async function scheduleAllReminders(
             title: tr("🍽️ {0} vaqti!", trText(m.label)),
             body: trText("Ovqatingizni yeb, kaloriyangizni kuzatishni unutmang."),
             sound: true,
+            data: { screen: "home" },
           },
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.DAILY,
             hour: m.hour,
             minute: m.minute,
+            channelId: CHANNEL_MEALS,
           },
         });
         scheduled++;
@@ -257,11 +301,13 @@ export async function scheduleAllReminders(
             title: trText("💧 Suv ichish vaqti"),
             body: trText(waterMessages[i % waterMessages.length]!),
             sound: false,
+            data: { screen: "home" },
           },
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.DAILY,
             hour: w.hour,
             minute: w.minute,
+            channelId: CHANNEL_WATER,
           },
         });
         scheduled++;
@@ -277,11 +323,13 @@ export async function scheduleAllReminders(
           title: trText("📊 Kunlik hisobot"),
           body: trText("Bugun necha kaloriya iste'mol qildingiz? Statistikangizni tekshiring."),
           sound: true,
+          data: { screen: "stats" },
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
           hour: s.hour,
           minute: s.minute,
+          channelId: CHANNEL_GENERAL,
         },
       });
       scheduled++;
@@ -296,11 +344,13 @@ export async function scheduleAllReminders(
           title: trText("🌅 Xayrli tong!"),
           body: trText("Bugungi ovqatlanish rejangizni boshlang. Birinchi ovqat eng muhimi!"),
           sound: true,
+          data: { screen: "home" },
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
           hour: m.hour,
           minute: m.minute,
+          channelId: CHANNEL_GENERAL,
         },
       });
       scheduled++;
@@ -315,13 +365,14 @@ export async function sendTestNotification(): Promise<boolean> {
   try {
     const granted = await ensureNotificationPermission();
     if (!granted) return false;
+    await ensureChannels();
     await Notifications.scheduleNotificationAsync({
       content: {
         title: trText("✅ Eslatmalar faol!"),
         body: trText("Kaloria.uz eslatmalari muvaffaqiyatli sozlandi."),
         sound: true,
       },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 1 },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 5, channelId: CHANNEL_MEALS },
     });
     return true;
   } catch {

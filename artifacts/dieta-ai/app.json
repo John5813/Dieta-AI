@@ -69,6 +69,13 @@
         {
           "motionPermission": "Kunlik qadamlaringizni hisoblash uchun harakat ma'lumotlari kerak."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#2D7A2D"
+        }
       ]
     ],
     "experiments": {

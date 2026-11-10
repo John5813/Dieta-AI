@@ -13,7 +13,7 @@ import { setLanguage, type AppLanguage } from "@/lib/i18n";
 import { askToRestartForDirection, syncLayoutDirection } from "@/lib/rtl";
 import { mealForTime, type MealType } from "@/lib/meals";
 import { ALL_DATA_KEYS, BACKUP_META_KEYS } from "@/lib/storageKeys";
-import { cancelAllReminders, scheduleAllReminders } from "@/lib/notifications";
+import { cancelAllReminders, getPermissionStatus, scheduleAllReminders } from "@/lib/notifications";
 import { setPremiumToken } from "@/lib/apiAuth";
 import { refreshPremiumToken } from "@/lib/premium";
 
@@ -498,9 +498,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const lastPermStatus = useRef<string>("");
+
   useEffect(() => {
     if (loading) return;
     if (!profile.mealsPerDay) return;
+    getPermissionStatus()
+      .then((status) => {
+        lastPermStatus.current = status;
+      })
+      .catch(() => {});
     reschedule(profile).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
@@ -513,7 +520,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (state !== "active") return;
       if (loading) return;
       if (!profile.mealsPerDay) return;
-      reschedule(profile, true).catch(() => {});
+      // Rebuilding all reminders on every return to the app is wasteful and can
+      // drop one that is about to fire; only do it when the permission changed.
+      getPermissionStatus()
+        .then((status) => {
+          if (status === lastPermStatus.current) return;
+          lastPermStatus.current = status;
+          return reschedule(profile, true);
+        })
+        .catch(() => {});
     });
     return () => sub.remove();
     // eslint-disable-next-line react-hooks/exhaustive-deps
