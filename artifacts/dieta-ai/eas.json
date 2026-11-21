@@ -26,6 +26,7 @@
     "production": {
       "autoIncrement": true,
       "pnpm": "10.26.1",
+      "node": "20.19.4",
       "android": {
         "buildType": "app-bundle"
       },
