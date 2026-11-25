@@ -10,15 +10,21 @@
     s0k: '1 / 5 savol', s0: 'Jinsingiz', s1k: '2 / 5 savol', s1: 'Maqsadingiz qanday?', s2k: '3 / 5 savol', s2: 'Yosh, bo‘y va vazn',
     s3k: '4 / 5 savol', s3: 'Kuningiz qanchalik faol?', s4k: '5 / 5 savol', s4: 'Sizda qandli diabet, buyrak kasalligi yoki og‘ir oziq-ovqat allergiyasi bormi?',
     s4p: 'Taomlarimiz sog‘lom insonlar uchun. Javobingizga qarab sizga eng xavfsiz yo‘lni taklif qilamiz.',
+    near: 'Sizning me’yoringiz {k} kkal — eng yaqin tayyor rasion {sku} kkal (farqi {d} kkal). Menejer kerak bo‘lsa porsiyani moslab beradi.',
+    exact: 'Me’yoringiz rasionga to‘liq mos keladi.', result: 'Natija', q: 'Savol',
     s5k: 'Natija tayyor', s5: 'Kunlik me’yoringiz hisoblandi', gateHint: 'Oqsil, yog‘, uglevod, sizga mos menyu va narxni ko‘rish uchun ma’lumot qoldiring.', gateBtn: 'Menyu va narxni ko‘rish',
     name: 'Ismingiz', phone: 'Telefon raqamingiz', consent: 'Tugmani bosib, ma’lumotlarim qayta ishlanishiga rozilik beraman.', privacy: 'Maxfiylik siyosati',
     s6: 'Sizga mos rasion tayyor', match: 'Sizga mos rasion', from: 'Narx', payTest: '3 kunlik sinov — buyurtma', subs: '1 hafta – 1 oy obuna', mgr: 'Menejer bog‘lansin',
     riskNote: 'Siz sog‘lig‘ingiz bo‘yicha cheklov borligini belgiladingiz. Onlayn buyurtma o‘rniga menejer siz bilan bog‘lanadi va shifokoringiz tavsiyasini inobatga olgan holda maslahat beradi.',
     disc: 'Taomlar sog‘lom insonlar uchun mo‘ljallangan va tibbiy davo (qandli diabet, buyrak kasalliklari, og‘ir allergiya) o‘rnini bosmaydi.',
-    kcalDay: 'kkal / kun', empty: 'Javoblaringiz shu yerda yig‘iladi', okH: 'So‘rovingiz qabul qilindi!', okP: 'Menejer tez orada siz bilan bog‘lanadi va to‘lov havolasini yuboradi.', home: 'Bosh sahifaga'
+    kcalDay: 'kkal / kun', empty: 'Javoblaringiz shu yerda yig‘iladi', okH: 'So‘rovingiz qabul qilindi!', okQ: 'Menejer tez orada qo‘ng‘iroq qilib buyurtmani tasdiqlaydi va Payme, Click yoki Uzum orqali to‘lov havolasini yuboradi.', home: 'Bosh sahifaga'
   };
   var NAME_PH = { uz: 'Masalan, Dilnoza', ru: 'Например, Анна' };
-  function tr(k) { return K.lang === 'ru' && K.RU[k] != null ? K.RU[k] : UZ[k]; }
+  var RUX = {
+    near: 'Ваша норма {k} ккал — ближайший готовый рацион {sku} ккал (разница {d} ккал). При необходимости менеджер подберёт порции.',
+    exact: 'Ваша норма полностью совпадает с рационом.', okQ: 'Менеджер скоро позвонит, подтвердит заказ и пришлёт ссылку на оплату через Payme, Click или Uzum.', result: 'Результат', q: 'Вопрос'
+  };
+  function tr(k) { return K.lang === 'ru' ? (RUX[k] != null ? RUX[k] : K.RU[k] != null ? K.RU[k] : UZ[k]) : UZ[k]; }
 
   var ACT = [1.2, 1.375, 1.55, 1.725];
   var GOALS = ['ozish', 'saqlash', 'oshirish'];
@@ -108,9 +114,11 @@
           '<div class="big-k" style="border-bottom:0;padding-bottom:0"><b>' + K.fmt(r.calories) + '</b><span class="m" style="font-size:14px">' + tr('kcalDay') + '</span></div>' +
           '<div class="bars" style="gap:12px">' + bars + '</div>' + risk + '</div>' +
           '<div class="rec"><span class="mt">' + tr('match') + '</span><div class="row"><span class="nm">' + rn + '</span><span class="m" style="font-weight:600">' + m.sku + ' ' + D.kcal + '</span></div>' +
-          '<div style="height:7px;background:var(--ink)"></div><div class="thumbs">' + thumbs + '</div>' +
+          '<div style="height:7px;background:var(--ink)"></div>' +
+          '<span class="near">' + (Math.abs(r.calories - m.sku) <= 20 ? tr('exact') : tr('near').replace('{k}', K.fmt(r.calories)).replace('{sku}', m.sku).replace('{d}', Math.abs(r.calories - m.sku))) + '</span>' +
+          '<div class="thumbs">' + thumbs + '</div>' +
           '<div class="row" style="border-top:1px solid var(--ink);padding-top:10px"><span style="font-size:14px">' + tr('from') + '</span><span><span class="d" style="font-size:24px;font-weight:800">' + K.fmt(price) + '</span><span class="m" style="font-size:12px"> ' + D.sumDay + '</span></span></div>' +
-          (S.done ? '<div class="ok-box" style="padding-top:4px"><span class="ok-ic"><svg width="24" height="24"><use href="#i-check"/></svg></span><b class="d" style="font-size:20px">' + tr('okH') + '</b><span style="font-size:14px;line-height:1.5;color:var(--muted)">' + tr('okP') + '</span><a class="btn btn-line btn-block" href="/">' + tr('home') + '</a></div>' : '') +
+          (S.done ? '<div class="ok-box" style="padding-top:4px"><span class="ok-ic"><svg width="24" height="24"><use href="#i-check"/></svg></span><b class="d" style="font-size:20px">' + tr('okH') + '</b><span style="font-size:14px;line-height:1.5;color:var(--muted)">' + tr('okQ') + '</span><a class="btn btn-line btn-block" href="/">' + tr('home') + '</a></div>' : '') +
           '</div></div>';
     }
     return '';
@@ -160,8 +168,8 @@
   function render(focus) {
     $('.js-step').innerHTML = '<div class="qstep">' + stepHtml() + '</div>';
     $('.js-actions').innerHTML = actionsHtml();
-    document.querySelectorAll('.js-prog i').forEach(function (el, i) { el.classList.toggle('on', i <= S.step); });
-    $('.js-steplbl').textContent = (S.step + 1) + ' / 7';
+    document.querySelectorAll('.js-prog i').forEach(function (el, i) { el.classList.toggle('on', i <= Math.min(S.step, 5)); });
+    $('.js-steplbl').textContent = S.step < 5 ? tr('q') + ' ' + (S.step + 1) + ' / 5' : tr('result');
     var canBack = S.step > 0 && S.step < 6;
     $('.js-back').style.display = canBack ? '' : 'none';
     $('.js-home').style.display = canBack ? 'none' : '';
@@ -170,7 +178,12 @@
     if (focus) { var h = $('.qh'); if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); } window.scrollTo(0, 0); }
   }
 
-  function go(step) { S.step = step; S.err = ''; render(true); }
+  var seen = {};
+  function go(step) {
+    S.step = step; S.err = ''; render(true);
+    if (!seen[step]) { seen[step] = 1; K.goal('quiz_step_' + (step + 1)); if (step === 5) K.track('ViewContent', { content_name: 'quiz_result_teaser' }); }
+  }
+  K.goal('quiz_step_1');
 
   function submitGate() {
     var D = K.d(), nameEl = $('#gName'), phoneEl = $('#gPhone');
@@ -202,7 +215,7 @@
     K.post('/api/v1/leads/' + S.lead.id + '/intent', { key: S.lead.key, intent: intent, plan: intent === 'test_drive' ? 'd3' : undefined, planRation: m })
       .then(function (r) {
         if (!r.ok) { btn.disabled = false; alert((r.data && r.data.error) || K.d().errNet); return; }
-        S.done = intent; K.track(intent === 'test_drive' ? 'InitiateCheckout' : 'Contact', { content_name: intent }); render(false);
+        S.done = intent; K.track(intent === 'test_drive' ? 'InitiateCheckout' : 'Contact', { content_name: intent }); K.goal('quiz_intent_' + intent); render(false);
       }).catch(function () { btn.disabled = false; alert(K.d().errNet); });
   }
 

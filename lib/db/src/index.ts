@@ -212,6 +212,8 @@ export async function ensureSchema(): Promise<void> {
       updated_at timestamp NOT NULL DEFAULT now()
     );
   `);
+  await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS district text;`);
+  await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS address text;`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS leads_phone ON leads (phone);`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS leads_created ON leads (created_at);`);
 }

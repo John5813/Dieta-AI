@@ -38,6 +38,9 @@ export const leadsTable = pgTable(
     /** Plan id the customer picked (d3, w1, w2, w3, w4, m1). */
     plan: text("plan"),
     planRation: text("plan_ration"),
+    /** Tashkent district and free-text address from the order form. */
+    district: text("district"),
+    address: text("address"),
 
     utmSource: text("utm_source"),
     utmMedium: text("utm_medium"),

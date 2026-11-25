@@ -174,29 +174,33 @@
     if (last && !$('#ofName').value) { $('#ofName').value = last.name || ''; $('#ofPhone').value = K.phoneFmt(K.phoneDigits(last.phone)); }
     openModal(m);
     K.track('InitiateCheckout', { content_name: orderCtx.planRation + '_' + orderCtx.plan });
+    K.goal('order_open_' + intent);
   }
   $('#ofPhone').addEventListener('input', function (e) { var d = K.phoneDigits(e.target.value); e.target.value = K.phoneFmt(d); });
   $('.js-order-form').addEventListener('submit', function (e) {
     e.preventDefault();
     var D = K.d(), f = e.target, name = f.name.value.trim(), digits = K.phoneDigits(f.phone.value), btn = $('.js-of-submit');
+    var district = f.district.value, address = f.address.value.trim().slice(0, 200);
     if (name.length < 2 || digits.length !== 9) { $('.js-of-err').textContent = D.errContact; return; }
     btn.disabled = true; $('.js-of-err').textContent = '';
     var a = K.attribution(), last = K.lastLead();
     var req = last && last.phone === '+998' + digits
-      ? K.post('/api/v1/leads/' + last.id + '/intent', { key: last.key, intent: orderCtx.intent, plan: orderCtx.plan, planRation: orderCtx.planRation })
-      : K.post('/api/v1/leads', { name: name, phone: digits, lang: K.lang, intent: orderCtx.intent, plan: orderCtx.plan, planRation: orderCtx.planRation, website: f.website.value, utm: a.utm, referrer: a.referrer, landingPath: a.landingPath });
+      ? K.post('/api/v1/leads/' + last.id + '/intent', { key: last.key, intent: orderCtx.intent, plan: orderCtx.plan, planRation: orderCtx.planRation, district: district, address: address })
+      : K.post('/api/v1/leads', { name: name, phone: digits, lang: K.lang, intent: orderCtx.intent, plan: orderCtx.plan, planRation: orderCtx.planRation, district: district, address: address, website: f.website.value, utm: a.utm, referrer: a.referrer, landingPath: a.landingPath });
     req.then(function (r) {
       btn.disabled = false;
       if (!r.ok) { $('.js-of-err').textContent = (r.data && r.data.error) || D.errNet; return; }
       if (r.data && r.data.key) K.saveLead({ id: r.data.id, key: r.data.key, name: name, phone: '+998' + digits });
       $('.js-of-fields').style.display = 'none'; $('.js-of-ok').style.display = '';
-      K.track('Lead', { content_name: orderCtx.intent });
+      K.track('Lead', { content_name: orderCtx.intent, content_category: orderCtx.planRation + '_' + orderCtx.plan });
+      K.goal('order_submit_' + orderCtx.intent);
     }).catch(function () { btn.disabled = false; $('.js-of-err').textContent = D.errNet; });
   });
 
   // ── events ──
   document.addEventListener('click', function (e) {
     var t = e.target.closest('button,a'); if (!t) return;
+    if (t.classList.contains('js-quiz')) K.goal('quiz_cta');
     if (t.dataset.tier != null) { S.tier = +t.dataset.tier; renderTiers(); renderHero(true); renderMenu(); renderTicker(); return; }
     if (t.dataset.meal != null) { S.meal = +t.dataset.meal; renderHero(true); return; }
     if (t.dataset.day != null) { S.day = +t.dataset.day; renderMenu(); return; }
