@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>kaloria.uz — kaloriyasi sanalgan tayyor parhez taomlar, Toshkent</title>
+<meta name="description" content="Toshkent bo‘ylab har tong kaloriya va BJU aniq hisoblangan 5 mahal parhez taom yetkazib beramiz. 30 soniyada kaloriyangizni bepul hisoblang.">
+<meta name="theme-color" content="#121512">
+<link rel="icon" type="image/png" href="/assets/favicon.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="kaloria.uz — Ovqat tayyor. Kaloriyasi sanalgan.">
+<meta property="og:description" content="Kaloriya va BJU aniq hisoblangan parhez taomlar Toshkent bo‘ylab har tong. Kaloriyangizni 30 soniyada bepul hisoblang.">
+<meta property="og:image" content="/assets/img/og.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Onest:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v=1">
+<link rel="preload" as="image" href="/assets/img/m3-chicken.webp">
+<!--KALORIA:HEAD-->
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-tg" viewBox="0 0 24 24"><path d="M21.5 3.5 2.8 10.6c-.9.4-.9 1.6.1 1.9l4.6 1.5 1.8 5.6c.3.8 1.3 1 1.9.4l2.6-2.5 4.8 3.5c.7.5 1.7.1 1.9-.7l3-15.3c.2-1-.8-1.8-1.9-1.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m7.5 14 10-7.5-7.6 9.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-snow" viewBox="0 0 24 24"><path d="M12 2v20M4.5 6.5l15 11M19.5 6.5l-15 11M9 4l3 2 3-2M9 20l3-2 3 2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3Z" fill="none" stroke="#FF5B2E" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4M12 17.5v.01" fill="none" stroke="#FF5B2E" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-logo" viewBox="0 0 34 34"><circle cx="17" cy="17" r="13" fill="none" stroke="#E2E6DE" stroke-width="6"/><path d="M17 4 A13 13 0 1 1 5.2 22.5" fill="none" stroke="#FF5B2E" stroke-width="6" stroke-linecap="round"/><circle cx="17" cy="17" r="4" fill="#121512"/></symbol>
+</svg>
+
+<header class="hdr">
+  <div class="wrap hdr-in">
+    <a class="logo" href="/" aria-label="kaloria.uz"><svg width="30" height="30"><use href="#i-logo"/></svg><b>kaloria<span>.uz</span></b></a>
+    <nav class="nav hide-m" aria-label="Menu">
+      <a href="#rations" data-i18n="nav0">Rasionlar</a>
+      <a href="#menu" data-i18n="nav1">Menyu</a>
+      <a href="#price" data-i18n="nav2">Narxlar</a>
+      <a href="#freeze" data-i18n="nav3">Muzlatish</a>
+      <a href="#faq" data-i18n="nav4">Savollar</a>
+    </nav>
+    <div class="hdr-r">
+      <div class="seg" role="group" aria-label="Til / Язык">
+        <button type="button" data-lang="uz" aria-pressed="true">UZ</button>
+        <button type="button" data-lang="ru" aria-pressed="false">RU</button>
+      </div>
+      <a class="icon-btn icon-line hide-d js-tg" href="https://t.me/" target="_blank" rel="noopener" aria-label="Telegram"><svg width="18" height="18"><use href="#i-tg"/></svg></a>
+      <a class="btn btn-line btn-sm hide-m js-tg" href="https://t.me/" target="_blank" rel="noopener"><svg width="18" height="18"><use href="#i-tg"/></svg>Telegram</a>
+      <a class="btn btn-hot btn-sm hide-m js-quiz" href="/hisoblash" data-i18n="ctaShort">Hisoblash</a>
+    </div>
+  </div>
+</header>
+
+<main>
+<section id="top" class="wrap hero">
+  <div class="hero-l">
+    <span class="chip"><i class="dot"></i><span data-i18n="eyebrow">Toshkent bo‘ylab · Dushanba–Shanba, har tong</span></span>
+    <h1 class="h1"><span style="color:inherit" data-i18n="h1a">Ovqat tayyor.</span><br><span data-i18n="h1b">Kaloriyasi</span><br><span style="color:inherit" data-i18n="h1c">sanalgan.</span></h1>
+    <p class="lead-p lead-hero" data-i18n="sub">Grammigacha tortilgan 5 mahal parhez taom — har bir idishda kkal va BJU yorlig‘i bilan. Siz faqat yeysiz, hisob-kitob bizda.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-hot js-quiz" href="/hisoblash" style="min-height:58px;justify-content:space-between;padding-right:10px"><span data-i18n="ctaCalc">Kaloriyamni hisoblash</span><span class="badge30" data-i18n="sec30">30 soniya</span></a>
+      <a class="btn btn-line" href="#price" style="min-height:58px" data-i18n="ctaTest">3 kunlik sinov</a>
+    </div>
+    <div class="facts">
+      <div><b>5</b><span data-i18n="f1">mahal taom har kuni</span></div>
+      <div><b>18:00</b><span data-i18n="f2">gacha bepul muzlatish</span></div>
+      <div><b data-i18n="f3b">Ya</b><span data-i18n="f3">yakshanba — dam olish kuni</span></div>
+    </div>
+  </div>
+
+  <div class="lbl box" aria-label="Bugungi quti">
+    <div class="box-top">
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <span class="d" style="font-size:20px;font-weight:700" data-i18n="boxTitle">Bugungi quti</span>
+        <span class="mt" data-i18n="boxSub">Kaloriyani tanlang</span>
+      </div>
+      <div class="seg js-tiers" role="group" aria-label="kkal"></div>
+    </div>
+    <div class="box-mid">
+      <div class="plate">
+        <svg class="spin" viewBox="0 0 236 236" aria-hidden="true"><defs><path id="ring" d="M118,118 m-104,0 a104,104 0 1,1 208,0 a104,104 0 1,1 -208,0"/></defs><text style="font:600 11.5px 'IBM Plex Mono',monospace;letter-spacing:3.2px" fill="#121512"><textPath href="#ring" class="js-ring">KALORIA.UZ</textPath></text></svg>
+        <img class="js-hero-img" src="/assets/img/m3-chicken.webp" alt="" width="176" height="176">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+        <span class="mt js-hero-type"></span>
+        <span class="js-hero-name" style="font-size:17px;font-weight:600;line-height:1.25"></span>
+        <span><span class="hero-kcal js-hero-kcal"></span> <span class="m js-kcal" style="font-size:13px">kkal</span></span>
+        <span class="m js-hero-bju" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+    </div>
+    <div class="rx"></div>
+    <div class="js-meals" style="display:flex;flex-direction:column"></div>
+    <div class="rm"></div>
+    <div class="tot"><span class="mt" data-i18n="total">Jami bir kunda</span><span class="d" style="font-size:30px;font-weight:800"><span class="js-tot"></span><span class="m js-kcal" style="font-size:13px;font-weight:500"> kkal</span></span></div>
+    <div class="bars js-bars"></div>
+  </div>
+</section>
+
+<div class="ticker" aria-hidden="true"><div class="track js-ticker"></div></div>
+
+<section id="rations" class="wrap sec">
+  <div class="sec-head row">
+    <div style="display:flex;flex-direction:column;gap:12px;max-width:760px">
+      <span class="kick" data-i18n="k1">01 — Rasionlar</span>
+      <h2 class="h2" data-i18n="rationsH">Maqsadingizga qarab uchta rasion</h2>
+    </div>
+    <p class="lead-p" data-i18n="rationsSub">Kalkulyator sizga mos kaloriyani o‘zi tanlab beradi — bosh qotirish shart emas.</p>
+  </div>
+  <div class="hs r3 js-rations"></div>
+</section>
+
+<section id="menu" class="band">
+  <div class="wrap">
+    <div class="sec-head row">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="kick" data-i18n="k2">02 — Menyu</span>
+        <h2 class="h2" data-i18n="menuH">Bir kunlik menyu</h2>
+        <p class="lead-p" data-i18n="menuSub">Har kuni boshqa taomlar. Yakshanba — dam olamiz.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-start">
+        <div class="days js-days" role="group" aria-label="Kun"></div>
+        <div class="seg js-tiers" role="group" aria-label="kkal" style="background:#fff"></div>
+      </div>
+    </div>
+    <div class="hs r5 js-dishes"></div>
+  </div>
+</section>
+
+<section class="wrap sec">
+  <div class="sec-head" style="max-width:820px">
+    <span class="kick" data-i18n="k3">03 — Kun tartibi</span>
+    <h2 class="h2" data-i18n="dayH">Kechqurun buyurtma qulflanadi — ertalab eshigingizda</h2>
+  </div>
+  <div class="dayline" aria-hidden="true">
+    <div class="night"></div><div class="cook"></div><div class="deliv"></div><div class="cut"></div>
+    <div class="hrs"><span>00</span><span>03</span><span>06</span><span>09</span><span>12</span><span>15</span><span class="w">18</span><span class="w">21</span></div>
+  </div>
+  <div class="steps">
+    <div class="step"><span class="t" style="color:var(--hot)">18:00</span><b data-i18n="st1h">Buyurtma qulflanadi</b><span data-i18n="st1p">Ertangi kunni shu vaqtgacha muzlatish yoki manzilni o‘zgartirish mumkin.</span></div>
+    <div class="step"><span class="t">04:00</span><b data-i18n="st2h">Oshxona pishiradi</b><span data-i18n="st2p">Hamkor oshxona har bir porsiyani tarozida tortib, yorliq yopishtiradi.</span></div>
+    <div class="step"><span class="t" style="color:var(--green)">06:00–09:00</span><b data-i18n="st3h">Eshigingizgacha</b><span data-i18n="st3p">Kuryer butun kunlik qutini termosumkada olib keladi.</span></div>
+    <div class="stamp hide-m"><span data-i18n="sun1">Yakshanba</span><b>✕</b><span data-i18n="sun2">dam olamiz</span></div>
+  </div>
+</section>
+
+<section id="price" class="wrap sec">
+  <div class="price-box">
+    <div class="price-ctrl">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="kick" data-i18n="k4">04 — Narxlar</span>
+        <h2 class="h2" data-i18n="priceH">Muddatni tanlang — chek darhol hisoblanadi</h2>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <span class="ctrl-l" data-i18n="rLabel">Rasion</span>
+        <div class="seg rseg js-rseg" role="group" aria-label="Rasion"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <span class="ctrl-l" data-i18n="dLabel">Muddat</span>
+        <div class="tiles js-tiles" role="group" aria-label="Muddat"></div>
+      </div>
+      <p class="note"><svg width="18" height="18"><use href="#i-clock"/></svg><span data-i18n="sundayNote">Yakshanba yetkazilmaydi, shuning uchun 1 hafta = 6 ta yetkazish kuni. Muzlatilgan kunlar obunangiz oxiriga qo‘shiladi.</span></p>
+    </div>
+    <div class="receipt">
+      <div class="perf"></div>
+      <div class="rc">
+        <div class="rc-h"><b data-i18n="rcTitle">KALORIA.UZ · CHEK</b><span class="m js-rc-date" style="font-size:12px;color:var(--muted2)"></span></div>
+        <div class="dash"></div>
+        <div class="ld"><span data-i18n="rcRation">Rasion</span><i></i><b class="js-rc-ration"></b></div>
+        <div class="ld"><span data-i18n="rcTerm">Muddat</span><i></i><b class="js-rc-term"></b></div>
+        <div class="ld"><span data-i18n="rcDays">Yetkazish kunlari</span><i></i><b class="js-rc-days"></b></div>
+        <div class="ld"><span data-i18n="rcPrice">Kunlik narx</span><i></i><b class="js-rc-price"></b></div>
+        <div class="ld"><span data-i18n="rcDisc">Chegirma</span><i></i><b class="js-rc-disc" style="color:var(--green)"></b></div>
+        <div class="dash"></div>
+        <div class="rc-tot"><span class="m" data-i18n="rcTotal">JAMI</span><span class="d"><span class="js-rc-total"></span><span class="m js-sum" style="font-size:12px;font-weight:500;letter-spacing:0"> so‘m</span></span></div>
+        <span class="m js-rc-perday" style="font-size:12px;color:var(--muted2);text-align:right;margin-top:-6px"></span>
+        <button type="button" class="btn btn-hot btn-block js-order" style="justify-content:space-between;margin-top:4px"><span data-i18n="order">Buyurtma berish</span><span class="m" style="font-size:10px">PAYME · CLICK · UZUM</span></button>
+        <button type="button" class="btn btn-line btn-block js-mgr" data-i18n="mgr">Menejer bog‘lansin</button>
+        <span class="js-test-note" style="font-size:12px;color:var(--muted2);text-align:center;display:none" data-i18n="testNote">Sinov boksi faqat onlayn to‘lov bilan</span>
+        <span class="sample js-sample" style="display:none" data-i18n="sample">* Namuna narxlar</span>
+        <span class="m" style="font-size:11px;color:var(--muted2);text-align:center;padding-top:4px" data-i18n="rcThanks">*** Rahmat! Osh bo‘lsin ***</span>
+      </div>
+      <div class="perf b"></div>
+    </div>
+  </div>
+</section>
+
+<section id="freeze" class="wrap sec">
+  <div class="two">
+    <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+      <span class="kick" data-i18n="k5">05 — Muzlatish</span>
+      <h2 class="h2" data-i18n="freezeH">Rejalar o‘zgardimi? Kunni muzlating.</h2>
+      <div class="rules js-rules" style="margin-top:8px">
+        <div class="rule"><span class="n">1</span><span data-i18n="r1">Muzlatish bepul va hech qanday shartsiz — xohlagancha kun.</span></div>
+        <div class="rule"><span class="n">2</span><span data-i18n="r2">Ertangi kunni soat 18:00 gacha muzlatish mumkin. 18:00 dan keyin ertangi buyurtma qulflanadi.</span></div>
+        <div class="rule"><span class="n">3</span><span data-i18n="r3">Muzlatilgan kun yo‘qolmaydi — u obunangiz oxiriga qo‘shiladi.</span></div>
+        <div class="rule"><span class="n">4</span><span data-i18n="r4">Muzlatilgan kunni 1 oy ichida ishlatish kerak. 1 oydan keyin u kuyadi.</span></div>
+      </div>
+    </div>
+    <div class="calc-card" style="margin-top:20px">
+      <div class="cal-top">
+        <div style="display:flex;flex-direction:column;gap:2px"><span class="d js-month" style="font-size:18px;font-weight:700"></span><span class="mt" data-i18n="calHint">Muzlatish uchun kunni bosing</span></div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;color:var(--muted)" data-i18n="tryTime">Hozir soat:</span>
+          <div class="seg" role="group" aria-label="time"><button type="button" class="js-early" aria-pressed="true">17:40</button><button type="button" class="js-late" aria-pressed="false">18:20</button></div>
+        </div>
+      </div>
+      <div class="cal h js-dows"></div>
+      <div class="cal js-cal"></div>
+      <div class="legend">
+        <span><i style="background:var(--ice);border:2px solid var(--ice-line)"></i><span data-i18n="lgFrz">Muzlatilgan</span></span>
+        <span><i style="background:var(--ink)"></i><span data-i18n="lgLock">Qulflangan</span></span>
+        <span><i style="background:repeating-linear-gradient(135deg,#F1F3EE 0 3px,#D6DCD1 3px 6px)"></i><span data-i18n="lgSun">Dam olish</span></span>
+        <span><i style="border:2px solid var(--hot)"></i><span data-i18n="lgToday">Bugun</span></span>
+      </div>
+      <div class="cal-sum">
+        <div><span class="mt" data-i18n="frozenN">Muzlatilgan kunlar</span><b class="js-fz-n">0</b></div>
+        <div><span class="mt" data-i18n="burnFirst">Ishlatish muddati</span><b class="js-fz-burn" style="color:var(--burn)">—</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap sec">
+  <div class="two c">
+    <div class="trust-img"><img src="/assets/img/kitchen.webp" alt="" loading="lazy" width="1200" height="800"><span data-i18n="kitchenTag">Vaqtinchalik surat</span></div>
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <span class="kick" data-i18n="k6">06 — Ishonch</span>
+      <h2 class="h2" data-i18n="trustH">Taomni kim tayyorlaydi va kim tekshiradi?</h2>
+      <div>
+        <div class="tr"><span class="n">01</span><div><b data-i18n="tr1h">Hamkor oshxona</b><p><span data-i18n="tr1p">Sanitariya talablariga javob beradigan professional oshxona.</span> <span class="ph" data-i18n="tr1x">[oshxona nomi, hujjatlari]</span></p></div></div>
+        <div class="tr"><span class="n">02</span><div><b data-i18n="tr2h">Menyuni dietolog tuzadi</b><p><span data-i18n="tr2p">Har bir rasion kaloriya va BJU bo‘yicha muvozanatlangan.</span> <span class="ph" data-i18n="tr2x">[dietolog ismi, surati]</span></p></div></div>
+        <div class="tr"><span class="n">03</span><div><b data-i18n="tr3h">Har bir idishda yorliq</b><p><span data-i18n="tr3p">Tayyorlangan sana, saqlash muddati, kkal va BJU.</span></p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap sec">
+  <div class="warn" role="note">
+    <div class="warn-h"><svg width="22" height="22"><use href="#i-warn"/></svg><span data-i18n="warnT">DIQQAT</span></div>
+    <p data-i18n="warn">Taomlar sog‘lom insonlar uchun mo‘ljallangan va tibbiy davo (qandli diabet, buyrak kasalliklari, og‘ir allergiya) o‘rnini bosmaydi. Bunday holatlarda avval shifokoringiz bilan maslahatlashing.</p>
+  </div>
+</section>
+
+<section id="faq" class="wrap sec">
+  <div class="faq-g">
+    <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:18px">
+      <span class="kick" data-i18n="k7">07 — Savollar</span>
+      <h2 class="h2" data-i18n="faqH">Ko‘p beriladigan savollar</h2>
+      <a class="btn btn-line btn-sm js-tg hide-m" href="https://t.me/" target="_blank" rel="noopener" style="align-self:flex-start;margin-top:8px" data-i18n="faqAsk">Telegram’da so‘rash</a>
+    </div>
+    <div class="faq">
+      <details open><summary><span data-i18n="q1">Ovqat qachon va qanday yetkaziladi?</span><svg width="20" height="20"><use href="#i-plus"/></svg></summary><p data-i18n="a1">Dushanbadan shanbagacha har tong 06:00–09:00 oralig‘ida butun kunlik quti termosumkada keladi. Yakshanba — dam olish kuni.</p></details>
+      <details><summary><span data-i18n="q2">Kunni qanday muzlataman?</span><svg width="20" height="20"><use href="#i-plus"/></svg></summary><p data-i18n="a2">Menejer yoki Telegram bot orqali, ertangi kun uchun soat 18:00 gacha. Muzlatish bepul, kun obunangiz oxiriga qo‘shiladi va 1 oy ichida ishlatilishi kerak — keyin kuyadi.</p></details>
+      <details><summary><span data-i18n="q3">Manzilni o‘zgartirsam bo‘ladimi?</span><svg width="20" height="20"><use href="#i-plus"/></svg></summary><p data-i18n="a3">Ha. Ertangi yetkazish manzilini soat 18:00 gacha o‘zgartirish mumkin.</p></details>
+      <details><summary><span data-i18n="q4">Qaysi rasion menga mos?</span><svg width="20" height="20"><use href="#i-plus"/></svg></summary><p data-i18n="a4">Kalkulyatordan o‘ting: jins, yosh, bo‘y, vazn va faollikka qarab kunlik kaloriyangizni hisoblaymiz va mos rasionni ko‘rsatamiz.</p></details>
+      <details><summary><span data-i18n="q5">Qanday to‘lash mumkin?</span><svg width="20" height="20"><use href="#i-plus"/></svg></summary><p data-i18n="a5">Payme, Click yoki Uzum orqali. Buyurtmadan keyin menejer to‘lov havolasini yuboradi. 1 hafta va undan uzun obunalar bo‘yicha menejer bilan kelishish ham mumkin.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="wrap sec">
+  <div class="final">
+    <svg class="deco" viewBox="0 0 420 420" aria-hidden="true"><circle cx="210" cy="210" r="170" fill="none" stroke="#fff" stroke-width="56"/><path d="M210 40 A170 170 0 0 1 380 210" fill="none" stroke="#FF5B2E" stroke-width="56"/></svg>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <h2 class="h2" data-i18n="finalH">Kaloriyangizni 30 soniyada bilib oling</h2>
+      <p data-i18n="finalP">Ilova yuklash shart emas. Natija bilan birga sizga mos rasion va narxni ko‘rsatamiz.</p>
+    </div>
+    <a class="btn btn-hot js-quiz" href="/hisoblash" data-i18n="ctaCalc">Kaloriyamni hisoblash</a>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-g">
+    <div style="display:flex;flex-direction:column;gap:12px;max-width:380px">
+      <span class="d" style="font-size:24px;font-weight:700">kaloria<span style="color:#7FD39A">.uz</span></span>
+      <span style="font-size:14px;color:#B8C2B4;line-height:1.5" data-i18n="footTag">Toshkent bo‘ylab kaloriyasi aniq hisoblangan parhez taomlar yetkazib berish.</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="foot-links">
+        <a href="/oferta" data-i18n="offer">Ommaviy oferta</a>
+        <a href="/privacy" data-i18n="privacy">Maxfiylik siyosati</a>
+        <a class="js-tg" href="https://t.me/" target="_blank" rel="noopener">Telegram</a>
+        <a class="js-phone" href="#" style="display:none"></a>
+      </div>
+      <small>© 2026 kaloria.uz</small>
+    </div>
+  </div>
+</footer>
+
+<div class="dock js-dock">
+  <a class="btn btn-hot js-quiz" href="/hisoblash"><span data-i18n="ctaCalc">Kaloriyamni hisoblash</span><span class="badge30" data-i18n="sec30">30 soniya</span></a>
+  <a class="tg js-tg" href="https://t.me/" target="_blank" rel="noopener" aria-label="Telegram"><svg width="22" height="22"><use href="#i-tg"/></svg></a>
+</div>
+
+<!-- Order / manager form -->
+<div class="modal js-order-modal" aria-hidden="true">
+  <div class="scrim js-close"></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="orderTitle">
+    <div class="grab"></div>
+    <form class="js-order-form" novalidate>
+      <div class="sheet-h">
+        <div style="display:flex;flex-direction:column;gap:3px"><span class="mt js-of-kicker"></span><span id="orderTitle" class="d js-of-title" style="font-size:22px;font-weight:800"></span></div>
+        <button type="button" class="icon-btn js-close" aria-label="Yopish"><svg width="16" height="16"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="js-of-fields" style="display:flex;flex-direction:column;gap:14px;margin-top:16px">
+        <div class="fld"><label for="ofName" data-i18n="name">Ismingiz</label><input id="ofName" class="inp" name="name" autocomplete="given-name" maxlength="60" required></div>
+        <div class="fld"><label for="ofPhone" data-i18n="phone">Telefon raqamingiz</label><div class="pfx"><span>+998</span><input id="ofPhone" name="phone" inputmode="tel" autocomplete="tel-national" placeholder="90 123 45 67" required></div></div>
+        <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <span class="consent"><span data-i18n="consent">Tugmani bosib, ma’lumotlarim qayta ishlanishiga rozilik beraman.</span> <a href="/privacy" data-i18n="privacy">Maxfiylik siyosati</a></span>
+        <span class="err js-of-err" role="alert"></span>
+        <button type="submit" class="btn btn-hot btn-block js-of-submit" data-i18n="send">Yuborish</button>
+      </div>
+      <div class="ok-box js-of-ok" style="display:none">
+        <span class="ok-ic"><svg width="26" height="26"><use href="#i-check"/></svg></span>
+        <span class="d" style="font-size:22px;font-weight:800" data-i18n="okH">So‘rovingiz qabul qilindi!</span>
+        <span style="font-size:15px;line-height:1.5;color:var(--muted)" data-i18n="okP">Menejer tez orada siz bilan bog‘lanadi va to‘lov havolasini yuboradi.</span>
+        <button type="button" class="btn btn-ink btn-block js-close" data-i18n="close">Yopish</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Freeze demo sheet -->
+<div class="modal js-fz-modal" aria-hidden="true">
+  <div class="scrim js-close"></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="fzTitle">
+    <div class="grab"></div>
+    <div class="sheet-h">
+      <div style="display:flex;flex-direction:column;gap:3px"><span class="mt" data-i18n="shDate">Muzlatiladigan kun</span><span id="fzTitle" class="d js-fz-date" style="font-size:22px;font-weight:800"></span></div>
+      <button type="button" class="icon-btn js-close" aria-label="Yopish"><svg width="16" height="16"><use href="#i-x"/></svg></button>
+    </div>
+    <span class="mt" style="display:block;margin-top:14px;color:var(--ink)" data-i18n="terms">Muzlatish shartlari</span>
+    <div class="rules js-fz-rules" style="margin:8px 0 14px"></div>
+    <div class="kv" style="margin-bottom:14px">
+      <div><span class="mt" data-i18n="shAdded">Obunaga qo‘shiladi</span><b data-i18n="plus1">+1 kun</b></div>
+      <div class="burn"><span class="mt" data-i18n="shBurn">Ishlatish muddati</span><b class="js-fz-burn-d"></b></div>
+    </div>
+    <label class="check"><input type="checkbox" class="js-fz-agree"><span data-i18n="shAgree">Shartlar bilan tanishdim</span></label>
+    <button type="button" class="btn btn-ink btn-block js-fz-ok" style="margin-top:16px" disabled data-i18n="shOk">Muzlatish</button>
+  </div>
+</div>
+
+<script src="/assets/i18n.js?v=1"></script>
+<script src="/assets/site.js?v=1"></script>
+</body>
+</html>
