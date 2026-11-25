@@ -24,6 +24,8 @@ O‘zbek tilidagi ovqatlanish va sog‘lom hayot ilovasi: kaloriya hisoblash, AI
 ## Where things live
 
 - `artifacts/dieta-ai` — Expo mobile application
+- `artifacts/web/public` — kaloria.uz website (landing `/`, calorie quiz `/hisoblash`, offer `/oferta`), served by the API server
+- `lib/nutrition` — shared Mifflin-St Jeor calorie/macro maths (same as the app's `lib/nutrition.ts`)
 - `artifacts/api-server` — Express API, payment routes, AI routes and Telegram bot
 - `lib/db` — PostgreSQL connection, idempotent startup schema and Drizzle tables
 - `Dockerfile`, `docker-compose.yml` — production API container and local Postgres stack
@@ -37,6 +39,8 @@ O‘zbek tilidagi ovqatlanish va sog‘lom hayot ilovasi: kaloriya hisoblash, AI
 - Secrets are runtime environment values; they are never committed to Docker files or application source.
 
 ## Product
+
+- kaloria.uz: diet meal delivery by subscription (Tashkent). Website quiz → lead in `leads` table → Telegram to sales. See `docs/SAYT-VA-DOMEN.md`
 
 - Onboarding and personal nutrition profile
 - Food diary, calorie and macro tracking

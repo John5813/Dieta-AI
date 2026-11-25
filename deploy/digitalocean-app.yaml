@@ -1,5 +1,10 @@
 name: dieta-ai
 region: fra
+domains:
+  - domain: kaloria.uz
+    type: PRIMARY
+  - domain: www.kaloria.uz
+    type: ALIAS
 services:
   - name: api
     dockerfile_path: Dockerfile
@@ -41,3 +46,27 @@ services:
       - key: LOG_LEVEL
         scope: RUN_TIME
         value: info
+      - key: PUBLIC_BASE_URL
+        scope: RUN_TIME
+        value: https://kaloria.uz
+      - key: SITE_PRICES
+        scope: RUN_TIME
+        value: '{"ozish":159000,"balans":179000,"sport":209000}'
+      - key: SITE_DISCOUNTS
+        scope: RUN_TIME
+        value: '{"d3":0,"w1":0,"w2":3,"w3":5,"w4":7,"m1":10}'
+      - key: MANAGER_TELEGRAM_URL
+        scope: RUN_TIME
+        value: https://t.me/your_manager
+      - key: MANAGER_PHONE
+        scope: RUN_TIME
+        value: "+998901234567"
+      - key: TELEGRAM_LEADS_CHAT_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: META_PIXEL_ID
+        scope: RUN_TIME
+        value: ""
+      - key: TIKTOK_PIXEL_ID
+        scope: RUN_TIME
+        value: ""

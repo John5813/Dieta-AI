@@ -8,6 +8,7 @@ import privacyRouter from "./routes/privacy";
 import deleteAccountRouter from "./routes/delete-account";
 import { payPages } from "./routes/pay";
 import { logger } from "./lib/logger";
+import { mountSite } from "./lib/site";
 
 const app: Express = express();
 
@@ -75,9 +76,12 @@ const smallJson = express.json({ limit: "256kb" });
 app.use((req, res, next) => (BIG_BODY_PATHS.has(req.path) ? next() : smallJson(req, res, next)));
 app.use(express.urlencoded({ extended: false, limit: "64kb" }));
 
-// DigitalOcean App Platform uses GET / as the default readiness probe.
-// Keep this endpoint dependency-free so the container can report readiness
-// before any API or database-specific work is requested.
+// kaloria.uz website (landing, calorie quiz, offer). GET / serves the landing
+// page, which is static and dependency-free, so it still works as the
+// DigitalOcean readiness probe.
+mountSite(app);
+
+// Fallback readiness probe when the website files are not deployed.
 app.get("/", (_req, res) => {
   res.status(200).json({ status: "ok", service: "api-server" });
 });

@@ -175,6 +175,45 @@ export async function ensureSchema(): Promise<void> {
   `);
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS pay_transactions_provider_ext ON pay_transactions (provider, ext_id);`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS pay_transactions_order ON pay_transactions (order_no);`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS leads (
+      id bigserial PRIMARY KEY,
+      key_hash text NOT NULL,
+      source text NOT NULL DEFAULT 'web',
+      name text NOT NULL,
+      phone text NOT NULL,
+      lang text NOT NULL DEFAULT 'uz',
+      gender text,
+      goal text,
+      age integer,
+      height integer,
+      weight real,
+      activity real,
+      health_risk boolean,
+      calories integer,
+      protein integer,
+      fat integer,
+      carbs integer,
+      ration text,
+      sku integer,
+      intent text NOT NULL DEFAULT 'quiz',
+      plan text,
+      plan_ration text,
+      utm_source text,
+      utm_medium text,
+      utm_campaign text,
+      utm_content text,
+      utm_term text,
+      referrer text,
+      landing_path text,
+      status text NOT NULL DEFAULT 'new',
+      payment_status text NOT NULL DEFAULT 'none',
+      created_at timestamp NOT NULL DEFAULT now(),
+      updated_at timestamp NOT NULL DEFAULT now()
+    );
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS leads_phone ON leads (phone);`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS leads_created ON leads (created_at);`);
 }
 
 export * from "./schema";

@@ -13,6 +13,8 @@ WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc tsconfig.base.json tsconfig.json ./
 COPY lib/ ./lib/
 COPY artifacts/api-server/ ./artifacts/api-server/
+# kaloria.uz website (static pages served by the API server at /)
+COPY artifacts/web/ ./artifacts/web/
 
 RUN pnpm install --frozen-lockfile --filter @workspace/api-server...
 RUN pnpm --filter @workspace/api-server run build
