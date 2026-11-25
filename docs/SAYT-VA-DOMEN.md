@@ -5,7 +5,7 @@
 | Qism | Qayerda | Vazifasi |
 |---|---|---|
 | Sayt (landing) | `artifacts/web/public/index.html` | Rasionlar, menyu, kun tartibi, narx cheki, muzlatish kalendari, ogohlantirish, FAQ. UZ/RU tugmasi tepada doim ko'rinadi |
-| Kalkulyator | `/hisoblash` (`hisoblash.html`) | 5 savol → kkal ochiq → ism + telefon (Value Gate) → BJU, mos rasion va narx |
+| Kalkulyator | `/hisoblash` (`hisoblash.html`) | 5 savol → to'liq natija ochiq (kkal, BJU, mos rasion, narx) → ixtiyoriy: ism + telefon bilan sinov buyurtmasi yoki menyuni Telegram'ga yuborish |
 | Oferta | `/oferta` | Loyiha matni (yurist tekshirishi kerak), tibbiy ogohlantirish, 18:00 va muzlatish qoidalari |
 | Umumiy formula | `lib/nutrition` | Ilovadagi Mifflin-St Jeor algoritmining aynan nusxasi (24 960 holatda solishtirilgan, farq 0) |
 | CRM | `leads` jadvali (`lib/db`) | Ism, telefon, bo'y/vazn/yosh, maqsad, kkal/BJU, mos rasion, tanlangan tarif, UTM, holat |
@@ -29,7 +29,7 @@ Sayt alohida server talab qilmaydi: mavjud API server (`Dockerfile`) `/` manzild
 | `MANAGER_TELEGRAM_URL` | `https://t.me/kaloria_uz` | Saytdagi barcha Telegram tugmalari |
 | `MANAGER_PHONE` | `+998901234567` | Footer'da chiqadi |
 | `TELEGRAM_LEADS_CHAT_ID` | `-100123…` | Leadlar keladigan guruh. Bo'sh bo'lsa `TELEGRAM_ADMIN_CHAT_ID` ga keladi. `TELEGRAM_BOT_TOKEN` ham kerak |
-| `META_PIXEL_ID`, `TIKTOK_PIXEL_ID`, `YANDEX_METRIKA_ID` | | Reklama va analitika. Eventlar: `Lead`, `InitiateCheckout`, `ViewContent`; Metrika maqsadlari: `quiz_step_1…7`, `quiz_cta`, `order_open_*`, `order_submit_*`, `quiz_intent_*` |
+| `META_PIXEL_ID`, `TIKTOK_PIXEL_ID`, `YANDEX_METRIKA_ID` | | Reklama va analitika. Eventlar: `Lead`, `InitiateCheckout`, `ViewContent`; Metrika maqsadlari: `quiz_step_1…6`, `quiz_result`, `quiz_lead`, `quiz_cta`, `order_open_*`, `order_submit_*`, `quiz_intent_*` |
 | `MERCHANT_LEGAL_NAME`, `MERCHANT_INN`, `MERCHANT_ADDRESS` | | Footer va ofertadagi rekvizitlar |
 | `SITE_DELIVERY_UZ` / `_RU` | `Toshkent shahri bo‘ylab bepul` | Yetkazish hududi va narxi (bo'sh bo'lsa blok ko'rinmaydi) |
 | `SITE_KITCHEN_UZ` / `_RU`, `SITE_DIETITIAN_UZ` / `_RU` | | Ishonch bloki: oshxona va dietolog haqida (bo'sh bo'lsa ko'rinmaydi) |
