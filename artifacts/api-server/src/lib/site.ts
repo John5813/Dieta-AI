@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import express, { type Express, type Request, type Response } from "express";
 import { logger } from "./logger";
-import { getSiteConfig, pixelIds } from "./siteConfig";
+import { getSiteConfig, pixelIds, siteBaseUrl } from "./siteConfig";
 
 /**
  * Serves the kaloria.uz marketing site (artifacts/web/public): a few
@@ -33,7 +33,12 @@ function headSnippet(): string {
   const cfg = getSiteConfig();
   const json = JSON.stringify(cfg).replace(/</g, "\\u003c");
   const parts = [`<script>window.KALORIA=${json};</script>`];
-  const { meta, tiktok } = pixelIds();
+  const { meta, tiktok, metrika } = pixelIds();
+  if (metrika) {
+    parts.push(
+      `<script>window.KALORIA_YM=${metrika};(function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};m[i].l=1*new Date();k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})(window,document,"script","https://mc.yandex.ru/metrika/tag.js","ym");ym(${metrika},"init",{clickmap:true,trackLinks:true,accurateTrackBounce:true,webvisor:true});</script>`,
+    );
+  }
   if (meta) {
     parts.push(
       `<script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${meta}');fbq('track','PageView');</script>`,
@@ -61,7 +66,12 @@ export function mountSite(app: Express): boolean {
     const cached = isProd ? cache.get(file) : undefined;
     const raw = cached ?? fs.readFileSync(path.join(dir, file), "utf8");
     if (isProd) cache.set(file, raw);
-    return raw.replace("<!--KALORIA:HEAD-->", headSnippet());
+    const base = siteBaseUrl();
+    const route = Object.keys(PAGES).find((r) => PAGES[r] === file) ?? "/";
+    return raw
+      .replace("<!--KALORIA:HEAD-->", `<link rel="canonical" href="${base}${route === "/" ? "/" : route}">\n${headSnippet()}`)
+      // Social networks need absolute image/page URLs.
+      .replace(/(<meta property="og:(?:image|url)" content=")\//g, `$1${base}/`);
   };
 
   // www.kaloria.uz → kaloria.uz, so links, cookies and pixels see one origin.
@@ -87,6 +97,17 @@ export function mountSite(app: Express): boolean {
     app.get(route, handler);
     if (route !== "/") app.get(`${route}.html`, (_req, res) => res.redirect(301, route));
   }
+
+  app.get("/robots.txt", (_req, res) => {
+    res.type("text/plain").send(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /pay/o/\n\nSitemap: ${siteBaseUrl()}/sitemap.xml\n`);
+  });
+  app.get("/sitemap.xml", (_req, res) => {
+    const base = siteBaseUrl();
+    const urls = ["/", "/hisoblash", "/oferta", "/privacy"]
+      .map((u) => `  <url><loc>${base}${u}</loc><changefreq>weekly</changefreq></url>`)
+      .join("\n");
+    res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`);
+  });
 
   app.use(
     "/assets",

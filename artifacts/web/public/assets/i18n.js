@@ -21,30 +21,31 @@
     k4: '04 — Цены', priceH: 'Выберите срок — чек посчитается сразу', rLabel: 'Рацион', dLabel: 'Срок',
     sundayNote: 'В воскресенье доставки нет, поэтому 1 неделя = 6 дней доставки. Замороженные дни переносятся в конец подписки.',
     rcTitle: 'KALORIA.UZ · ЧЕК', rcRation: 'Рацион', rcTerm: 'Срок', rcDays: 'Дней доставки', rcPrice: 'Цена за день', rcDisc: 'Скидка', rcTotal: 'ИТОГО',
-    order: 'Оформить заказ', mgr: 'Связаться с менеджером', testNote: 'Пробный бокс — только онлайн-оплата', sample: '* Примерные цены',
+    order: 'Оставить заказ', orderHow: 'Менеджер позвонит, подтвердит заказ и пришлёт ссылку на оплату через Payme · Click · Uzum', mgr: 'Связаться с менеджером', testNote: 'Пробный бокс — по предоплате', sample: '* Примерные цены',
     rcThanks: '*** Спасибо! Приятного аппетита ***',
     k5: '05 — Заморозка', freezeH: 'Планы изменились? Заморозьте день.',
     r1: 'Заморозка бесплатна и без условий — сколько угодно дней.',
     r2: 'Завтрашний день можно заморозить до 18:00. После 18:00 заказ на завтра фиксируется.',
     r3: 'Замороженный день не пропадает — он переносится в конец подписки.',
     r4: 'Замороженный день нужно использовать в течение 1 месяца. Через месяц он сгорает.',
-    calHint: 'Нажмите на день, чтобы заморозить', tryTime: 'Сейчас:',
+    calHint: 'Пример календаря — нажмите на день', tryTime: 'Попробуйте, время:',
     lgFrz: 'Заморожен', lgLock: 'Зафиксирован', lgSun: 'Выходной', lgToday: 'Сегодня', frozenN: 'Замороженные дни', burnFirst: 'Использовать до',
     kitchenTag: 'Временное фото', k6: '06 — Доверие', trustH: 'Кто готовит еду и кто её проверяет?',
-    tr1h: 'Кухня-партнёр', tr1p: 'Профессиональная кухня, соответствующая санитарным требованиям.', tr1x: '[название кухни, документы]',
-    tr2h: 'Меню составляет диетолог', tr2p: 'Каждый рацион сбалансирован по калориям и БЖУ.', tr2x: '[имя и фото диетолога]',
+    tr1h: 'Профессиональная кухня-партнёр', tr1p: 'Блюда каждое утро готовят опытные повара.',
+    tr2h: 'Меню составляет диетолог', tr4h: 'Реальные боксы и отзывы клиентов', tr4p: 'В нашем Instagram',
     tr3h: 'Этикетка на каждом контейнере', tr3p: 'Дата приготовления, срок хранения, ккал и БЖУ.',
     warnT: 'ВНИМАНИЕ', warn: 'Блюда предназначены для здоровых людей и не заменяют лечебное питание (сахарный диабет, болезни почек, тяжёлая аллергия). В таких случаях сначала проконсультируйтесь с врачом.',
     k7: '07 — Вопросы', faqH: 'Частые вопросы', faqAsk: 'Спросить в Telegram',
     q1: 'Когда и как доставляется еда?', a1: 'С понедельника по субботу каждое утро с 06:00 до 09:00 привозим бокс на весь день в термосумке. Воскресенье — выходной.',
-    q2: 'Как заморозить день?', a2: 'Через менеджера или Telegram-бот, для завтрашнего дня — до 18:00. Заморозка бесплатна, день переносится в конец подписки и должен быть использован в течение 1 месяца — потом сгорает.',
+    q2: 'Как заморозить день?', a2: 'Напишите или позвоните менеджеру — для завтрашнего дня до 18:00. Заморозка бесплатна, день переносится в конец подписки и должен быть использован в течение 1 месяца — потом сгорает.',
     q3: 'Можно сменить адрес?', a3: 'Да. Адрес завтрашней доставки можно сменить до 18:00.',
     q4: 'Какой рацион мне подходит?', a4: 'Пройдите калькулятор: по полу, возрасту, росту, весу и активности посчитаем вашу норму калорий и покажем подходящий рацион.',
-    q5: 'Как оплатить?', a5: 'Через Payme, Click или Uzum. После заказа менеджер пришлёт ссылку на оплату. По подпискам от 1 недели можно договориться с менеджером.',
+    q5: 'Как оплатить?', a5: 'После заявки менеджер позвонит, подтвердит заказ и пришлёт ссылку на оплату через Payme, Click или Uzum.', q6: 'Куда доставляете и сколько стоит доставка?',
     finalH: 'Узнайте свою норму калорий за 30 секунд', finalP: 'Приложение скачивать не нужно. Вместе с результатом покажем подходящий рацион и цену.',
     footTag: 'Доставка диетического питания с точно рассчитанной калорийностью по Ташкенту.', offer: 'Публичная оферта', privacy: 'Политика конфиденциальности',
-    name: 'Ваше имя', phone: 'Номер телефона', consent: 'Нажимая кнопку, я соглашаюсь на обработку моих данных.', send: 'Отправить',
-    okH: 'Заявка принята!', okP: 'Менеджер скоро свяжется с вами и пришлёт ссылку на оплату.', close: 'Закрыть',
+    name: 'Ваше имя', phone: 'Номер телефона', consent: 'Нажимая кнопку, я соглашаюсь на обработку моих данных.', send: 'Оставить заказ',
+    district: 'Район', districtPick: 'Выберите', districtOther: 'Другой / область', address: 'Адрес', optional: '(необязательно)', addressPh: 'Улица, дом, ориентир',
+    okH: 'Заявка принята!', okP: 'Что будет дальше:', ok1: 'Менеджер позвонит и подтвердит рацион, адрес и дату начала.', ok2: 'Пришлёт ссылку на оплату через Payme, Click или Uzum.', ok3: 'После оплаты первый бокс привезём утром в согласованный день.', close: 'Закрыть',
     shDate: 'Замораживаемый день', terms: 'Условия заморозки', shAdded: 'Добавится к подписке', plus1: '+1 день', shBurn: 'Использовать до', shAgree: 'Я ознакомлен(а) с условиями', shOk: 'Заморозить',
     // quiz page
     back: 'Назад', next: 'Далее', yourLabel: 'ВАША ЭТИКЕТКА', labelDef: 'Этикетка калорий', labelSub: 'Заполняется по мере ответов', daily: 'Норма в день',
@@ -112,7 +113,7 @@
   CFG.prices = CFG.prices || { ozish: 159000, balans: 179000, sport: 209000 };
   CFG.discounts = CFG.discounts || { d3: 0, w1: 0, w2: 3, w3: 5, w4: 7, m1: 10 };
   CFG.planDays = CFG.planDays || { d3: 3, w1: 6, w2: 12, w3: 18, w4: 24, m1: 26 };
-  CFG.telegram = CFG.telegram || 'https://t.me/';
+  CFG.telegram = CFG.telegram || '';
 
   function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } return null; }
 
@@ -125,14 +126,16 @@
     if (s === 'ru' || s === 'uz') return s;
     return 'uz';
   })();
-  var nodes = null;
+  var nodes = null, phNodes = [];
   function capture() {
     nodes = Array.prototype.map.call(document.querySelectorAll('[data-i18n]'), function (el) { return { el: el, key: el.getAttribute('data-i18n'), uz: el.innerHTML }; });
+    phNodes = Array.prototype.map.call(document.querySelectorAll('[data-i18n-ph]'), function (el) { return { el: el, key: el.getAttribute('data-i18n-ph'), uz: el.getAttribute('placeholder') }; });
   }
   function applyLang() {
     if (!nodes) capture();
     document.documentElement.lang = lang;
     nodes.forEach(function (n) { var v = lang === 'ru' ? RU[n.key] : n.uz; if (v != null && n.el.innerHTML !== v) n.el.innerHTML = v; });
+    phNodes.forEach(function (n) { var v = lang === 'ru' ? RU[n.key] : n.uz; if (v != null) n.el.setAttribute('placeholder', v); });
     document.querySelectorAll('[data-lang]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-lang') === lang)); });
     listeners.forEach(function (fn) { fn(lang); });
   }
@@ -157,9 +160,16 @@
     return { utm: {}, referrer: '', landingPath: location.pathname };
   }
 
+  // Standard ad events (Meta / TikTok) plus a Yandex Metrika goal with the same name.
+  var STD = { Lead: 1, InitiateCheckout: 1, ViewContent: 1, Contact: 1 };
   function track(ev, params) {
-    try { if (window.fbq) window.fbq('track', ev, params || {}); } catch (e) {}
-    try { if (window.ttq) window.ttq.track(ev === 'Lead' ? 'SubmitForm' : ev === 'InitiateCheckout' ? 'InitiateCheckout' : ev, params || {}); } catch (e) {}
+    try { if (window.fbq) window.fbq(STD[ev] ? 'track' : 'trackCustom', ev, params || {}); } catch (e) {}
+    try { if (window.ttq) window.ttq.track(ev === 'Lead' ? 'SubmitForm' : ev, params || {}); } catch (e) {}
+    goal(ev, params);
+  }
+  // Metrika-only goal (quiz steps etc. — too noisy for ad pixels).
+  function goal(name, params) {
+    try { if (window.ym && window.KALORIA_YM) window.ym(window.KALORIA_YM, 'reachGoal', name, params || {}); } catch (e) {}
   }
 
   function post(url, body) {
@@ -187,16 +197,38 @@
     if (b) setLang(b.getAttribute('data-lang'));
   });
 
+  // Business details from env vars; any block without data stays hidden (no placeholders on the live site).
   function initLinks() {
-    document.querySelectorAll('.js-tg').forEach(function (a) { a.href = CFG.telegram; });
+    document.querySelectorAll('.js-tg').forEach(function (a) {
+      if (CFG.telegram) a.href = CFG.telegram; else a.style.display = 'none';
+    });
     if (CFG.phone) document.querySelectorAll('.js-phone').forEach(function (a) { a.href = 'tel:' + CFG.phone; a.textContent = CFG.phone; a.style.display = ''; });
+    var co = CFG.company || {};
+    var coText = [co.name, co.inn ? (lang === 'ru' ? 'ИНН ' : 'STIR ') + co.inn : '', co.address].filter(Boolean).join(' · ');
+    document.querySelectorAll('.js-company').forEach(function (e) { e.textContent = coText; e.style.display = coText ? '' : 'none'; });
+    var T = CFG.text || {};
+    var pick = function (o) { return o ? (lang === 'ru' ? o.ru || o.uz : o.uz) || '' : ''; };
+    var show = function (sel, txt, rowSel) {
+      document.querySelectorAll(sel).forEach(function (e) { e.textContent = txt; });
+      if (rowSel) document.querySelectorAll(rowSel).forEach(function (e) { e.style.display = txt ? '' : 'none'; });
+    };
+    show('.js-delivery', pick(T.delivery), '.js-delivery-row');
+    show('.js-delivery2', pick(T.delivery), '.js-faq-deliv');
+    show('.js-kitchen', pick(T.kitchen));
+    show('.js-dietitian', pick(T.dietitian), '.js-diet-row');
+    var hasDiet = !!pick(T.dietitian);
+    document.querySelectorAll('.js-n3').forEach(function (e) { e.textContent = hasDiet ? '03' : '02'; });
+    document.querySelectorAll('.js-n4').forEach(function (e) { e.textContent = hasDiet ? '04' : '03'; });
+    document.querySelectorAll('.js-insta').forEach(function (a) { if (CFG.instagram) a.href = CFG.instagram; });
+    document.querySelectorAll('.js-insta-row').forEach(function (e) { e.style.display = CFG.instagram ? '' : 'none'; });
   }
+  listeners.push(function () { initLinks(); });
 
   window.K = {
     RU: RU, DATA: DATA, CFG: CFG,
     get lang() { return lang; }, d: function () { return DATA[lang]; }, t: function (key) { return lang === 'ru' ? RU[key] : null; },
     onLang: function (fn) { listeners.push(fn); }, applyLang: applyLang, setLang: setLang,
-    attribution: attribution, track: track, post: post, fmt: fmt, esc: esc, fdate: fdate, planTotal: planTotal,
+    attribution: attribution, track: track, goal: goal, post: post, fmt: fmt, esc: esc, fdate: fdate, planTotal: planTotal,
     phoneDigits: phoneDigits, phoneFmt: phoneFmt, saveLead: saveLead, lastLead: lastLead, initLinks: initLinks
   };
 })();

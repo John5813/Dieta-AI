@@ -29,7 +29,14 @@ Sayt alohida server talab qilmaydi: mavjud API server (`Dockerfile`) `/` manzild
 | `MANAGER_TELEGRAM_URL` | `https://t.me/kaloria_uz` | Saytdagi barcha Telegram tugmalari |
 | `MANAGER_PHONE` | `+998901234567` | Footer'da chiqadi |
 | `TELEGRAM_LEADS_CHAT_ID` | `-100123…` | Leadlar keladigan guruh. Bo'sh bo'lsa `TELEGRAM_ADMIN_CHAT_ID` ga keladi. `TELEGRAM_BOT_TOKEN` ham kerak |
-| `META_PIXEL_ID`, `TIKTOK_PIXEL_ID` | | Instagram/TikTok reklamasi uchun (ixtiyoriy) |
+| `META_PIXEL_ID`, `TIKTOK_PIXEL_ID`, `YANDEX_METRIKA_ID` | | Reklama va analitika. Eventlar: `Lead`, `InitiateCheckout`, `ViewContent`; Metrika maqsadlari: `quiz_step_1…7`, `quiz_cta`, `order_open_*`, `order_submit_*`, `quiz_intent_*` |
+| `MERCHANT_LEGAL_NAME`, `MERCHANT_INN`, `MERCHANT_ADDRESS` | | Footer va ofertadagi rekvizitlar |
+| `SITE_DELIVERY_UZ` / `_RU` | `Toshkent shahri bo‘ylab bepul` | Yetkazish hududi va narxi (bo'sh bo'lsa blok ko'rinmaydi) |
+| `SITE_KITCHEN_UZ` / `_RU`, `SITE_DIETITIAN_UZ` / `_RU` | | Ishonch bloki: oshxona va dietolog haqida (bo'sh bo'lsa ko'rinmaydi) |
+| `SITE_INSTAGRAM_URL` | `https://instagram.com/...` | Real qutilar / sharhlar uchun havola |
+
+Telegram tugmalari `MANAGER_TELEGRAM_URL` (yoki `MERCHANT_TELEGRAM`) o'rnatilmaguncha saytda ko'rinmaydi.
+SEO: `/robots.txt`, `/sitemap.xml`, canonical va absolyut `og:image` `PUBLIC_BASE_URL` (sukut bo'yicha `https://kaloria.uz`) asosida.
 
 Guruh chat ID'sini bilish: botni guruhga qo'shing, guruhga biror xabar yozing va
 `https://api.telegram.org/bot<TOKEN>/getUpdates` ni oching — `"chat":{"id":-100…}`.

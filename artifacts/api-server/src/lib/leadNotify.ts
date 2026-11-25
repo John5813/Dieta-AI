@@ -18,6 +18,11 @@ const INTENT_LABEL: Record<string, string> = {
 };
 const RATION_LABEL: Record<RationKey, string> = { ozish: "Ozish", balans: "Balans", sport: "Sport" };
 const GOAL_LABEL: Record<string, string> = { ozish: "Ozish", saqlash: "Vaznni saqlash", oshirish: "Massa olish" };
+const DISTRICT_LABEL: Record<string, string> = {
+  bektemir: "Bektemir", chilonzor: "Chilonzor", mirobod: "Mirobod", mirzo_ulugbek: "Mirzo Ulug‘bek", olmazor: "Olmazor",
+  sergeli: "Sergeli", shayxontohur: "Shayxontohur", uchtepa: "Uchtepa", yakkasaroy: "Yakkasaroy", yangihayot: "Yangihayot",
+  yashnobod: "Yashnobod", yunusobod: "Yunusobod", other: "Boshqa / viloyat",
+};
 const PLAN_LABEL: Record<PlanKey, string> = { d3: "3 kun (sinov)", w1: "1 hafta", w2: "2 hafta", w3: "3 hafta", w4: "4 hafta", m1: "1 oy" };
 
 function chatId(): string {
@@ -32,6 +37,9 @@ export function buildLeadMessage(l: Lead, kind: "new" | "intent"): string {
   lines.push(`👤 <b>${esc(l.name)}</b>`);
   lines.push(`📞 ${esc(l.phone)}`);
   lines.push(`🌐 Til: ${l.lang === "ru" ? "RU" : "UZ"}`);
+  if (l.district || l.address) {
+    lines.push(`📍 ${[l.district ? DISTRICT_LABEL[l.district] ?? l.district : "", l.address ? esc(l.address) : ""].filter(Boolean).join(", ")}`);
+  }
   if (l.calories) {
     lines.push("");
     lines.push(

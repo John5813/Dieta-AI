@@ -20,6 +20,12 @@ const router: IRouter = Router();
 const INTENTS = new Set(["quiz", "test_drive", "subscription", "manager"]);
 const GOALS: Record<string, Goal> = { ozish: "ozish", saqlash: "saqlash", oshirish: "oshirish" };
 const RATIONS = new Set<RationKey>(["ozish", "balans", "sport"]);
+/** Tashkent districts offered in the order form (ids are stable, labels live on the site). */
+export const DISTRICTS = new Set([
+  "bektemir", "chilonzor", "mirobod", "mirzo_ulugbek", "olmazor", "sergeli", "shayxontohur",
+  "uchtepa", "yakkasaroy", "yangihayot", "yashnobod", "yunusobod", "other",
+]);
+const districtOf = (v: unknown): string | null => (typeof v === "string" && DISTRICTS.has(v) ? v : null);
 
 const str = (v: unknown, max: number): string | null => {
   if (typeof v !== "string") return null;
@@ -120,6 +126,8 @@ router.post("/v1/leads", rateLimit("lead-create", 12, 60 * 60 * 1000), async (re
         intent,
         plan: planOf(b["plan"]),
         planRation: rationOf(b["planRation"]),
+        district: districtOf(b["district"]),
+        address: str(b["address"], 200),
         utmSource: str(utm["source"], 120),
         utmMedium: str(utm["medium"], 120),
         utmCampaign: str(utm["campaign"], 200),
@@ -160,7 +168,14 @@ router.post("/v1/leads/:id/intent", rateLimit("lead-intent", 30, 60 * 60 * 1000)
     }
     const [row] = await db
       .update(leadsTable)
-      .set({ intent, plan: planOf(b["plan"]) ?? lead.plan, planRation: rationOf(b["planRation"]) ?? lead.planRation, updatedAt: new Date() })
+      .set({
+        intent,
+        plan: planOf(b["plan"]) ?? lead.plan,
+        planRation: rationOf(b["planRation"]) ?? lead.planRation,
+        district: districtOf(b["district"]) ?? lead.district,
+        address: str(b["address"], 200) ?? lead.address,
+        updatedAt: new Date(),
+      })
       .where(and(eq(leadsTable.id, id), eq(leadsTable.keyHash, lead.keyHash)))
       .returning();
     void notifyLead(row!, "intent");
