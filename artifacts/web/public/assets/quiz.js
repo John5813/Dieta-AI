@@ -79,7 +79,7 @@
           var lo = LIM[k][0], hi = LIM[k][1], pct = Math.round((S[k] - lo) / (hi - lo) * 100);
           return '<div class="sl"><div class="sl-top"><label for="q-' + k + '">' + D.sl[i] + '</label><span class="val"><b class="js-v-' + k + '">' + S[k] + '</b><span class="m" style="font-size:13px"> ' + D.units[i] + '</span></span></div>' +
             '<div class="sl-row"><button type="button" class="pm" data-dec="' + k + '" aria-label="−"><svg width="16" height="16"><use href="#i-minus"/></svg></button>' +
-            '<input id="q-' + k + '" class="rng" type="range" min="' + lo + '" max="' + hi + '" value="' + S[k] + '" data-range="' + k + '" style="background:linear-gradient(90deg,#121512 ' + pct + '%,#E2E6DE 0)">' +
+            '<input id="q-' + k + '" class="rng" type="range" min="' + lo + '" max="' + hi + '" value="' + S[k] + '" data-range="' + k + '" style="background:linear-gradient(90deg,#2F8A50 ' + pct + '%,#E6EAE2 0)">' +
             '<button type="button" class="pm" data-inc="' + k + '" aria-label="+"><svg width="16" height="16"><use href="#i-plus"/></svg></button></div></div>';
         }).join('') + '</div>';
       case 3:
@@ -95,7 +95,7 @@
         r = S.result || calc();
         var m = S.result ? { ration: S.result.ration, sku: S.result.sku } : match(r.calories);
         var price = K.CFG.prices[m.ration], rn = D.rations[m.ration][0];
-        var bars = [[D.P, r.protein, '#1E6B3A'], [D.F, r.fat, '#FF5B2E'], [D.C, r.carbs, '#121512']].map(function (b) {
+        var bars = [[D.P, r.protein, '#1E6B3A'], [D.F, r.fat, '#FF6A3D'], [D.C, r.carbs, '#8FA898']].map(function (b) {
           return '<div class="brow" style="grid-template-columns:96px minmax(0,1fr) 60px;font-size:14px"><b style="font-weight:600">' + b[0] + '</b><span class="bar" style="height:10px"><i style="width:' + Math.min(100, Math.round(b[1] / 300 * 100)) + '%;background:' + b[2] + '"></i></span><span class="m" style="text-align:right;font-weight:600">' + b[1] + ' ' + D.g + '</span></div>';
         }).join('');
         var risk = S.risk === 1
@@ -107,10 +107,9 @@
           '<div class="big-k" style="border-bottom:0;padding-bottom:0"><b>' + K.fmt(r.calories) + '</b><span class="m" style="font-size:14px">' + tr('kcalDay') + '</span></div>' +
           '<div class="bars" style="gap:12px">' + bars + '</div>' + risk + '</div>' +
           '<div style="display:flex;flex-direction:column;gap:16px;min-width:0"><div class="rec"><span class="mt">' + tr('match') + '</span><div class="row"><span class="nm">' + rn + '</span><span class="m" style="font-weight:600">' + m.sku + ' ' + D.kcal + '</span></div>' +
-          '<div style="height:7px;background:var(--ink)"></div>' +
           '<span class="near">' + (Math.abs(r.calories - m.sku) <= 20 ? tr('exact') : tr('near').replace('{k}', K.fmt(r.calories)).replace('{sku}', m.sku).replace('{d}', Math.abs(r.calories - m.sku))) + '</span>' +
           '<div class="thumbs">' + thumbs + '</div>' +
-          '<div class="row" style="border-top:1px solid var(--ink);padding-top:10px"><span style="font-size:14px">' + tr('from') + '</span><span><span class="d" style="font-size:24px;font-weight:800">' + K.fmt(price) + '</span><span class="m" style="font-size:12px"> ' + D.sumDay + '</span></span></div>' +
+          '<div class="row" style="border-top:1px solid var(--line);padding-top:12px"><span style="font-size:14px">' + tr('from') + '</span><span><span class="d" style="font-size:24px;font-weight:800">' + K.fmt(price) + '</span><span class="m" style="font-size:12px"> ' + D.sumDay + '</span></span></div>' +
           '</div>' + contactHtml(m.ration) + '</div></div>';
     }
     return '';
@@ -252,7 +251,7 @@
     if (t.dataset && t.dataset.range) {
       var k = t.dataset.range; S[k] = +t.value;
       var lo = LIM[k][0], hi = LIM[k][1];
-      t.style.background = 'linear-gradient(90deg,#121512 ' + Math.round((S[k] - lo) / (hi - lo) * 100) + '%,#E2E6DE 0)';
+      t.style.background = 'linear-gradient(90deg,#2F8A50 ' + Math.round((S[k] - lo) / (hi - lo) * 100) + '%,#E6EAE2 0)';
       var v = $('.js-v-' + k); if (v) v.textContent = S[k];
       renderLabel();
     }
