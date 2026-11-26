@@ -26,6 +26,8 @@ services:
       TELEGRAM_LEADS_CHAT_ID: ${TELEGRAM_LEADS_CHAT_ID:-}
       META_PIXEL_ID: ${META_PIXEL_ID:-}
       TIKTOK_PIXEL_ID: ${TIKTOK_PIXEL_ID:-}
+      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:-}
+      ADMIN_OWNER_TELEGRAM_IDS: ${ADMIN_OWNER_TELEGRAM_IDS:-}
     restart: unless-stopped
     init: true
     depends_on:

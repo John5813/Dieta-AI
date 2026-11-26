@@ -130,12 +130,13 @@
     e.preventDefault();
     var D = K.d(), f = e.target, name = f.name.value.trim(), digits = K.phoneDigits(f.phone.value), btn = $('.js-of-submit');
     var district = f.district.value, address = f.address.value.trim().slice(0, 200);
+    var slot = (f.querySelector('input[name=deliverySlot]:checked') || {}).value || 'morning';
     if (name.length < 2 || digits.length !== 9) { $('.js-of-err').textContent = D.errContact; return; }
     btn.disabled = true; $('.js-of-err').textContent = '';
     var a = K.attribution(), last = K.lastLead();
     var req = last && last.phone === '+998' + digits
-      ? K.post('/api/v1/leads/' + last.id + '/intent', { key: last.key, intent: orderCtx.intent, plan: orderCtx.plan, planRation: orderCtx.planRation, district: district, address: address })
-      : K.post('/api/v1/leads', { name: name, phone: digits, lang: K.lang, intent: orderCtx.intent, plan: orderCtx.plan, planRation: orderCtx.planRation, district: district, address: address, website: f.website.value, utm: a.utm, referrer: a.referrer, landingPath: a.landingPath });
+      ? K.post('/api/v1/leads/' + last.id + '/intent', { key: last.key, intent: orderCtx.intent, plan: orderCtx.plan, planRation: orderCtx.planRation, district: district, address: address, deliverySlot: slot })
+      : K.post('/api/v1/leads', { name: name, phone: digits, lang: K.lang, intent: orderCtx.intent, plan: orderCtx.plan, planRation: orderCtx.planRation, district: district, address: address, deliverySlot: slot, website: f.website.value, utm: a.utm, referrer: a.referrer, landingPath: a.landingPath });
     req.then(function (r) {
       btn.disabled = false;
       if (!r.ok) { $('.js-of-err').textContent = (r.data && r.data.error) || D.errNet; return; }

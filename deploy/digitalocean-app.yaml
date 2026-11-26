@@ -70,3 +70,9 @@ services:
       - key: TIKTOK_PIXEL_ID
         scope: RUN_TIME
         value: ""
+      - key: ADMIN_SESSION_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: ADMIN_OWNER_TELEGRAM_IDS
+        scope: RUN_TIME
+        value: ""

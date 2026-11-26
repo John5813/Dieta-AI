@@ -215,7 +215,156 @@ export async function ensureSchema(): Promise<void> {
   await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS district text;`);
   await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS address text;`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS leads_phone ON leads (phone);`);
+  await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS delivery_slot text;`);
+  await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS customer_id bigint;`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS leads_customer ON leads (customer_id);`);
+  await ensureCrmSchema();
   await db.execute(sql`CREATE INDEX IF NOT EXISTS leads_created ON leads (created_at);`);
+}
+
+/** CRM tables (customers, staff, events, orders, delivery days, app links) + lead backfill. */
+async function ensureCrmSchema(): Promise<void> {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS customers (
+      id bigserial PRIMARY KEY,
+      phone text NOT NULL,
+      name text,
+      lang text NOT NULL DEFAULT 'uz',
+      district text,
+      address text,
+      delivery_slot text,
+      telegram_chat_id text,
+      telegram_username text,
+      phone_verified_at timestamp,
+      phone_verified_via text,
+      first_source text NOT NULL DEFAULT 'web',
+      utm_source text,
+      utm_campaign text,
+      notes text,
+      last_contact_at timestamp,
+      created_at timestamp NOT NULL DEFAULT now(),
+      updated_at timestamp NOT NULL DEFAULT now()
+    );
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS customers_phone ON customers (phone);`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS customers_tg ON customers (telegram_chat_id);`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS staff (
+      id bigserial PRIMARY KEY,
+      name text NOT NULL,
+      role text NOT NULL DEFAULT 'manager',
+      telegram_chat_id text NOT NULL,
+      telegram_username text,
+      active boolean NOT NULL DEFAULT true,
+      last_login_at timestamp,
+      created_at timestamp NOT NULL DEFAULT now()
+    );
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS staff_tg ON staff (telegram_chat_id);`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS staff_login_tokens (
+      token_hash text PRIMARY KEY,
+      staff_id bigint NOT NULL,
+      expires_at timestamp NOT NULL,
+      used_at timestamp,
+      created_at timestamp NOT NULL DEFAULT now()
+    );
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS crm_events (
+      id bigserial PRIMARY KEY,
+      customer_id bigint NOT NULL,
+      order_id bigint,
+      lead_id bigint,
+      staff_id bigint,
+      type text NOT NULL,
+      body text,
+      meta jsonb,
+      created_at timestamp NOT NULL DEFAULT now()
+    );
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS crm_events_customer ON crm_events (customer_id, created_at);`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS orders (
+      id bigserial PRIMARY KEY,
+      customer_id bigint NOT NULL,
+      lead_id bigint,
+      source text NOT NULL,
+      ration text NOT NULL,
+      sku integer NOT NULL,
+      plan text NOT NULL,
+      days_total integer NOT NULL,
+      price_per_day integer NOT NULL,
+      discount_pct integer NOT NULL DEFAULT 0,
+      amount integer NOT NULL,
+      paid_amount integer NOT NULL DEFAULT 0,
+      payment_status text NOT NULL DEFAULT 'unpaid',
+      crm_status text NOT NULL DEFAULT 'new',
+      start_date date NOT NULL,
+      delivery_slot text NOT NULL DEFAULT 'morning',
+      courier_type text NOT NULL DEFAULT 'internal',
+      district text,
+      address text,
+      manager_id bigint,
+      note text,
+      created_at timestamp NOT NULL DEFAULT now(),
+      updated_at timestamp NOT NULL DEFAULT now()
+    );
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS orders_customer ON orders (customer_id);`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS orders_status ON orders (crm_status);`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS delivery_days (
+      id bigserial PRIMARY KEY,
+      order_id bigint NOT NULL,
+      day date NOT NULL,
+      status text NOT NULL DEFAULT 'scheduled',
+      delivery_slot text NOT NULL,
+      courier_type text NOT NULL,
+      district text,
+      address text,
+      sku integer NOT NULL,
+      frozen_at timestamp,
+      burn_at timestamp,
+      updated_at timestamp NOT NULL DEFAULT now()
+    );
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS delivery_days_order_day ON delivery_days (order_id, day);`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS delivery_days_day ON delivery_days (day);`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS app_links (
+      device_id text PRIMARY KEY,
+      customer_id bigint NOT NULL,
+      via text NOT NULL,
+      linked_at timestamp NOT NULL DEFAULT now()
+    );
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS phone_verifications (
+      id bigserial PRIMARY KEY,
+      channel text NOT NULL,
+      code_hash text NOT NULL,
+      phone text,
+      device_id text,
+      attempts integer NOT NULL DEFAULT 0,
+      expires_at timestamp NOT NULL,
+      verified_at timestamp,
+      created_at timestamp NOT NULL DEFAULT now()
+    );
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS phone_verifications_code ON phone_verifications (code_hash);`);
+
+  // Backfill: one customer per phone from existing website leads, using the latest request's details (idempotent).
+  await db.execute(sql`
+    INSERT INTO customers (phone, name, lang, district, address, delivery_slot, first_source, utm_source, utm_campaign, created_at, updated_at)
+    SELECT DISTINCT ON (phone) phone, name, lang, district, address, delivery_slot, source, utm_source, utm_campaign, created_at, created_at
+    FROM leads WHERE customer_id IS NULL ORDER BY phone, created_at DESC
+    ON CONFLICT (phone) DO NOTHING;
+  `);
+  await db.execute(sql`
+    UPDATE leads SET customer_id = c.id FROM customers c
+    WHERE leads.customer_id IS NULL AND c.phone = leads.phone;
+  `);
 }
 
 export * from "./schema";
