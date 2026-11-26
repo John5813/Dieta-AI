@@ -12,7 +12,7 @@ Oshxona va kuryerlar panelga kirmaydi — ular uchun "Yetkazish" bo'limidan CSV 
 | Bo'lim | Nima qilinadi |
 |---|---|
 | **Arizalar** | Sayt/ilova so'rovlari (yangi → aloqaga chiqildi → buyurtma bo'ldi / rad). Qo'ng'iroq natijasi, buyurtma yaratish, mijoz kartasi |
-| **Mijozlar** | Telefon/ism bo'yicha qidiruv; **+ Telefon buyurtma** (qo'ng'iroq orqali kelgan mijoz); mijoz kartasi: ma'lumot, obunalar (holat, to'lov, smena, kuryer — joyida o'zgartiriladi), tarix (qo'ng'iroq/izoh) |
+| **Mijozlar** | Telefon/ism bo'yicha qidiruv; **+ Yangi mijoz qo'shish** (yuqori panelda ham doim bor): ism, telefon, manba (Telefon / Instagram / Telegram / Sayt), tuman, manzil, izoh; ixtiyoriy — shu oynaning o'zida buyurtma (rasion, muddat, vaqt, kuryer). Raqam bazada bo'lsa dublikat ochilmaydi — ogohlantirish va mavjud karta; mijoz kartasi: ma'lumot, obunalar (holat, to'lov, smena, kuryer — joyida o'zgartiriladi), tarix (qo'ng'iroq/izoh) |
 | **Yetkazish** | Tanlangan kun (standart — ertaga): oshxona uchun kaloriya bo'yicha sonlar; 4 ta ro'yxat: ertalab/kechki × ichki/tashqi kuryer (har qatorda kuryerni o'zgartirish), CSV; **Uzaytirishga qo'ng'iroq** — obunasi tugashiga 1–2 kun qolganlar |
 
 ## Qoidalar

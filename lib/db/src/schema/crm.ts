@@ -17,7 +17,8 @@ export type DeliverySlot = (typeof DELIVERY_SLOTS)[number];
 export const COURIER_TYPES = ["internal", "external"] as const;
 export type CourierType = (typeof COURIER_TYPES)[number];
 
-export const ORDER_SOURCES = ["web", "mobile_app", "phone", "telegram"] as const;
+/** Where a customer / order came from. Instagram = direct messages to the Instagram account. */
+export const ORDER_SOURCES = ["web", "mobile_app", "phone", "telegram", "instagram"] as const;
 export type OrderSource = (typeof ORDER_SOURCES)[number];
 
 /** Pipeline statuses a manager sets. "frozen" and "ending" are derived from delivery days. */
