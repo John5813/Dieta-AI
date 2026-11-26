@@ -278,7 +278,7 @@ const PRIVACY: Record<LegalLang, { title: string; body: string }> = {
 
 export function renderPrivacy(lang: LegalLang): string {
   const p = PRIVACY[lang];
-  return shell(lang, p.title, "/privacy", p.body);
+  return shell(lang, p.title, "/privacy/app", p.body);
 }
 
 // ─── Account and data deletion ──────────────────────────────────────────────
@@ -443,7 +443,7 @@ export function renderDeletion(lang: LegalLang, nonce: string): string {
   <h2>${t.keptH}</h2>
   <div class="warn"><p>${t.kept}</p></div>
 
-  <p><a href="/privacy?lang=${lang}">${t.privacy}</a></p>
+  <p><a href="/privacy/app?lang=${lang}">${t.privacy}</a></p>
   <script nonce="${nonce}">
     (function () {
       var T = ${js};

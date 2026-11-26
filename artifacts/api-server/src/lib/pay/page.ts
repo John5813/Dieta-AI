@@ -170,7 +170,7 @@ ${opts.body}
 <footer>
   <nav>
     <a href="/pay/offer?lang=${lang}">${esc(t(lang, "offer"))}</a>
-    <a href="/privacy">${esc(t(lang, "privacy"))}</a>
+    <a href="/privacy/app">${esc(t(lang, "privacy"))}</a>
     ${m.telegram ? `<a href="https://t.me/${esc(m.telegram.replace(/^@/, ""))}" rel="noopener">Telegram</a>` : ""}
     ${m.email ? `<a href="mailto:${esc(m.email)}">${esc(t(lang, "contacts"))}</a>` : ""}
   </nav>

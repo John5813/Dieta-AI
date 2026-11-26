@@ -87,6 +87,9 @@ app.get("/", (_req, res) => {
 });
 
 app.use("/api", router);
+// The mobile app's privacy policy (Play Store listing). /privacy itself is the
+// website / meal-delivery policy served by mountSite; this stays as a fallback.
+app.use("/privacy/app", privacyRouter);
 app.use("/privacy", privacyRouter);
 app.use("/api/privacy", privacyRouter);
 app.use("/delete-account", deleteAccountRouter);

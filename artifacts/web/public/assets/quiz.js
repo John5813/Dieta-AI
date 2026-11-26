@@ -127,7 +127,8 @@
       ? '<button type="submit" class="btn btn-hot btn-block" data-intent="manager"' + dis + '>' + tr('mgr') + '</button>'
       : '<button type="submit" class="btn btn-hot btn-block" data-intent="test_drive" style="justify-content:space-between"' + dis + '><span>' + tr('payTest') + '</span><span class="m" style="font-size:12px">' + K.fmt(testTotal) + ' ' + D.sum + '</span></button>' +
         '<button type="submit" class="btn btn-line btn-block" data-intent="manager"' + dis + '><span class="bl"><span>' + tr('sendMenu') + '</span><small>' + tr('sendMenuSub') + '</small></span></button>' +
-        '<a class="btn btn-ink btn-block" href="/#price">' + tr('subs') + '</a>';
+        // Carries the recommended ration to the price calculator on the landing page.
+        '<a class="btn btn-ink btn-block" href="/?plan=' + ration + '#narxlar">' + tr('subs') + '</a>';
     return '<form class="rec js-contact" novalidate style="gap:12px"><b class="d" style="font-size:20px">' + tr('contactH') + '</b>' +
       '<span style="font-size:13px;line-height:1.45;color:var(--muted)">' + tr('contactHint') + '</span>' +
       '<div class="fld"><label for="gName">' + tr('name') + '</label><input id="gName" class="inp" name="name" autocomplete="given-name" maxlength="60" value="' + K.esc(S.name) + '" placeholder="' + NAME_PH[K.lang] + '"></div>' +
@@ -171,7 +172,7 @@
   function render(focus) {
     $('.js-step').innerHTML = '<div class="qstep">' + stepHtml() + '</div>';
     $('.js-actions').innerHTML = actionsHtml();
-    document.querySelectorAll('.js-prog i').forEach(function (el, i) { el.classList.toggle('on', i <= Math.min(S.step, 5)); });
+    document.querySelectorAll('.js-prog i').forEach(function (el, i) { el.classList.toggle('on', i <= Math.min(S.step, 4)); });
     $('.js-steplbl').textContent = S.step < 5 ? tr('q') + ' ' + (S.step + 1) + ' / 5' : tr('result');
     var canBack = S.step > 0 && !S.done;
     document.querySelector('.qz-foot').style.display = S.step >= 5 ? 'none' : '';
