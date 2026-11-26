@@ -15,6 +15,7 @@ const PAGES: Record<string, string> = {
   "/": "index.html",
   "/hisoblash": "hisoblash.html",
   "/oferta": "oferta.html",
+  "/privacy": "privacy.html",
 };
 
 export function resolveSiteDir(): string | null {

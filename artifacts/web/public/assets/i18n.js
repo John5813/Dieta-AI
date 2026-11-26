@@ -45,6 +45,7 @@
     q2: 'Как заморозить день?', a2: 'Напишите или позвоните менеджеру — для завтрашнего дня до 18:00. Заморозка бесплатна, день переносится в конец подписки и должен быть использован в течение 1 месяца — потом сгорает.',
     q3: 'Можно сменить адрес?', a3: 'Да. Адрес завтрашней доставки можно сменить до 18:00.',
     q4: 'Какой рацион мне подходит?', a4: 'Пройдите калькулятор: по полу, возрасту, росту, весу и активности посчитаем вашу норму калорий и покажем подходящий рацион.',
+    heroAlt: 'Диетический боул с тофу, яйцом и свежими овощами',
     q5: 'Как оплатить?', a5: 'После заявки менеджер позвонит, подтвердит заказ и пришлёт ссылку на оплату через Payme, Click или Uzum.', q6: 'Куда доставляете и сколько стоит доставка?',
     finalH: 'Узнайте свою норму калорий за 30 секунд', finalP: 'Приложение скачивать не нужно. Вместе с результатом покажем подходящий рацион и цену.',
     footTag: 'Доставка диетического питания с точно рассчитанной калорийностью по Ташкенту.', offer: 'Публичная оферта', privacy: 'Политика конфиденциальности',
@@ -131,16 +132,23 @@
     if (s === 'ru' || s === 'uz') return s;
     return 'uz';
   })();
-  var nodes = null, phNodes = [];
+  var nodes = null, phNodes = [], altNodes = [], titleUz = '', titleRu = '';
   function capture() {
     nodes = Array.prototype.map.call(document.querySelectorAll('[data-i18n]'), function (el) { return { el: el, key: el.getAttribute('data-i18n'), uz: el.innerHTML }; });
     phNodes = Array.prototype.map.call(document.querySelectorAll('[data-i18n-ph]'), function (el) { return { el: el, key: el.getAttribute('data-i18n-ph'), uz: el.getAttribute('placeholder') }; });
+    altNodes = Array.prototype.map.call(document.querySelectorAll('[data-i18n-alt]'), function (el) { return { el: el, key: el.getAttribute('data-i18n-alt'), uz: el.getAttribute('alt') }; });
+    // Tab title: Uzbek is the page's <title>, Russian comes from <meta name="title-ru">.
+    titleUz = document.title;
+    var tr = document.querySelector('meta[name="title-ru"]');
+    titleRu = tr ? tr.getAttribute('content') : '';
   }
   function applyLang() {
     if (!nodes) capture();
     document.documentElement.lang = lang;
     nodes.forEach(function (n) { var v = lang === 'ru' ? RU[n.key] : n.uz; if (v != null && n.el.innerHTML !== v) n.el.innerHTML = v; });
     phNodes.forEach(function (n) { var v = lang === 'ru' ? RU[n.key] : n.uz; if (v != null) n.el.setAttribute('placeholder', v); });
+    altNodes.forEach(function (n) { var v = lang === 'ru' ? RU[n.key] : n.uz; if (v != null) n.el.setAttribute('alt', v); });
+    document.title = lang === 'ru' && titleRu ? titleRu : titleUz;
     document.querySelectorAll('[data-lang]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-lang') === lang)); });
     listeners.forEach(function (fn) { fn(lang); });
   }
@@ -224,8 +232,17 @@
     var hasDiet = !!pick(T.dietitian);
     document.querySelectorAll('.js-n3').forEach(function (e) { e.textContent = hasDiet ? '03' : '02'; });
     document.querySelectorAll('.js-n4').forEach(function (e) { e.textContent = hasDiet ? '04' : '03'; });
-    document.querySelectorAll('.js-insta').forEach(function (a) { if (CFG.instagram) a.href = CFG.instagram; });
-    document.querySelectorAll('.js-insta-row').forEach(function (e) { e.style.display = CFG.instagram ? '' : 'none'; });
+    // The Instagram link is only created when a real URL is configured (no dead href="#").
+    document.querySelectorAll('.js-insta-row').forEach(function (row) {
+      var slot = row.querySelector('.js-insta-slot');
+      if (!CFG.instagram) { row.remove(); return; }
+      if (slot && !slot.firstChild) {
+        var a = document.createElement('a');
+        a.href = CFG.instagram; a.target = '_blank'; a.rel = 'noopener';
+        slot.appendChild(a);
+      }
+      if (slot && slot.firstChild) slot.firstChild.textContent = lang === 'ru' ? RU.tr4p : 'Instagram sahifamizda';
+    });
   }
   listeners.push(function () { initLinks(); });
 

@@ -70,3 +70,10 @@ ishlashda davom etadi, shuning uchun mobil ilova buzilmaydi.
 3. Nginx reverse proxy (`server_name kaloria.uz www.kaloria.uz; proxy_pass http://127.0.0.1:8080;`
    va `X-Forwarded-For`/`X-Forwarded-Proto` sarlavhalari), keyin `certbot --nginx -d kaloria.uz -d www.kaloria.uz`.
 4. `.env` da `TRUST_PROXY=1` qoldiring.
+
+## Maxfiylik siyosati manzillari
+
+| Manzil | Nima |
+|---|---|
+| `/privacy` | Sayt va parhez taom yetkazib berish xizmati siyosati (UZ/RU): buyurtma formasi, kalkulyator, UTM, Payme/Click/Uzum, Telegram |
+| `/privacy/app` (va `/api/privacy`) | Mobil ilova siyosati (EN/UZ/RU) — Google Play Console'dagi "Privacy policy" havolasini shu manzilga o'zgartiring |

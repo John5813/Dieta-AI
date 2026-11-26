@@ -167,9 +167,19 @@
   });
   window.addEventListener('hashchange', function () { var t = tabFromHash(); if (t && t !== S.tab) showTab(t, true); });
 
-  var dock = $('.js-dock'), foot = $('.foot');
-  if ('IntersectionObserver' in window && dock && foot) {
-    new IntersectionObserver(function (es) { dock.classList.toggle('away', es[0].isIntersecting); }).observe(foot);
+  // The sticky bottom CTA only appears when no other "calculate" button is on screen:
+  // hidden while the hero buttons, the final CTA band or the footer are visible.
+  var dock = $('.js-dock');
+  if (dock) {
+    var watched = $$('.hero-ctas, .final, .foot'), visible = {};
+    if ('IntersectionObserver' in window && watched.length) {
+      dock.classList.add('away');
+      var io = new IntersectionObserver(function (es) {
+        es.forEach(function (e) { visible[watched.indexOf(e.target)] = e.isIntersecting; });
+        dock.classList.toggle('away', Object.keys(visible).some(function (k) { return visible[k]; }));
+      });
+      watched.forEach(function (el) { io.observe(el); });
+    }
   }
 
   function renderAll() {
@@ -179,6 +189,10 @@
   K.onLang(renderAll);
   K.initLinks();
   K.applyLang();
+  // /?plan=sport#narxlar (from the quiz result) preselects that ration in the price calculator.
+  var preset = new URLSearchParams(location.search).get('plan');
+  var pi = RATIONS.indexOf(preset);
+  if (pi >= 0) { S.ration = pi; S.tier = pi; S.plan = PLANS.indexOf('w1'); renderPrice(); renderMenu(); }
   var initial = tabFromHash();
   showTab(initial || 'rations', !!initial, true);
 })();
