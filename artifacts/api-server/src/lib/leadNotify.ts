@@ -1,7 +1,7 @@
 import type { Lead } from "@workspace/db";
 import { logger } from "./logger";
 import * as tg from "./telegram";
-import { getSiteConfig, PLAN_DAYS, type PlanKey, type RationKey } from "./siteConfig";
+import { getSiteConfig, siteBaseUrl, PLAN_DAYS, type PlanKey, type RationKey } from "./siteConfig";
 
 /**
  * Sends every new website lead (and every later plan choice) to the sales
@@ -37,6 +37,7 @@ export function buildLeadMessage(l: Lead, kind: "new" | "intent"): string {
   lines.push(`👤 <b>${esc(l.name)}</b>`);
   lines.push(`📞 ${esc(l.phone)}`);
   lines.push(`🌐 Til: ${l.lang === "ru" ? "RU" : "UZ"}`);
+  if (l.deliverySlot) lines.push(`🕒 Yetkazish: ${l.deliverySlot === "evening" ? "kechki 18:00–22:30" : "ertalabki 08:00–10:00"}`);
   if (l.district || l.address) {
     lines.push(`📍 ${[l.district ? DISTRICT_LABEL[l.district] ?? l.district : "", l.address ? esc(l.address) : ""].filter(Boolean).join(", ")}`);
   }
@@ -64,6 +65,7 @@ export function buildLeadMessage(l: Lead, kind: "new" | "intent"): string {
   const utm = [l.utmSource, l.utmMedium, l.utmCampaign, l.utmContent].filter(Boolean).map((s) => esc(String(s)));
   if (utm.length) lines.push(`📣 UTM: ${utm.join(" / ")}`);
   else if (l.referrer) lines.push(`↩️ Manba: ${esc(l.referrer)}`);
+  if (l.customerId) lines.push(`\n👉 <a href="${siteBaseUrl()}/admin#c/${l.customerId}">CRM'da ochish</a>`);
   return lines.join("\n");
 }
 

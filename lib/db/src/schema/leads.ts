@@ -1,4 +1,4 @@
-import { pgTable, text, integer, real, boolean, bigserial, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, real, boolean, bigserial, bigint, timestamp, index } from "drizzle-orm/pg-core";
 
 /**
  * CRM: everyone who left a name and phone on the website (calorie quiz or an
@@ -41,6 +41,10 @@ export const leadsTable = pgTable(
     /** Tashkent district and free-text address from the order form. */
     district: text("district"),
     address: text("address"),
+    /** morning (08:00–10:00) | evening (18:00–22:30) */
+    deliverySlot: text("delivery_slot"),
+    /** The CRM customer this request belongs to (one customer per phone). */
+    customerId: bigint("customer_id", { mode: "number" }),
 
     utmSource: text("utm_source"),
     utmMedium: text("utm_medium"),
@@ -50,7 +54,7 @@ export const leadsTable = pgTable(
     referrer: text("referrer"),
     landingPath: text("landing_path"),
 
-    /** new → contacted → won / lost (managed by the sales team). */
+    /** new → contacted → converted (order created) / lost — set by managers in /admin. */
     status: text("status").notNull().default("new"),
     /** none → pending → paid */
     paymentStatus: text("payment_status").notNull().default("none"),

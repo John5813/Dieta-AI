@@ -7,6 +7,7 @@ import backupRouter from "./backup";
 import privacyRouter from "./privacy";
 import { payApi } from "./pay";
 import leadsRouter from "./leads";
+import { adminApi } from "./admin";
 
 const router: IRouter = Router();
 
@@ -17,6 +18,7 @@ router.use(barcodeRouter);
 router.use(backupRouter);
 router.use(payApi);
 router.use(leadsRouter);
+router.use(adminApi);
 router.use("/privacy", privacyRouter);
 
 export default router;

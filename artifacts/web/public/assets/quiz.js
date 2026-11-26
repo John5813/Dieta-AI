@@ -20,6 +20,7 @@
     contactH: 'Davom etamizmi?', contactHint: 'Ism va telefon faqat buyurtma berish yoki menyuni yuborish uchun kerak — natijani ko‘rish uchun shart emas.',
     sendMenu: 'Menyuni Telegram’ga yuborish', sendMenuSub: 'menejer bog‘lanadi',
     okMenu: 'Menejer tez orada Telegram yoki telefon orqali bog‘lanib, sizga mos menyuni yuboradi.',
+    slotLabel: 'Yetkazish vaqti', slotM: 'Ertalab', slotE: 'Kechqurun',
     kcalDay: 'kkal / kun', empty: 'Javoblaringiz shu yerda yig‘iladi', okH: 'So‘rovingiz qabul qilindi!', okQ: 'Menejer tez orada qo‘ng‘iroq qilib buyurtmani tasdiqlaydi va Payme, Click yoki Uzum orqali to‘lov havolasini yuboradi.', home: 'Bosh sahifaga'
   };
   var NAME_PH = { uz: 'Masalan, Dilnoza', ru: 'Например, Анна' };
@@ -133,6 +134,9 @@
       '<span style="font-size:13px;line-height:1.45;color:var(--muted)">' + tr('contactHint') + '</span>' +
       '<div class="fld"><label for="gName">' + tr('name') + '</label><input id="gName" class="inp" name="name" autocomplete="given-name" maxlength="60" value="' + K.esc(S.name) + '" placeholder="' + NAME_PH[K.lang] + '"></div>' +
       '<div class="fld"><label for="gPhone">' + tr('phone') + '</label><div class="pfx"><span>+998</span><input id="gPhone" name="phone" inputmode="tel" autocomplete="tel-national" placeholder="90 123 45 67" value="' + K.phoneFmt(S.phone) + '"></div></div>' +
+      '<fieldset class="slots"><legend>' + tr('slotLabel') + '</legend>' +
+        '<label class="slot"><input type="radio" name="deliverySlot" value="morning"' + (S.slot !== 'evening' ? ' checked' : '') + '><span><b>' + tr('slotM') + '</b><small>08:00–10:00</small></span></label>' +
+        '<label class="slot"><input type="radio" name="deliverySlot" value="evening"' + (S.slot === 'evening' ? ' checked' : '') + '><span><b>' + tr('slotE') + '</b><small>18:00–22:30</small></span></label></fieldset>' +
       '<input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">' +
       '<span class="err js-err" role="alert">' + K.esc(S.err) + '</span>' + btns +
       '<span class="consent">' + tr('consent') + ' <a href="/privacy">' + tr('privacy') + '</a></span></form>';
@@ -200,6 +204,9 @@
     var D = K.d(), nameEl = $('#gName'), phoneEl = $('#gPhone');
     S.name = (nameEl ? nameEl.value : S.name).trim().slice(0, 60);
     S.phone = K.phoneDigits(phoneEl ? phoneEl.value : S.phone);
+    // Read the chosen delivery time before re-rendering (render() rebuilds the form from state).
+    var slotEl = document.querySelector('.js-contact input[name=deliverySlot]:checked');
+    if (slotEl) S.slot = slotEl.value;
     if (S.name.length < 2 || S.phone.length !== 9) { S.err = D.errContact; var e = $('.js-err'); if (e) e.textContent = S.err; if (nameEl && S.name.length < 2) nameEl.focus(); else if (phoneEl) phoneEl.focus(); return; }
     if (S.sending) return;
     S.sending = true; S.err = ''; render(false);
@@ -207,9 +214,9 @@
     var plan = intent === 'test_drive' ? 'd3' : undefined;
     var a = K.attribution(), hp = document.querySelector('.js-contact input[name=website]');
     var req = S.lead
-      ? K.post('/api/v1/leads/' + S.lead.id + '/intent', { key: S.lead.key, intent: intent, plan: plan, planRation: ration })
+      ? K.post('/api/v1/leads/' + S.lead.id + '/intent', { key: S.lead.key, intent: intent, plan: plan, planRation: ration, deliverySlot: S.slot })
       : K.post('/api/v1/leads', {
-          name: S.name, phone: S.phone, lang: K.lang, intent: intent, plan: plan, planRation: ration, website: hp ? hp.value : '',
+          name: S.name, phone: S.phone, lang: K.lang, intent: intent, plan: plan, planRation: ration, deliverySlot: S.slot, website: hp ? hp.value : '',
           quiz: { gender: S.gender === 1 ? 'erkak' : 'ayol', goal: GOALS[S.goal], age: S.age, height: S.height, weight: S.weight, activity: ACT[S.act], healthRisk: S.risk === 1 },
           utm: a.utm, referrer: a.referrer, landingPath: a.landingPath
         });

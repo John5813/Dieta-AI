@@ -100,7 +100,7 @@ export function mountSite(app: Express): boolean {
   }
 
   app.get("/robots.txt", (_req, res) => {
-    res.type("text/plain").send(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /pay/o/\n\nSitemap: ${siteBaseUrl()}/sitemap.xml\n`);
+    res.type("text/plain").send(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nDisallow: /pay/o/\n\nSitemap: ${siteBaseUrl()}/sitemap.xml\n`);
   });
   app.get("/sitemap.xml", (_req, res) => {
     const base = siteBaseUrl();
@@ -118,6 +118,12 @@ export function mountSite(app: Express): boolean {
       index: false,
     }),
   );
+  // Staff CRM page: served as-is (no ad pixels, never indexed).
+  app.get("/admin", (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Robots-Tag", "noindex, nofollow");
+    res.sendFile(path.join(dir, "admin.html"));
+  });
   app.get("/favicon.png", (_req, res) => res.sendFile(path.join(dir, "assets", "favicon.png")));
   app.get("/favicon.ico", (_req, res) => res.sendFile(path.join(dir, "assets", "favicon.png")));
   return true;

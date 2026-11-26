@@ -1,4 +1,6 @@
-import { db, paymentsTable, botUsersTable, promoCodesTable } from "@workspace/db";
+import { db, paymentsTable, botUsersTable, promoCodesTable, staffTable } from "@workspace/db";
+import { createLoginToken, ownerChatIds } from "./adminAuth";
+import { siteBaseUrl } from "./siteConfig";
 import { eq, and, count, sum, gt, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import * as tg from "./telegram";
@@ -960,6 +962,11 @@ async function processUpdate(update: any) {
       const chatId = msg.chat.id.toString();
       const adminChatId = tg.getAdminChatId();
 
+      if (text === "/login" || text.startsWith("/login@")) {
+        await handleLoginCommand(msg);
+        return;
+      }
+
       if (chatId === adminChatId) {
         const handled = await handleAdminText(msg);
         if (handled) return;
@@ -1021,6 +1028,31 @@ async function processUpdate(update: any) {
   } catch (err) {
     logger.error({ err, update }, "bot processUpdate error");
   }
+}
+
+// ─── /login: one-time link to the /admin CRM ─────────────────────────────────
+async function handleLoginCommand(msg: any) {
+  const chatId = msg.chat.id.toString();
+  if (msg.chat.type !== "private") {
+    await tg.sendMessage(chatId, "🔒 /login faqat bot bilan shaxsiy chatda ishlaydi.");
+    return;
+  }
+  let [staff] = await db.select().from(staffTable).where(eq(staffTable.telegramChatId, chatId)).limit(1);
+  // First login of the business owner (TELEGRAM_ADMIN_CHAT_ID / ADMIN_OWNER_TELEGRAM_IDS) creates the owner account.
+  if (!staff && ownerChatIds().has(chatId)) {
+    const name = [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") || "Admin";
+    [staff] = await db.insert(staffTable).values({ name, role: "owner", telegramChatId: chatId, telegramUsername: msg.from?.username ?? null }).onConflictDoNothing().returning();
+    if (!staff) [staff] = await db.select().from(staffTable).where(eq(staffTable.telegramChatId, chatId)).limit(1);
+  }
+  if (!staff || !staff.active) {
+    await tg.sendMessage(chatId, `⛔️ Siz CRM xodimlari ro‘yxatida yo‘qsiz.\n\nTelegram ID: <code>${chatId}</code>\nShu raqamni adminga yuboring — u sizni CRM → Xodimlar bo‘limida qo‘shadi.`);
+    return;
+  }
+  const token = await createLoginToken(staff.id);
+  const link = `${siteBaseUrl()}/admin/auth?t=${token}`;
+  await tg.sendMessage(chatId, `🔐 <b>kaloria.uz CRM</b>\n\nKirish uchun bosing (10 daqiqa amal qiladi, bir marta):`, {
+    replyMarkup: { inline_keyboard: [[{ text: "CRM'ga kirish", url: link }]] },
+  });
 }
 
 // ─── Polling ─────────────────────────────────────────────────────────────────

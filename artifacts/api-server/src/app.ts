@@ -2,6 +2,8 @@ import path from "node:path";
 import fs from "node:fs";
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
+import { adminPages } from "./routes/admin";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import privacyRouter from "./routes/privacy";
@@ -75,11 +77,14 @@ const BIG_BODY_PATHS = new Set(["/api/ai/analyze-image", "/api/backup"]);
 const smallJson = express.json({ limit: "256kb" });
 app.use((req, res, next) => (BIG_BODY_PATHS.has(req.path) ? next() : smallJson(req, res, next)));
 app.use(express.urlencoded({ extended: false, limit: "64kb" }));
+app.use(cookieParser());
 
 // kaloria.uz website (landing, calorie quiz, offer). GET / serves the landing
 // page, which is static and dependency-free, so it still works as the
 // DigitalOcean readiness probe.
 mountSite(app);
+// /admin/auth (Telegram login link) and /admin/logout.
+app.use(adminPages);
 
 // Fallback readiness probe when the website files are not deployed.
 app.get("/", (_req, res) => {
