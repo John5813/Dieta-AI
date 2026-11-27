@@ -45,6 +45,8 @@ export const leadsTable = pgTable(
     deliverySlot: text("delivery_slot"),
     /** Calories the visitor picked for the chosen plan (1200/1400/1600/1900/2200/2500). */
     planSku: integer("plan_sku"),
+    /** Meals per day the visitor picked (5 / 4 / 3). */
+    meals: integer("meals"),
     /** Allergies / wishes typed into the website form. */
     note: text("note"),
     /** The CRM customer this request belongs to (one customer per phone). */

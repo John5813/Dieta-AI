@@ -397,6 +397,17 @@ async function ensureCrmSchema(): Promise<void> {
     );
   `);
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS kitchen_menu_slot ON kitchen_menu (weekday, meal);`);
+  // 5 / 4 / 3 meals a day and CRM settings (3/4-meal price discount).
+  await db.execute(sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS meals integer;`);
+  await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS meals integer NOT NULL DEFAULT 5;`);
+  await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS meals integer;`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS crm_settings (
+      key text PRIMARY KEY,
+      value jsonb NOT NULL,
+      updated_at timestamp NOT NULL DEFAULT now()
+    );
+  `);
 }
 
 export * from "./schema";

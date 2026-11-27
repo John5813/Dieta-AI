@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700&family=Onest:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
-<link rel="stylesheet" href="/assets/site.css?v=7">
+<link rel="stylesheet" href="/assets/site.css?v=8">
 <link rel="preload" as="image" href="/assets/img/m4-bowl.webp">
 <!--KALORIA:HEAD-->
 </head>
@@ -120,6 +120,10 @@
           <div class="seg kseg js-kseg" role="group" aria-label="kkal"></div>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px">
+          <span class="ctrl-l" data-i18n="mLabel">Kunlik mahal soni</span>
+          <div class="seg mseg js-mseg" role="group" aria-label="Mahal soni"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
           <span class="ctrl-l" data-i18n="dLabel">Muddat</span>
           <div class="tiles js-tiles" role="group" aria-label="Muddat"></div>
         </div>
@@ -131,12 +135,14 @@
           <div class="dash"></div>
           <div class="ld"><span data-i18n="rcRation">Rasion</span><i></i><b class="js-rc-ration"></b></div>
           <div class="ld"><span data-i18n="rcTerm">Muddat</span><i></i><b class="js-rc-term"></b></div>
+          <div class="ld"><span class="js-rc-mlabel">Mahal soni</span><i></i><b class="js-rc-meals"></b></div>
           <div class="ld"><span data-i18n="rcDays">Yetkazish kunlari</span><i></i><b class="js-rc-days"></b></div>
           <div class="ld"><span data-i18n="rcPrice">Kunlik narx</span><i></i><b class="js-rc-price"></b></div>
           <div class="ld"><span data-i18n="rcDisc">Chegirma</span><i></i><b class="js-rc-disc" style="color:var(--green)"></b></div>
           <div class="dash"></div>
           <div class="rc-tot"><span class="lbl" data-i18n="rcTotal">Jami</span><span class="d"><span class="js-rc-total"></span><span class="js-sum" style="font:500 13px var(--f-b);color:var(--muted)"> so‘m</span></span></div>
           <span class="js-rc-perday" style="font-size:12px;color:var(--muted2);text-align:right;margin-top:-6px"></span>
+          <span class="m-note js-m-note" hidden></span>
           <button type="button" class="btn btn-hot btn-block js-order" style="margin-top:4px" data-i18n="order">Buyurtma qoldirish</button>
           <button type="button" class="btn btn-soft btn-block js-mgr" data-i18n="mgr">Menejer bog‘lansin</button>
           <span class="small-c" data-i18n="orderHow">Menejer qo‘ng‘iroq qilib tasdiqlaydi va Payme · Click · Uzum orqali to‘lov havolasini yuboradi</span>
@@ -277,7 +283,7 @@
   </div>
 </div>
 
-<script src="/assets/i18n.js?v=6"></script>
-<script src="/assets/site.js?v=6"></script>
+<script src="/assets/i18n.js?v=7"></script>
+<script src="/assets/site.js?v=7"></script>
 </body>
 </html>

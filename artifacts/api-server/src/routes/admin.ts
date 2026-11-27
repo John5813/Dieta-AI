@@ -12,6 +12,7 @@ import {
   MEALS, WEEKDAYS, SKU_LIST, ROLES, ROLE_LABEL, type KitchenReport,
 } from "../lib/kitchen";
 import { rateLimit } from "../lib/guard";
+import { MEAL_COUNTS, MEAL_SETS, MEALS_NOTE, mealsOf, mealsText, mealPrice, mealPricing, saveMealPricing } from "../lib/meals";
 import { buildXlsx, XS, type XRow } from "../lib/xlsx";
 import { DISTRICT_LABEL } from "../lib/leadNotify";
 import { logger } from "../lib/logger";
@@ -93,6 +94,7 @@ adminApi.get("/admin/me", async (req, res) => {
       rations: RATIONS.map((id) => ({ id, skus: SKUS[id] })), plans: PLANS.map((id) => ({ id, days: PLAN_DAYS[id] })),
       districts: [...DISTRICTS], leadStatuses: LEAD_STATUSES,
       extras, meals: MEALS, skus: SKU_LIST,
+      mealCounts: MEAL_COUNTS, mealSets: MEAL_SETS, mealsNote: MEALS_NOTE, mealPricing: mealPricing(),
     },
     pricing: { prices: getSiteConfig().prices, discounts: getSiteConfig().discounts },
     today: tashkentDate(), defaultStart: defaultStartDate(), firstEditableDay: firstEditableDay(), cutoffPassed: tashkentHour() >= CUTOFF_HOUR,
@@ -113,7 +115,7 @@ adminApi.get("/admin/inbox", async (req, res) => {
     counts: Object.fromEntries(counts.rows.map((r) => [r.status, r.n])),
     items: rows.map((l) => ({
       id: l.id, customerId: l.customerId, name: l.name, phone: l.phone, lang: l.lang, intent: l.intent, status: l.status,
-      plan: l.plan, ration: l.planRation ?? l.ration, sku: l.planSku ?? l.sku, note: l.note, calories: l.calories, healthRisk: l.healthRisk,
+      plan: l.plan, ration: l.planRation ?? l.ration, sku: l.planSku ?? l.sku, meals: l.meals, note: l.note, calories: l.calories, healthRisk: l.healthRisk,
       district: l.district, address: l.address, deliverySlot: l.deliverySlot, utmSource: l.utmSource, utmCampaign: l.utmCampaign,
       createdAt: l.createdAt,
     })),
@@ -168,7 +170,7 @@ adminApi.get("/admin/customers", async (req, res) => {
   res.json({
     items: customers.map((c) => {
       const latest = views.find((o) => o.customerId === c.id && o.crmStatus !== "cancelled") ?? views.find((o) => o.customerId === c.id) ?? null;
-      return { id: c.id, name: c.name, phone: c.phone, district: c.district, firstSource: c.firstSource, createdAt: c.createdAt, archivedAt: c.archivedAt, extras: c.extras ?? [], order: latest };
+      return { id: c.id, name: c.name, phone: c.phone, district: c.district, firstSource: c.firstSource, createdAt: c.createdAt, archivedAt: c.archivedAt, extras: c.extras ?? [], meals: c.meals, order: latest };
     }),
   });
 });
@@ -239,6 +241,11 @@ adminApi.patch("/admin/customers/:id", async (req, res) => {
   if ("address" in b) patch["address"] = str(b.address, 200);
   if ("deliverySlot" in b) patch["deliverySlot"] = oneOf(DELIVERY_SLOTS, b.deliverySlot);
   if ("notes" in b) patch["notes"] = str(b.notes, 2000);
+  if ("meals" in b) {
+    const m = b.meals == null || b.meals === "" ? null : mealsOf(b.meals);
+    if (b.meals != null && b.meals !== "" && !m) { bad(res, "Mahal soni 5, 4 yoki 3 bo‘lsin"); return; }
+    patch["meals"] = m;
+  }
   if ("extras" in b) {
     const x = parseExtras(b.extras, await loadExtras());
     if (x.error) { bad(res, x.error); return; }
@@ -247,6 +254,9 @@ adminApi.patch("/admin/customers/:id", async (req, res) => {
   if (!Object.keys(patch).length) { res.json({ customer: cur }); return; }
   const [row] = await db.update(customersTable).set({ ...patch, updatedAt: new Date() }).where(eq(customersTable.id, id)).returning();
   if (patch["phone"]) await addEvent({ customerId: id, staffId: req.staff!.id, type: "customer_updated", body: `Telefon: ${cur.phone} → ${patch["phone"]}` });
+  if ("meals" in patch && patch["meals"] !== cur.meals) {
+    await addEvent({ customerId: id, staffId: req.staff!.id, type: "customer_updated", body: `Doimiy mahal soni: ${patch["meals"] ? mealsText(patch["meals"] as number) : "belgilanmagan"}` });
+  }
   if ("extras" in patch && extrasText(cur.extras) !== extrasText(patch["extras"] as ExtraItem[] | null)) {
     await addEvent({ customerId: id, staffId: req.staff!.id, type: "customer_updated", body: `Doimiy maxsus porsiya: ${extrasText(patch["extras"] as ExtraItem[] | null) || "yo‘q"}` });
   }
@@ -312,7 +322,7 @@ adminApi.post("/admin/customers/:id/events", async (req, res) => {
 const FIELD_LABEL: Record<string, string> = {
   crmStatus: "Holat", paymentStatus: "To‘lov", deliverySlot: "Yetkazish vaqti", courierType: "Kuryer", startDate: "Boshlanish",
   plan: "Muddat", ration: "Rasion", sku: "Kaloriya", pricePerDay: "Kunlik narx", paidAmount: "To‘langan", district: "Tuman", address: "Manzil", note: "Izoh", source: "Manba",
-  daysTotal: "Kunlar soni", status: "Holat", extras: "Maxsus porsiya", extrasPerDay: "Qo‘shimcha narx/kun",
+  daysTotal: "Kunlar soni", status: "Holat", extras: "Maxsus porsiya", extrasPerDay: "Qo‘shimcha narx/kun", meals: "Mahal soni",
 };
 const VALUE_LABEL: Record<string, string> = {
   new: "Yangi", contacted: "Aloqaga chiqildi", awaiting_payment: "To‘lov kutilmoqda", active: "Faol", finished: "Tugadi", cancelled: "Bekor",
@@ -357,6 +367,11 @@ function readOrderInput(b: Record<string, unknown>, partial: boolean) {
   if ("district" in b) out["district"] = oneOf([...DISTRICTS] as string[], b["district"]);
   if ("address" in b) out["address"] = str(b["address"], 200);
   if ("note" in b) out["note"] = str(b["note"], 1000);
+  if ("meals" in b && b["meals"] != null && b["meals"] !== "") {
+    const m = mealsOf(b["meals"]);
+    if (!m) return err("Mahal soni 5, 4 yoki 3 bo‘lsin");
+    out["meals"] = m;
+  }
   if ("pricePerDay" in b && b["pricePerDay"] !== "" && b["pricePerDay"] != null) {
     const p = Number(b["pricePerDay"]);
     if (!Number.isFinite(p) || p < 1000 || p > 10_000_000) return err("Kunlik narx noto‘g‘ri");
@@ -378,7 +393,9 @@ function readOrderInput(b: Record<string, unknown>, partial: boolean) {
 /** Inserts a validated order (from readOrderInput) for a customer and builds its delivery schedule. */
 async function insertOrder(staffId: number, customer: Customer, data: Record<string, unknown>, leadIdRaw?: unknown) {
   const extrasPerDay = (data["extrasPerDay"] as number | undefined) ?? 0;
-  const q = quote(data["ration"] as RationKey, data["plan"] as PlanKey, data["pricePerDay"] as number | undefined, data["daysTotal"] as number | undefined, extrasPerDay);
+  // Meals per day: from the order, else the customer's permanent choice, else 5.
+  const meals = (data["meals"] as number | undefined) ?? mealsOf(customer.meals) ?? 5;
+  const q = quote(data["ration"] as RationKey, data["plan"] as PlanKey, data["pricePerDay"] as number | undefined, data["daysTotal"] as number | undefined, extrasPerDay, meals);
   const paymentStatus = (data["paymentStatus"] as string) ?? "unpaid";
   // Paid in full or a prepayment (partial) → the subscription is on and goes to the delivery list.
   const crmStatus = (data["crmStatus"] as string) ?? (paymentStatus === "paid" || paymentStatus === "partial" ? "active" : "awaiting_payment");
@@ -398,7 +415,7 @@ async function insertOrder(staffId: number, customer: Customer, data: Record<str
       district: ("district" in data ? data["district"] : customer.district) as string | null,
       address: ("address" in data ? data["address"] : customer.address) as string | null,
       managerId: staffId, note: (data["note"] as string) ?? null,
-      extras: ((data["extras"] as ExtraItem[] | undefined)?.length ? data["extras"] : null) as ExtraItem[] | null, extrasPerDay,
+      extras: ((data["extras"] as ExtraItem[] | undefined)?.length ? data["extras"] : null) as ExtraItem[] | null, extrasPerDay, meals,
     })
     .returning();
   await rebuildSchedule(order!);
@@ -406,7 +423,7 @@ async function insertOrder(staffId: number, customer: Customer, data: Record<str
   if (order!.leadId) await db.update(leadsTable).set({ status: "converted", updatedAt: new Date() }).where(eq(leadsTable.id, order!.leadId));
   await addEvent({
     customerId: customer.id, orderId: order!.id, staffId, type: "order_created",
-    body: `${valueLabel(order!.ration)} ${order!.sku} · ${valueLabel(order!.plan)} · ${order!.startDate} · ${SLOT_LABEL[order!.deliverySlot as DeliverySlot]}${order!.extras?.length ? " · " + extrasText(order!.extras) : ""}`,
+    body: `${valueLabel(order!.ration)} ${order!.sku} · ${valueLabel(order!.plan)} · ${order!.startDate} · ${SLOT_LABEL[order!.deliverySlot as DeliverySlot]}${order!.meals !== 5 ? " · " + mealsText(order!.meals) : ""}${order!.extras?.length ? " · " + extrasText(order!.extras) : ""}`,
     meta: { source: order!.source, amount: order!.amount, paymentStatus, crmStatus },
   });
   return (await orderView([order!]))[0]!;
@@ -444,6 +461,8 @@ adminApi.post("/admin/customers/quick", rateLimit("admin-quick", 120, 60 * 60 * 
   const address = str(b["address"], 200);
   const note = str(b["note"], 2000);
 
+  const custMeals = b["meals"] == null || b["meals"] === "" ? null : mealsOf(b["meals"]);
+  if (b["meals"] != null && b["meals"] !== "" && !custMeals) { bad(res, "Mahal soni 5, 4 yoki 3 bo‘lsin"); return; }
   const catalog = await loadExtras();
   const custExtras = "extras" in b ? parseExtras(b["extras"], catalog) : null;
   if (custExtras?.error) { bad(res, custExtras.error); return; }
@@ -454,6 +473,7 @@ adminApi.post("/admin/customers/quick", rateLimit("admin-quick", 120, 60 * 60 * 
     if (!ob["startDate"]) ob["startDate"] = defaultStartDate();
     if (!("district" in ob)) ob["district"] = district;
     if (!("address" in ob)) ob["address"] = address;
+    if (!("meals" in ob) && custMeals) ob["meals"] = custMeals;
     const { error, data } = readOrderInput(ob, false);
     if (error) { bad(res, error); return; }
     // The order gets its own special portions if sent, otherwise the customer's permanent ones.
@@ -474,6 +494,9 @@ adminApi.post("/admin/customers/quick", rateLimit("admin-quick", 120, 60 * 60 * 
     const notes = customer.notes && !customer.notes.includes(note) ? `${customer.notes}\n${note}` : note;
     [customer] = await db.update(customersTable).set({ notes, updatedAt: new Date() }).where(eq(customersTable.id, customer.id)).returning() as [typeof customer];
     await addEvent({ customerId: customer.id, staffId, type: "note", body: note });
+  }
+  if (custMeals && custMeals !== customer.meals) {
+    [customer] = await db.update(customersTable).set({ meals: custMeals, updatedAt: new Date() }).where(eq(customersTable.id, customer.id)).returning() as [typeof customer];
   }
   if (custExtras && custExtras.items.length) {
     [customer] = await db.update(customersTable).set({ extras: custExtras.items, updatedAt: new Date() }).where(eq(customersTable.id, customer.id)).returning() as [typeof customer];
@@ -502,10 +525,14 @@ adminApi.patch("/admin/orders/:id", async (req, res) => {
   }
   if (!Object.keys(data).length) { bad(res, "O‘zgarish yo‘q"); return; }
 
-  // Price follows plan / days / ration / price / special-portion changes. A new plan resets the day count unless days are given.
-  if ("plan" in data || "ration" in data || "pricePerDay" in data || "daysTotal" in data || "extrasPerDay" in data) {
+  // New meal count or ration without a typed price → the standard day price for it (5-meal price minus the 3/4-meal discount).
+  if (("meals" in data || "ration" in data) && !("pricePerDay" in data)) {
+    data["pricePerDay"] = mealPrice(getSiteConfig().prices[(data["ration"] ?? order.ration) as RationKey], (data["meals"] ?? order.meals) as number);
+  }
+  // Price follows plan / days / ration / price / special-portion / meal changes. A new plan resets the day count unless days are given.
+  if ("plan" in data || "ration" in data || "pricePerDay" in data || "daysTotal" in data || "extrasPerDay" in data || "meals" in data) {
     const days = (data["daysTotal"] as number | undefined) ?? ("plan" in data ? undefined : order.daysTotal);
-    const q = quote((data["ration"] ?? order.ration) as RationKey, (data["plan"] ?? order.plan) as PlanKey, (data["pricePerDay"] ?? order.pricePerDay) as number, days, (data["extrasPerDay"] ?? order.extrasPerDay) as number);
+    const q = quote((data["ration"] ?? order.ration) as RationKey, (data["plan"] ?? order.plan) as PlanKey, (data["pricePerDay"] ?? order.pricePerDay) as number, days, (data["extrasPerDay"] ?? order.extrasPerDay) as number, (data["meals"] ?? order.meals) as number);
     Object.assign(data, { daysTotal: q.days, pricePerDay: q.pricePerDay, discountPct: q.discountPct, amount: q.amount });
   }
   if (data["paymentStatus"] === "paid" && !("paidAmount" in data)) data["paidAmount"] = (data["amount"] as number) ?? order.amount;
@@ -593,7 +620,7 @@ async function deliveryRows(day: string) {
   return rows.map(({ d, o, c }) => ({
     dayId: d.id, orderId: o.id, customerId: c.id, name: c.name, phone: c.phone, sku: d.sku, ration: o.ration,
     deliverySlot: d.deliverySlot, courierType: d.courierType, district: d.district, address: d.address, status: d.status,
-    note: o.note, customerNotes: c.notes, extras: o.extras ?? [],
+    note: o.note, customerNotes: c.notes, extras: o.extras ?? [], meals: o.meals,
   }));
 }
 
@@ -630,7 +657,7 @@ adminApi.get("/admin/delivery.xlsx", async (req, res) => {
   const slot = oneOf(DELIVERY_SLOTS, req.query["slot"]);
   const courier = oneOf(COURIER_TYPES, req.query["courier"]);
   const rows = (await deliveryRows(day)).filter((r) => (!slot || r.deliverySlot === slot) && (!courier || r.courierType === courier));
-  const head = ["№", "Smena", "Kuryer", "Mijoz", "Telefon", "Tuman", "Manzil", "Rasion", "Kkal", "Maxsus porsiya", "Izoh / allergiya", "✓"];
+  const head = ["№", "Smena", "Kuryer", "Mijoz", "Telefon", "Tuman", "Manzil", "Rasion", "Kkal", "Mahal", "Maxsus porsiya", "Izoh / allergiya", "✓"];
   const what = [slot ? (slot === "evening" ? "Kechki 18:00–22:30" : "Ertalab 08:00–10:00") : "", courier ? (courier === "external" ? "Tashqi kuryer" : "Ichki kuryer") : ""].filter(Boolean).join(" · ");
   const sheetRows: XRow[] = [
     { cells: [`Yetkazish ro‘yxati — ${dayLabel(day)}${what ? " · " + what : ""} (${rows.length} ta)`], style: XS.title, height: 24 },
@@ -647,6 +674,7 @@ adminApi.get("/admin/delivery.xlsx", async (req, res) => {
         r.address ?? "",
         RATION_NAME[r.ration] ?? r.ration,
         { v: r.sku, s: XS.num },
+        r.meals !== 5 ? { v: mealsText(r.meals), s: XS.note } : { v: "5", s: XS.num },
         r.extras.length ? { v: extrasText(r.extras), s: XS.note } : "",
         [r.customerNotes, r.note].filter(Boolean).join(" · "),
         { v: r.status === "delivered" ? "✓" : r.status === "failed" ? "✗" : "", s: XS.num },
@@ -656,8 +684,8 @@ adminApi.get("/admin/delivery.xlsx", async (req, res) => {
   if (!rows.length) sheetRows.push({ cells: ["Bu kunga yetkazish yo‘q"], style: XS.muted });
   xlsxHeaders(res, `yetkazish-${day}${slot ? "-" + slot : ""}${courier ? "-" + courier : ""}.xlsx`);
   res.send(buildXlsx([{
-    name: "Yetkazish", cols: [5, 19, 9, 20, 18, 16, 36, 10, 7, 22, 34, 5], rows: sheetRows, merges: ["A1:L1"],
-    freezeRows: 2, autoFilter: rows.length ? `A2:L${rows.length + 2}` : undefined, landscape: true,
+    name: "Yetkazish", cols: [5, 19, 9, 20, 18, 16, 34, 10, 7, 16, 22, 32, 5], rows: sheetRows, merges: ["A1:M1"],
+    freezeRows: 2, autoFilter: rows.length ? `A2:M${rows.length + 2}` : undefined, landscape: true,
   }]));
 });
 
@@ -677,16 +705,16 @@ adminApi.get("/admin/kitchen.xlsx", async (req, res) => {
     { cells: [title], style: XS.title, height: 24 },
     { cells: [`kaloria.uz · jami ${sum.t} ta kunlik quti · varaqlar: 1) Rasionlar 2) Taom va mahsulotlar 3) Quti yorliqlari`], style: XS.muted },
     { cells: [] },
-    { cells: ["Rasion", "Kkal", "Ertalab 08:00–10:00", "Kechki 18:00–22:30", "Jami", "Shundan maxsus porsiya"], style: XS.head, height: 20 },
-    ...k.rations.map((r) => ({ style: XS.text, cells: [RATION_NAME[r.ration] ?? r.ration, n(r.sku), n(r.morning), n(r.evening), n(r.total),
+    { cells: ["Rasion", "Kkal", "Mahal", "Ertalab 08:00–10:00", "Kechki 18:00–22:30", "Jami", "Shundan maxsus porsiya"], style: XS.head, height: 20 },
+    ...k.rations.map((r) => ({ style: XS.text, cells: [RATION_NAME[r.ration] ?? r.ration, n(r.sku), r.meals !== 5 ? { v: mealsText(r.meals), s: XS.note } : { v: "5 mahal", s: XS.num }, n(r.morning), n(r.evening), n(r.total),
       r.specialBoxes ? { v: Object.entries(r.special).map(([l, c]) => `${c} ta: ${l}`).join("; "), s: XS.note } : "—"] })),
-    { cells: [{ v: "Jami", s: XS.totalLabel }, { v: "", s: XS.totalLabel }, { v: sum.m, s: XS.totalNum }, { v: sum.e, s: XS.totalNum }, { v: sum.t, s: XS.totalNum }, { v: `${k.rations.reduce((a, r) => a + r.specialBoxes, 0)} ta maxsus quti`, s: XS.totalLabel }] },
+    { cells: [{ v: "Jami", s: XS.totalLabel }, { v: "", s: XS.totalLabel }, { v: "", s: XS.totalLabel }, { v: sum.m, s: XS.totalNum }, { v: sum.e, s: XS.totalNum }, { v: sum.t, s: XS.totalNum }, { v: `${k.rations.reduce((a, r) => a + r.specialBoxes, 0)} ta maxsus quti`, s: XS.totalLabel }] },
   ];
   if (!k.rations.length) s1.push({ cells: ["Bu kunga faol yetkazish yo‘q"], style: XS.muted });
 
   const s2: XRow[] = [
     { cells: [`Taom va mahsulotlar yig‘indisi — ${dayLabel(day)}`], style: XS.title, height: 24 },
-    { cells: [k.hasMenu ? `${k.weekdayLabel} menyusi · porsiyalar maxsus qo‘shimchalar bilan (masalan, 2x go‘sht = 2 porsiya)` : "Bu kun uchun menyu yo‘q (yakshanba yoki menyu kiritilmagan)"], style: XS.muted },
+    { cells: [k.hasMenu ? `${k.weekdayLabel} menyusi · maxsus qo‘shimchalar bilan (2x go‘sht = 2 porsiya) · 4 mahal: Perekus 16:30siz, 3 mahal: perekussiz` : "Bu kun uchun menyu yo‘q (yakshanba yoki menyu kiritilmagan)"], style: XS.muted },
     { cells: [] },
     { cells: ["Taomlar"], style: XS.section, height: 20 },
     { cells: ["Mahal", "Vaqt", "Taom", "Ertalab", "Kechki", "Jami", "Shundan maxsus"], style: XS.head, height: 32 },
@@ -702,17 +730,18 @@ adminApi.get("/admin/kitchen.xlsx", async (req, res) => {
   const s3: XRow[] = [
     { cells: [`Quti yorlig‘i — maxsus talab va allergiyalar · ${dayLabel(day)}`], style: XS.title, height: 24 },
     { cells: ["Oshpaz qaysi mijoz qutisiga qo‘shimcha solishini adashmasligi uchun"], style: XS.muted },
-    { cells: ["Mijoz", "Rasion · kkal", "Smena", "Maxsus porsiya", "Allergiya / izoh"], style: XS.head, height: 20 },
+    { cells: ["Mijoz", "Rasion · kkal", "Smena", "Mahal", "Maxsus porsiya", "Allergiya / izoh"], style: XS.head, height: 20 },
     ...k.labels.map((l) => ({ style: XS.text, cells: [l.name ?? "", `${RATION_NAME[l.ration] ?? l.ration} ${l.sku}`, l.deliverySlot === "evening" ? "Kechki" : "Ertalab",
+      l.meals !== 5 ? { v: l.mealsText, s: XS.note } : "5 mahal",
       l.extras.length ? { v: l.extras.join(", "), s: XS.note } : "—", l.note ? { v: l.note, s: XS.note } : "—"] })),
   ];
   if (!k.labels.length) s3.push({ cells: ["Maxsus talab yoki izoh yo‘q"], style: XS.muted });
 
   xlsxHeaders(res, `oshxona-${day}.xlsx`);
   res.send(buildXlsx([
-    { name: "1. Rasionlar", cols: [14, 9, 20, 20, 10, 46], rows: s1, merges: ["A1:F1", "A2:F2"], freezeRows: 4 },
+    { name: "1. Rasionlar", cols: [14, 9, 26, 20, 20, 10, 44], rows: s1, merges: ["A1:G1", "A2:G2"], freezeRows: 4 },
     { name: "2. Taom va mahsulotlar", cols: [22, 14, 30, 12, 12, 12, 12, 12, 12], rows: s2, merges: ["A1:I1", "A2:I2"], landscape: true },
-    { name: "3. Quti yorliqlari", cols: [22, 16, 11, 28, 46], rows: s3, merges: ["A1:E1", "A2:E2"], freezeRows: 3, autoFilter: k.labels.length ? `A3:E${k.labels.length + 3}` : undefined },
+    { name: "3. Quti yorliqlari", cols: [22, 16, 11, 26, 26, 42], rows: s3, merges: ["A1:F1", "A2:F2"], freezeRows: 3, autoFilter: k.labels.length ? `A3:F${k.labels.length + 3}` : undefined, landscape: true },
   ]));
 });
 
@@ -727,10 +756,10 @@ adminApi.get("/admin/delivery.csv", async (req, res) => {
     if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return `"${s.replace(/"/g, '""')}"`;
   };
-  const head = ["Sana", "Smena", "Kuryer", "Ism", "Telefon (+998)", "Tuman", "Manzil", "Kaloriya", "Rasion", "Maxsus porsiya", "Izoh / allergiya"];
+  const head = ["Sana", "Smena", "Kuryer", "Ism", "Telefon (+998)", "Tuman", "Manzil", "Kaloriya", "Rasion", "Mahal", "Maxsus porsiya", "Izoh / allergiya"];
   // "97 777 88 99": stays text in Excel (a leading "+" would be read as a formula).
   const localPhone = (p: string) => p.replace(/^\+998(\d{2})(\d{3})(\d{2})(\d{2})$/, "$1 $2 $3 $4");
-  const lines = rows.map((r) => [day, SLOT_LABEL[r.deliverySlot as DeliverySlot], r.courierType === "external" ? "Tashqi" : "Ichki", r.name, localPhone(r.phone), r.district, r.address, r.sku, r.ration, extrasText(r.extras), [r.customerNotes, r.note].filter(Boolean).join(" · ")].map(cell).join(","));
+  const lines = rows.map((r) => [day, SLOT_LABEL[r.deliverySlot as DeliverySlot], r.courierType === "external" ? "Tashqi" : "Ichki", r.name, localPhone(r.phone), r.district, r.address, r.sku, r.ration, mealsText(r.meals), extrasText(r.extras), [r.customerNotes, r.note].filter(Boolean).join(" · ")].map(cell).join(","));
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="yetkazish-${day}${slot ? "-" + slot : ""}${courier ? "-" + courier : ""}.csv"`);
   res.send("﻿" + [head.map(cell).join(","), ...lines].join("\r\n"));
@@ -740,7 +769,12 @@ adminApi.get("/admin/delivery.csv", async (req, res) => {
 adminApi.get("/admin/menu", async (_req, res) => {
   const [menu, extras] = await Promise.all([loadMenu(), loadExtras()]);
   const products = [...new Set(menu.flatMap((m) => m.items.map((i) => i.product)))].sort((a, b) => a.localeCompare(b));
-  res.json({ meals: MEALS, weekdays: WEEKDAYS, skus: SKU_LIST, roles: ROLES.map((id) => ({ id, label: ROLE_LABEL[id] })), menu, extras, products });
+  const prices = getSiteConfig().prices;
+  res.json({
+    meals: MEALS, weekdays: WEEKDAYS, skus: SKU_LIST, roles: ROLES.map((id) => ({ id, label: ROLE_LABEL[id] })), menu, extras, products,
+    mealSets: MEAL_SETS, mealsNote: MEALS_NOTE, mealPricing: mealPricing(),
+    mealPrices: Object.fromEntries(RATIONS.map((rid) => [rid, { 5: prices[rid], 4: mealPrice(prices[rid], 4), 3: mealPrice(prices[rid], 3) }])),
+  });
 });
 
 adminApi.put("/admin/menu/:weekday/:meal", async (req, res) => {
@@ -767,6 +801,17 @@ adminApi.put("/admin/menu/:weekday/:meal", async (req, res) => {
   const [row] = await db.insert(kitchenMenuTable).values({ weekday, meal, name, items })
     .onConflictDoUpdate({ target: [kitchenMenuTable.weekday, kitchenMenuTable.meal], set: { name, items, updatedAt: new Date() } }).returning();
   res.json({ meal: row });
+});
+
+/** Owner: percent off the 5-meal day price for 4 and 3 meals ("Perekus chegirmasi"). */
+adminApi.patch("/admin/settings/meal-pricing", requireOwner, async (req, res) => {
+  const b = req.body ?? {};
+  const v4 = Number(b["4"]), v3 = Number(b["3"]);
+  if (![v4, v3].every((v) => Number.isFinite(v) && v >= 0 && v <= 60)) { bad(res, "Chegirma 0–60% oralig‘ida bo‘lsin"); return; }
+  if (v3 < v4) { bad(res, "3 mahal chegirmasi 4 mahalnikidan kam bo‘lmasin"); return; }
+  const saved = await saveMealPricing({ "4": Math.round(v4 * 10) / 10, "3": Math.round(v3 * 10) / 10 });
+  logger.info({ staffId: req.staff!.id, mealPricing: saved }, "meal pricing changed");
+  res.json({ mealPricing: saved });
 });
 
 /** Owner: label, price per day and kitchen effect of a special portion. */

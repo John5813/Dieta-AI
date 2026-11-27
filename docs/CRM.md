@@ -26,6 +26,13 @@ Oshxona va kuryerlar panelga kirmaydi — ular uchun "Yetkazish" bo'limidan CSV 
 - Narxli qo'shimchalar kunlik narxga qo'shiladi: summa = kunlar × (rasion narxi + qo'shimchalar) − chegirma.
 - Ro'yxat, obuna kartasi va yetkazish qatorlarida belgi (badge) bilan ko'rinadi; CSV/Excel'da «Maxsus porsiya» ustuni.
 
+## 5 / 4 / 3 mahal
+- **5 mahal** (standart): Nonushta 08:00, Perekus 11:00, Tushlik 13:30, Perekus 16:30, Kechki ovqat 19:30 — hozirgi narxlar shu uchun.
+- **4 mahal**: Perekus 16:30siz — kunlik narx 5 mahal narxidan **−10%**. **3 mahal**: ikkala perekussiz — **−20%** (1000 so'mga yaxlitlanadi).
+- Foizlarni admin «Menyu» → «Perekus chegirmasini o'zgartirish»da o'zgartiradi (saytdagi hisob-kitob ham darhol yangilanadi; mavjud buyurtmalar narxi o'zgarmaydi). Menejer buyurtmada kunlik narxni qo'lda yozishi mumkin.
+- Mahal soni: Yangi mijoz (doimiy), «+ Buyurtma», arizadan buyurtma, «Obunani tahrirlash», mijoz kartasi. Sayt (Narxlar, buyurtma oynasi, /hisoblash) tanlovi arizaga va buyurtmaga o'tadi.
+- Oshpaz uchun alohida menyu yo'q: 5 mahallik menyudan 4 mahalliklarga 16:30 perekus, 3 mahalliklarga ikkala perekus hisoblanmaydi. Obuna kartasi, yetkazish ro'yxati, CSV/Excel va quti yorliqlarida «3 mahal / 4 mahal» aniq yoziladi.
+
 ## Oshxona uchun (ekran, Chop etish, Telegramga nusxalash, kitchen.xlsx)
 Telefon va manzil hech qayerda chiqmaydi. Uch qism: **a) Rasionlar** (ertalab/kechki/jami + «3 ta (1 ta: 2x go'sht)»), **b) Taom va mahsulotlar yig'indisi** — o'sha kun menyusi bo'yicha har bir taom va mahsulotdan nechta porsiya va necha gramm (2x go'sht = 2 porsiya, Garnirsiz = 0), **c) Quti yorlig'i** — mijoz, rasion·kkal, smena, maxsus porsiya, allergiya/izoh. kitchen.xlsx — 3 varaq.
 

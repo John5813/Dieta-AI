@@ -28,7 +28,7 @@
   var HASH = { rations: 'rasionlar', menu: 'menyu', price: 'narxlar', how: 'yetkazish', faq: 'savollar' };
 
   // tier = kcal shown in the menu; ration + sku + plan = the price calculator and the order.
-  var S = { tab: 'rations', tier: 1600, meal: 2, ration: 1, sku: 1600, plan: 0 };
+  var S = { tab: 'rations', tier: 1600, meal: 2, ration: 1, sku: 1600, plan: 0, meals: 5 };
 
   // ── section tabs ──
   function showTab(id, scroll, silent) {
@@ -85,8 +85,13 @@
   }
 
   function renderPrice() {
-    var D = K.d(), plan = PLANS[S.plan], ration = RATIONS[S.ration], pt = K.planTotal(ration, plan), now = new Date();
+    var D = K.d(), plan = PLANS[S.plan], ration = RATIONS[S.ration], pt = K.planTotal(ration, plan, S.meals), now = new Date();
     $('.js-rseg').innerHTML = RATIONS.map(function (id, i) { return '<button type="button" data-ration="' + i + '" aria-pressed="' + (S.ration === i) + '">' + D.rations[id][0] + '</button>'; }).join('');
+    // 5 meals is the standard; 4 / 3 meals show the configured discount.
+    $('.js-mseg').innerHTML = [5, 4, 3].map(function (n) { return '<button type="button" data-meals="' + n + '" aria-pressed="' + (S.meals === n) + '"><b>' + D.mOpt[n] + '</b><small>' + D.mSub[n] + '</small></button>'; }).join('');
+    $('.js-rc-mlabel').textContent = D.mRow;
+    $('.js-rc-meals').textContent = D.mOpt[S.meals] + (S.meals !== 5 ? ' (−' + pt.mealPct + '%)' : '');
+    var mn = $('.js-m-note'); mn.textContent = K.mealNote(S.meals); mn.hidden = S.meals === 5;
     $('.js-kseg').innerHTML = SKUS[ration].map(function (k) { return '<button type="button" data-psku="' + k + '" aria-pressed="' + (S.sku === k) + '">' + k + ' ' + D.kcal + '</button>'; }).join('');
     $('.js-tiles').innerHTML = PLANS.map(function (p, i) {
       var disc = K.CFG.discounts[p] || 0;
@@ -124,18 +129,19 @@
   var orderCtx = { intent: 'test_drive' };
   // Texts that depend on the request type and the current selection (also re-run on language change).
   function orderTexts() {
-    var D = K.d(), intent = orderCtx.intent, pt = K.planTotal(orderCtx.planRation, orderCtx.plan);
+    var D = K.d(), intent = orderCtx.intent, pt = K.planTotal(orderCtx.planRation, orderCtx.plan, orderCtx.meals);
     $('.js-of-kicker').textContent = D.ofKick[intent];
     $('.js-of-title').textContent = D.ofTitle[intent];
     $('.js-of-submit').textContent = D.ofSend[intent];
     var sum = $('.js-of-sum'); sum.textContent = '';
     var row = function (a, b, cls) { var d = document.createElement('div'); d.className = cls || 'r'; var x = document.createElement('span'); x.textContent = a; var y = document.createElement('b'); y.textContent = b; d.appendChild(x); d.appendChild(y); sum.appendChild(d); };
-    row(D.ofChoice, D.rations[orderCtx.planRation][0] + ' · ' + orderCtx.planSku + ' ' + D.kcal);
+    row(D.ofChoice, D.rations[orderCtx.planRation][0] + ' · ' + orderCtx.planSku + ' ' + D.kcal + ' · ' + D.mOpt[orderCtx.meals]);
     row(D.plans[orderCtx.plan], pt.days + ' ' + D.daysW + (pt.disc ? ' · −' + pt.disc + '%' : ''));
     row(D.ofTotal, K.fmt(pt.total) + ' ' + D.sum, 'r tot');
+    if (orderCtx.meals !== 5) { var n = document.createElement('div'); n.className = 'r mnote'; n.textContent = K.mealNote(orderCtx.meals); sum.appendChild(n); }
   }
   function openOrder(intent) {
-    orderCtx = { intent: intent, plan: PLANS[S.plan], planRation: RATIONS[S.ration], planSku: S.sku };
+    orderCtx = { intent: intent, plan: PLANS[S.plan], planRation: RATIONS[S.ration], planSku: S.sku, meals: S.meals };
     orderTexts();
     $('.js-of-fields').style.display = ''; $('.js-of-ok').style.display = 'none'; $('.js-of-err').textContent = '';
     var last = K.lastLead();
@@ -156,8 +162,8 @@
     btn.disabled = true; $('.js-of-err').textContent = '';
     var a = K.attribution(), last = K.lastLead();
     var req = last && last.phone === '+998' + digits
-      ? K.post('/api/v1/leads/' + last.id + '/intent', { key: last.key, intent: orderCtx.intent, plan: orderCtx.plan, planRation: orderCtx.planRation, planSku: orderCtx.planSku, district: district, address: address, note: note, deliverySlot: slot })
-      : K.post('/api/v1/leads', { name: name, phone: digits, lang: K.lang, intent: orderCtx.intent, plan: orderCtx.plan, planRation: orderCtx.planRation, planSku: orderCtx.planSku, district: district, address: address, note: note, deliverySlot: slot, website: f.website.value, utm: a.utm, referrer: a.referrer, landingPath: a.landingPath });
+      ? K.post('/api/v1/leads/' + last.id + '/intent', { key: last.key, intent: orderCtx.intent, plan: orderCtx.plan, planRation: orderCtx.planRation, planSku: orderCtx.planSku, meals: orderCtx.meals, district: district, address: address, note: note, deliverySlot: slot })
+      : K.post('/api/v1/leads', { name: name, phone: digits, lang: K.lang, intent: orderCtx.intent, plan: orderCtx.plan, planRation: orderCtx.planRation, planSku: orderCtx.planSku, meals: orderCtx.meals, district: district, address: address, note: note, deliverySlot: slot, website: f.website.value, utm: a.utm, referrer: a.referrer, landingPath: a.landingPath });
     req.then(function (r) {
       btn.disabled = false;
       if (!r.ok) { $('.js-of-err').textContent = (r.data && r.data.error) || D.errNet; return; }
@@ -176,6 +182,7 @@
     if (t.dataset.goto) { e.preventDefault(); showTab(t.dataset.goto, true); return; }
     if (t.dataset.tier != null) { S.tier = +t.dataset.tier; renderMenu(); return; }
     if (t.dataset.psku != null) { S.sku = +t.dataset.psku; renderPrice(); return; }
+    if (t.dataset.meals != null) { S.meals = +t.dataset.meals; renderPrice(); return; }
     if (t.dataset.meal != null) { S.meal = +t.dataset.meal; renderMenu(); return; }
     if (t.dataset.ration != null) { S.ration = +t.dataset.ration; S.sku = SKUS[RATIONS[S.ration]][0]; renderPrice(); return; }
     if (t.dataset.plan != null) { S.plan = +t.dataset.plan; renderPrice(); return; }
@@ -221,6 +228,8 @@
     S.ration = pi; S.sku = SKUS[RATIONS[pi]].indexOf(kc) >= 0 ? kc : SKUS[RATIONS[pi]][0]; S.tier = S.sku;
     S.plan = PLANS.indexOf('w1'); renderPrice(); renderMenu();
   }
+  var qm = +qs.get('meals');
+  if (qm === 4 || qm === 3) { S.meals = qm; renderPrice(); }
   var slotIn = document.querySelector('.js-order-form input[name=deliverySlot][value="' + (qs.get('slot') === 'evening' ? 'evening' : 'morning') + '"]');
   if (slotIn) slotIn.checked = true;
   var initial = tabFromHash();
