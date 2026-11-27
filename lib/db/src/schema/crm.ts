@@ -54,6 +54,8 @@ export const customersTable = pgTable(
     utmCampaign: text("utm_campaign"),
     notes: text("notes"),
     lastContactAt: timestamp("last_contact_at"),
+    /** Hidden from CRM lists (duplicates, tests, lost customers); a new request from the same phone restores it. */
+    archivedAt: timestamp("archived_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

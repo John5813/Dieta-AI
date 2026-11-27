@@ -46,9 +46,10 @@ export function scheduleDays(start: string, count: number): string[] {
   return out;
 }
 
-export function quote(ration: RationKey, plan: PlanKey, pricePerDay?: number) {
+/** Price of an order; `daysOverride` is a manager-set number of delivery days (e.g. a custom plan). */
+export function quote(ration: RationKey, plan: PlanKey, pricePerDay?: number, daysOverride?: number) {
   const cfg = getSiteConfig();
-  const days = PLAN_DAYS[plan];
+  const days = daysOverride ?? PLAN_DAYS[plan];
   const price = pricePerDay ?? cfg.prices[ration];
   const discountPct = cfg.discounts[plan] ?? 0;
   const amount = Math.round((days * price * (1 - discountPct / 100)) / 1000) * 1000;
@@ -90,6 +91,8 @@ export async function upsertCustomer(
   const pick = <K extends keyof typeof data>(k: K, cur: unknown) =>
     data[k] != null && data[k] !== "" && (overwrite || cur == null || cur === "") ? data[k] : undefined;
   const patch: Record<string, unknown> = {};
+  // A new request from an archived customer brings them back.
+  if (existing.archivedAt) patch["archivedAt"] = null;
   for (const k of ["name", "district", "address", "deliverySlot"] as const) {
     const v = pick(k, existing[k]);
     if (v !== undefined) patch[k] = v;
@@ -112,22 +115,69 @@ export async function addEvent(e: {
   }
 }
 
-/** (Re)creates the not-yet-delivered schedule of an order from its start date, slot and courier. */
-export async function rebuildSchedule(order: Order): Promise<void> {
+/** First delivery day that can still be changed: tomorrow before 18:00 (Tashkent), the day after once 18:00 has passed. */
+export function firstEditableDay(at: Date = new Date()): string {
+  return addDays(tashkentDate(at), tashkentHour(at) < CUTOFF_HOUR ? 1 : 2);
+}
+
+/**
+ * Keeps an order's schedule at exactly `daysTotal` delivery days. Delivered,
+ * skipped, locked and upcoming days count; frozen / cancelled / burned days do
+ * not, so freezing a day appends one at the end and unfreezing trims one.
+ * `reset` (start date changed) drops the future, not-yet-locked days first.
+ */
+export async function rebuildSchedule(order: Order, opts: { reset?: boolean } = {}): Promise<void> {
   const today = tashkentDate();
-  const days = scheduleDays(order.startDate, order.daysTotal);
-  await db.delete(deliveryDaysTable).where(and(eq(deliveryDaysTable.orderId, order.id), eq(deliveryDaysTable.status, "scheduled"), sql`${deliveryDaysTable.day} > ${today}`));
-  const kept = await db.select({ day: deliveryDaysTable.day }).from(deliveryDaysTable).where(eq(deliveryDaysTable.orderId, order.id));
-  const have = new Set(kept.map((k) => k.day));
-  const missing = days.filter((d) => !have.has(d) && d >= today).slice(0, Math.max(0, order.daysTotal - kept.length));
-  if (!missing.length) return;
-  await db
-    .insert(deliveryDaysTable)
-    .values(missing.map((day) => ({
+  if (opts.reset) {
+    await db.delete(deliveryDaysTable).where(and(
+      eq(deliveryDaysTable.orderId, order.id), inArray(deliveryDaysTable.status, ["scheduled", "frozen"]), sql`${deliveryDaysTable.day} > ${today}`,
+    ));
+  }
+  const rows = await db.select({ id: deliveryDaysTable.id, day: deliveryDaysTable.day, status: deliveryDaysTable.status })
+    .from(deliveryDaysTable).where(eq(deliveryDaysTable.orderId, order.id)).orderBy(deliveryDaysTable.day);
+  const counting = rows.filter((r) => !["frozen", "cancelled", "burned"].includes(r.status));
+  const need = order.daysTotal - counting.length;
+  if (need > 0) {
+    const taken = new Set(rows.map((r) => r.day));
+    const last = counting.length ? counting[counting.length - 1]!.day : null;
+    let cursor = [order.startDate, today, last ? addDays(last, 1) : ""].sort().pop()!;
+    const add: string[] = [];
+    while (add.length < need) {
+      if (!isSunday(cursor) && !taken.has(cursor)) add.push(cursor);
+      cursor = addDays(cursor, 1);
+    }
+    await db.insert(deliveryDaysTable).values(add.map((day) => ({
       orderId: order.id, day, deliverySlot: order.deliverySlot, courierType: order.courierType,
       district: order.district, address: order.address, sku: order.sku,
-    })))
-    .onConflictDoNothing();
+    }))).onConflictDoNothing();
+  } else if (need < 0) {
+    const removable = rows.filter((r) => r.status === "scheduled" && r.day > today).slice(need); // latest ones
+    if (removable.length) await db.delete(deliveryDaysTable).where(inArray(deliveryDaysTable.id, removable.map((r) => r.id)));
+  }
+}
+
+/** Freezes the order's open days in [from, to]; each frozen day is added back at the end and must be used within 30 days. */
+export async function freezeDays(order: Order, from: string, to: string): Promise<number> {
+  const rows = await db.update(deliveryDaysTable)
+    .set({ status: "frozen", frozenAt: new Date(), burnAt: new Date(Date.now() + 30 * 864e5), updatedAt: new Date() })
+    .where(and(
+      eq(deliveryDaysTable.orderId, order.id), eq(deliveryDaysTable.status, "scheduled"),
+      sql`${deliveryDaysTable.day} >= ${from}`, sql`${deliveryDaysTable.day} <= ${to}`,
+    ))
+    .returning({ id: deliveryDaysTable.id });
+  if (rows.length) await rebuildSchedule(order);
+  return rows.length;
+}
+
+/** Puts a frozen (not yet locked) day back on the schedule and trims the extra day at the end. */
+export async function unfreezeDay(order: Order, dayId: number): Promise<boolean> {
+  const [row] = await db.update(deliveryDaysTable)
+    .set({ status: "scheduled", frozenAt: null, burnAt: null, updatedAt: new Date() })
+    .where(and(eq(deliveryDaysTable.id, dayId), eq(deliveryDaysTable.orderId, order.id), eq(deliveryDaysTable.status, "frozen"), sql`${deliveryDaysTable.day} >= ${firstEditableDay()}`))
+    .returning({ id: deliveryDaysTable.id });
+  if (!row) return false;
+  await rebuildSchedule(order);
+  return true;
 }
 
 /** Applies slot / courier / address changes to an order's future, still-open days. */
@@ -140,24 +190,33 @@ export async function updateFutureDays(orderId: number, patch: { deliverySlot?: 
     .where(and(eq(deliveryDaysTable.orderId, orderId), inArray(deliveryDaysTable.status, ["scheduled", "frozen"]), sql`${deliveryDaysTable.day} > ${today}`));
 }
 
-export interface OrderProgress { remaining: number; delivered: number; frozen: number; nextDay: string | null; lastDay: string | null; nextFrozen: boolean }
+export interface OrderProgress {
+  remaining: number; delivered: number; skipped: number; frozen: number;
+  nextDay: string | null; lastDay: string | null; nextFrozen: boolean;
+  frozenDays: { id: number; day: string; burnAt: Date | null }[];
+}
 
-/** Per-order day counters relative to today (Tashkent). */
+/** Per-order day counters relative to today (Tashkent). Unmarked past days count as delivered. */
 export async function orderProgress(orderIds: number[]): Promise<Map<number, OrderProgress>> {
   const map = new Map<number, OrderProgress>();
   if (!orderIds.length) return map;
   const today = tashkentDate();
   const rows = await db
-    .select({ orderId: deliveryDaysTable.orderId, day: deliveryDaysTable.day, status: deliveryDaysTable.status })
+    .select({ id: deliveryDaysTable.id, orderId: deliveryDaysTable.orderId, day: deliveryDaysTable.day, status: deliveryDaysTable.status, burnAt: deliveryDaysTable.burnAt })
     .from(deliveryDaysTable)
     .where(inArray(deliveryDaysTable.orderId, orderIds))
     .orderBy(deliveryDaysTable.day);
-  for (const id of orderIds) map.set(id, { remaining: 0, delivered: 0, frozen: 0, nextDay: null, lastDay: null, nextFrozen: false });
+  for (const id of orderIds) map.set(id, { remaining: 0, delivered: 0, skipped: 0, frozen: 0, nextDay: null, lastDay: null, nextFrozen: false, frozenDays: [] });
   for (const r of rows) {
     const p = map.get(r.orderId)!;
     if (r.status === "cancelled" || r.status === "burned") continue;
-    if (r.status === "frozen") { p.frozen++; if (!p.nextDay && r.day >= today) { p.nextDay = r.day; p.nextFrozen = true; } continue; }
-    if (r.day < today || r.status === "delivered") p.delivered++;
+    if (r.status === "frozen") {
+      p.frozen++; p.frozenDays.push({ id: r.id, day: r.day, burnAt: r.burnAt });
+      if (!p.nextDay && r.day >= today) { p.nextDay = r.day; p.nextFrozen = true; }
+      continue;
+    }
+    if (r.status === "failed") p.skipped++;
+    else if (r.status === "delivered" || r.day < today) p.delivered++;
     else { p.remaining++; if (!p.nextDay) p.nextDay = r.day; }
     p.lastDay = r.day;
   }

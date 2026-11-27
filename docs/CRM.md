@@ -12,8 +12,11 @@ Oshxona va kuryerlar panelga kirmaydi — ular uchun "Yetkazish" bo'limidan CSV 
 | Bo'lim | Nima qilinadi |
 |---|---|
 | **Arizalar** | Sayt/ilova so'rovlari (yangi → aloqaga chiqildi → buyurtma bo'ldi / rad). Qo'ng'iroq natijasi, buyurtma yaratish, mijoz kartasi |
-| **Mijozlar** | Telefon/ism bo'yicha qidiruv; **+ Yangi mijoz qo'shish** (yuqori panelda ham doim bor): ism, telefon, manba (Telefon / Instagram / Telegram / Sayt), tuman, manzil, izoh; ixtiyoriy — shu oynaning o'zida buyurtma (rasion, muddat, vaqt, kuryer). Raqam bazada bo'lsa dublikat ochilmaydi — ogohlantirish va mavjud karta; mijoz kartasi: ma'lumot, obunalar (holat, to'lov, smena, kuryer — joyida o'zgartiriladi), tarix (qo'ng'iroq/izoh) |
-| **Yetkazish** | Tanlangan kun (standart — ertaga): oshxona uchun kaloriya bo'yicha sonlar; 4 ta ro'yxat: ertalab/kechki × ichki/tashqi kuryer (har qatorda kuryerni o'zgartirish), CSV; **Uzaytirishga qo'ng'iroq** — obunasi tugashiga 1–2 kun qolganlar |
+| **Mijozlar** | Qidiruv (✕ bilan tozalanadi, boshqa bo'limga o'tganda o'zi tozalanadi) va filtrlar: Hammasi / Faol / To'lov kutilmoqda / Buyurtma yo'q / Arxiv. Yangi mijoz faqat yuqori paneldagi **+ Yangi mijoz qo'shish** tugmasi bilan: ism va to'g'ri telefon majburiy; raqam bazada bo'lsa ism avtomatik to'ladi (raqam o'zgarsa tozalanadi); kechki vaqt tanlansa kuryer avtomatik "Tashqi" bo'ladi (o'zgartirsa bo'ladi); to'lov "Qisman" bo'lsa summa kiritiladi |
+| **Mijoz kartasi** | Ism, telefon (band raqam — ogohlantirish), tuman, manzil, **doimiy eslatma** (allergiya, domofon — oshxona va kuryer ro'yxatida ham chiqadi). **Arxivlash / Arxivdan qaytarish** (faol obunasi bor mijozni arxivlab bo'lmaydi), admin uchun **butunlay o'chirish** (telefonning oxirgi 4 raqami bilan tasdiq). **Tarix** — qo'ng'iroqlar, izohlar va barcha o'zgarishlar |
+| **Obuna** | Holat, To'lov, Yetkazish vaqti, Kuryer (yorliqlar bilan); to'langan summa va qarz; **Tahrirlash** (boshlanish sanasi, rasion/kkal, muddat, kunlar soni, narx, manzil, izoh); **Muzlatish (pauza)** — sanalar oralig'i, kunlar obuna oxiriga qo'shiladi, muzlatilgan kunni "qaytarish" mumkin; admin uchun xato/test buyurtmani o'chirish |
+| **Yetkazish** | Tanlangan kun (standart — ertaga): oshxona jadvali (rasion + kkal × ertalab/kechki/jami) va allergiya/izohlar; 4 ta ro'yxat: ertalab/kechki × ichki/tashqi; har qatorda shu kun uchun vaqt va kuryerni o'zgartirish; yetkazish kuni kelganda **✓ Yetkazildi / O'tkazib yuborildi** (bekor qilsa bo'ladi); CSV; **Uzaytirishga qo'ng'iroq** |
+| **Xodimlar** (admin) | Qo'shish, rolni o'zgartirish (Admin/Menejer), faolsizlantirish (sessiya darhol tugaydi), faol bo'lmagan xodimni o'chirish |
 
 ## Qoidalar
 - Bitta telefon (+998…) = bitta mijoz; sayt arizalari avtomatik shu mijozga bog'lanadi (eski arizalar ham birlashtirildi).
@@ -21,6 +24,8 @@ Oshxona va kuryerlar panelga kirmaydi — ular uchun "Yetkazish" bo'limidan CSV 
 - Yetkazish vaqti: **ertalab 08:00–10:00** yoki **kechki 18:00–22:30**. Kuryer: **ichki** yoki **tashqi (autsors)** — buyurtma bo'yicha yoki alohida kun bo'yicha.
 - Buyurtma "To'langan" qilinsa avtomatik **Faol** bo'ladi va yetkazish ro'yxatiga tushadi (to'lanmaganlar ro'yxatda ko'rinmaydi).
 - "Tugamoqda" / "Muzlatilgan" holatlari yetkazish kunlaridan hisoblanadi.
+- Muzlatish: ertangi kunni faqat 18:00 gacha; muzlatilgan kun 30 kun ichida ishlatilmasa kuyadi.
+- Sayt arizasidan buyurtma yaratilsa ariza "Buyurtma bo'ldi"ga o'tadi va undagi tugmalar yashiriladi; rad etilgan arizani "Qayta ochish" mumkin.
 
 ## Keyingi bosqichlar uchun tayyor
 - `customers.phone_verified_at/_via`, `phone_verifications` (telegram | sms) — Telegram deep-link yoki Eskiz SMS orqali raqam tasdiqlash.

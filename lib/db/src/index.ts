@@ -248,6 +248,7 @@ async function ensureCrmSchema(): Promise<void> {
   `);
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS customers_phone ON customers (phone);`);
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS customers_tg ON customers (telegram_chat_id);`);
+  await db.execute(sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS archived_at timestamp;`);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS staff (
       id bigserial PRIMARY KEY,
