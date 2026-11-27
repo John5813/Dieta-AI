@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, isNotNull, or, sql } from "drizzle-orm";
 import {
   db, leadsTable, customersTable, crmEventsTable, ordersTable, deliveryDaysTable, staffTable,
   type Customer,
@@ -12,7 +12,7 @@ import { normalizePhone, DISTRICTS } from "./leads";
 import { PLAN_DAYS, getSiteConfig, type PlanKey, type RationKey } from "../lib/siteConfig";
 import {
   SKUS, SLOT_LABEL, addEvent, upsertCustomer, rebuildSchedule, updateFutureDays, orderProgress, displayStatus,
-  defaultStartDate, tashkentDate, addDays, isIsoDate, quote, CUTOFF_HOUR, tashkentHour,
+  defaultStartDate, tashkentDate, addDays, isIsoDate, quote, CUTOFF_HOUR, tashkentHour, freezeDays, unfreezeDay, firstEditableDay,
 } from "../lib/crm";
 import {
   requireStaff, requireOwner, consumeLoginToken, setSessionCookie, clearSessionCookie,
@@ -43,6 +43,17 @@ const idParam = (req: Request) => {
   return Number.isSafeInteger(n) && n > 0 ? n : null;
 };
 const bad = (res: Response, error: string) => res.status(400).json({ error, code: "bad_request" });
+
+/** Uzbek numbers entered by staff: +998 + operator / area code + 7 digits. */
+const UZ_CODES = new Set(["20", "33", "50", "55", "61", "62", "65", "66", "67", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "88", "90", "91", "93", "94", "95", "97", "98", "99"]);
+function staffPhone(v: unknown): string | null {
+  const p = normalizePhone(v);
+  return p && UZ_CODES.has(p.slice(4, 6)) ? p : null;
+}
+const PHONE_ERR = "Telefon raqami noto‘g‘ri: +998 va 9 ta raqam (masalan 90 123 45 67)";
+const NAME_ERR = "Mijoz ismini kiriting (kamida 2 harf)";
+/** Leads / customers that are not archived. */
+const notArchivedCustomer = sql`NOT EXISTS (SELECT 1 FROM customers ac WHERE ac.id = ${leadsTable.customerId} AND ac.archived_at IS NOT NULL)`;
 
 // ─── login link from the Telegram bot ────────────────────────────────────────
 adminPages.get("/admin/auth", rateLimit("admin-auth", 20, 15 * 60 * 1000), async (req, res) => {
@@ -75,7 +86,7 @@ adminApi.get("/admin/me", (req, res) => {
       districts: [...DISTRICTS], leadStatuses: LEAD_STATUSES,
     },
     pricing: { prices: getSiteConfig().prices, discounts: getSiteConfig().discounts },
-    today: tashkentDate(), defaultStart: defaultStartDate(), cutoffPassed: tashkentHour() >= CUTOFF_HOUR,
+    today: tashkentDate(), defaultStart: defaultStartDate(), firstEditableDay: firstEditableDay(), cutoffPassed: tashkentHour() >= CUTOFF_HOUR,
   });
 });
 
@@ -85,10 +96,10 @@ adminApi.get("/admin/inbox", async (req, res) => {
   const rows = await db
     .select()
     .from(leadsTable)
-    .where(status ? eq(leadsTable.status, status) : inArray(leadsTable.status, ["new", "contacted"]))
+    .where(and(status ? eq(leadsTable.status, status) : inArray(leadsTable.status, ["new", "contacted"]), notArchivedCustomer))
     .orderBy(desc(leadsTable.createdAt))
     .limit(200);
-  const counts = await db.execute<{ status: string; n: number }>(sql`SELECT status, count(*)::int AS n FROM leads GROUP BY status`);
+  const counts = await db.execute<{ status: string; n: number }>(sql`SELECT status, count(*)::int AS n FROM leads WHERE ${notArchivedCustomer} GROUP BY status`);
   res.json({
     counts: Object.fromEntries(counts.rows.map((r) => [r.status, r.n])),
     items: rows.map((l) => ({
@@ -119,19 +130,25 @@ async function orderView(orders: Order[]) {
   });
 }
 
+const CUSTOMER_FILTERS = ["active", "awaiting", "none", "archived"] as const;
+
 adminApi.get("/admin/customers", async (req, res) => {
   const q = str(req.query["q"], 60);
-  let where;
+  const filter = oneOf(CUSTOMER_FILTERS, req.query["status"]);
+  const conds = [filter === "archived" ? isNotNull(customersTable.archivedAt) : isNull(customersTable.archivedAt)];
   if (q) {
     const digits = q.replace(/\D/g, "");
-    where = digits.length >= 3
-      ? or(ilike(customersTable.phone, `%${digits}%`), ilike(customersTable.name, `%${q}%`))
-      : ilike(customersTable.name, `%${q}%`);
+    conds.push(digits.length >= 3
+      ? or(ilike(customersTable.phone, `%${digits}%`), ilike(customersTable.name, `%${q}%`))!
+      : ilike(customersTable.name, `%${q}%`));
   }
+  if (filter === "active") conds.push(sql`EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = ${customersTable.id} AND o.crm_status = 'active')`);
+  if (filter === "awaiting") conds.push(sql`EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = ${customersTable.id} AND o.crm_status IN ('new','contacted','awaiting_payment'))`);
+  if (filter === "none") conds.push(sql`NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = ${customersTable.id} AND o.crm_status <> 'cancelled')`);
   const customers = await db
     .select()
     .from(customersTable)
-    .where(where)
+    .where(and(...conds))
     .orderBy(desc(sql`coalesce(${customersTable.lastContactAt}, ${customersTable.createdAt})`))
     .limit(100);
   const ids = customers.map((c) => c.id);
@@ -141,8 +158,8 @@ adminApi.get("/admin/customers", async (req, res) => {
   const views = await orderView(orders);
   res.json({
     items: customers.map((c) => {
-      const latest = views.find((o) => o.customerId === c.id) ?? null;
-      return { id: c.id, name: c.name, phone: c.phone, district: c.district, firstSource: c.firstSource, createdAt: c.createdAt, order: latest };
+      const latest = views.find((o) => o.customerId === c.id && o.crmStatus !== "cancelled") ?? views.find((o) => o.customerId === c.id) ?? null;
+      return { id: c.id, name: c.name, phone: c.phone, district: c.district, firstSource: c.firstSource, createdAt: c.createdAt, archivedAt: c.archivedAt, order: latest };
     }),
   });
 });
@@ -155,7 +172,7 @@ adminApi.get("/admin/customers/lookup", async (req, res) => {
   if (!c) { res.json({ customer: null }); return; }
   const orders = await db.select().from(ordersTable).where(eq(ordersTable.customerId, c.id)).orderBy(desc(ordersTable.createdAt)).limit(1);
   const [latest] = await orderView(orders);
-  res.json({ customer: { id: c.id, name: c.name, phone: c.phone, district: c.district, order: latest ? { ration: latest.ration, sku: latest.sku, plan: latest.plan, status: latest.status } : null } });
+  res.json({ customer: { id: c.id, name: c.name, phone: c.phone, district: c.district, archived: !!c.archivedAt, order: latest ? { ration: latest.ration, sku: latest.sku, plan: latest.plan, status: latest.status } : null } });
 });
 
 adminApi.get("/admin/customers/:id", async (req, res) => {
@@ -195,17 +212,66 @@ adminApi.post("/admin/customers", async (req, res) => {
 adminApi.patch("/admin/customers/:id", async (req, res) => {
   const id = idParam(req);
   if (!id) { bad(res, "ID"); return; }
+  const [cur] = await db.select().from(customersTable).where(eq(customersTable.id, id)).limit(1);
+  if (!cur) { res.status(404).json({ error: "Topilmadi" }); return; }
   const b = req.body ?? {};
   const patch: Record<string, unknown> = {};
-  if ("name" in b) patch["name"] = str(b.name, 60);
+  if ("name" in b) { const n = str(b.name, 60); if (!n || n.length < 2) { bad(res, NAME_ERR); return; } patch["name"] = n; }
+  if ("phone" in b) {
+    const p = staffPhone(b.phone);
+    if (!p) { bad(res, PHONE_ERR); return; }
+    if (p !== cur.phone) {
+      const [other] = await db.select({ id: customersTable.id, name: customersTable.name }).from(customersTable).where(eq(customersTable.phone, p)).limit(1);
+      if (other) { res.status(409).json({ error: `Bu raqam boshqa mijozda: ${other.name ?? "Ismsiz"} (#${other.id})`, code: "phone_taken", customerId: other.id }); return; }
+      patch["phone"] = p;
+    }
+  }
   if ("district" in b) patch["district"] = oneOf([...DISTRICTS] as string[], b.district);
   if ("address" in b) patch["address"] = str(b.address, 200);
   if ("deliverySlot" in b) patch["deliverySlot"] = oneOf(DELIVERY_SLOTS, b.deliverySlot);
   if ("notes" in b) patch["notes"] = str(b.notes, 2000);
-  if (!Object.keys(patch).length) { bad(res, "O‘zgarish yo‘q"); return; }
+  if (!Object.keys(patch).length) { res.json({ customer: cur }); return; }
   const [row] = await db.update(customersTable).set({ ...patch, updatedAt: new Date() }).where(eq(customersTable.id, id)).returning();
-  if (!row) { res.status(404).json({ error: "Topilmadi" }); return; }
+  if (patch["phone"]) await addEvent({ customerId: id, staffId: req.staff!.id, type: "customer_updated", body: `Telefon: ${cur.phone} → ${patch["phone"]}` });
   res.json({ customer: row });
+});
+
+/** Archive (hide from lists) or restore. Not allowed while a subscription still has days to deliver. */
+adminApi.post("/admin/customers/:id/archive", async (req, res) => {
+  const id = idParam(req);
+  if (!id) { bad(res, "ID"); return; }
+  const archive = req.body?.archived !== false;
+  if (archive) {
+    const active = await db.select({ id: ordersTable.id }).from(ordersTable).where(and(eq(ordersTable.customerId, id), eq(ordersTable.crmStatus, "active")));
+    const prog = await orderProgress(active.map((o) => o.id));
+    if ([...prog.values()].some((p) => p.remaining > 0 || p.frozen > 0)) {
+      bad(res, "Faol obunasi bor — avval obunani bekor qiling yoki tugashini kuting"); return;
+    }
+  }
+  const [row] = await db.update(customersTable).set({ archivedAt: archive ? new Date() : null, updatedAt: new Date() }).where(eq(customersTable.id, id)).returning();
+  if (!row) { res.status(404).json({ error: "Topilmadi" }); return; }
+  await addEvent({ customerId: id, staffId: req.staff!.id, type: "customer_updated", body: archive ? "Arxivga olindi" : "Arxivdan qaytarildi" });
+  res.json({ customer: row });
+});
+
+/** Permanent delete (owner only): the customer, their orders, delivery days, history, website requests and app links. */
+adminApi.delete("/admin/customers/:id", requireOwner, async (req, res) => {
+  const id = idParam(req);
+  if (!id) { bad(res, "ID"); return; }
+  const [c] = await db.select().from(customersTable).where(eq(customersTable.id, id)).limit(1);
+  if (!c) { res.status(404).json({ error: "Topilmadi" }); return; }
+  if (String(req.body?.confirm ?? "") !== c.phone.slice(-4)) { bad(res, "Tasdiqlash uchun telefonning oxirgi 4 raqamini kiriting"); return; }
+  await db.transaction(async (tx) => {
+    const orderIds = (await tx.select({ id: ordersTable.id }).from(ordersTable).where(eq(ordersTable.customerId, id))).map((o) => o.id);
+    if (orderIds.length) await tx.delete(deliveryDaysTable).where(inArray(deliveryDaysTable.orderId, orderIds));
+    await tx.delete(ordersTable).where(eq(ordersTable.customerId, id));
+    await tx.delete(crmEventsTable).where(eq(crmEventsTable.customerId, id));
+    await tx.delete(leadsTable).where(eq(leadsTable.customerId, id));
+    await tx.execute(sql`DELETE FROM app_links WHERE customer_id = ${id}`);
+    await tx.delete(customersTable).where(eq(customersTable.id, id));
+  });
+  logger.info({ customerId: id, staffId: req.staff!.id }, "customer deleted from CRM");
+  res.json({ ok: true });
 });
 
 /** Manual call log / note. */
@@ -229,10 +295,12 @@ adminApi.post("/admin/customers/:id/events", async (req, res) => {
 const FIELD_LABEL: Record<string, string> = {
   crmStatus: "Holat", paymentStatus: "To‘lov", deliverySlot: "Yetkazish vaqti", courierType: "Kuryer", startDate: "Boshlanish",
   plan: "Muddat", ration: "Rasion", sku: "Kaloriya", pricePerDay: "Kunlik narx", paidAmount: "To‘langan", district: "Tuman", address: "Manzil", note: "Izoh", source: "Manba",
+  daysTotal: "Kunlar soni", status: "Holat",
 };
 const VALUE_LABEL: Record<string, string> = {
   new: "Yangi", contacted: "Aloqaga chiqildi", awaiting_payment: "To‘lov kutilmoqda", active: "Faol", finished: "Tugadi", cancelled: "Bekor",
   unpaid: "To‘lanmagan", pending: "Kutilmoqda", paid: "To‘langan", partial: "Qisman", refunded: "Qaytarilgan",
+  delivered: "Yetkazildi", failed: "O‘tkazib yuborildi", scheduled: "Rejada",
   morning: "ertalab 08:00–10:00", evening: "kechki 18:00–22:30", internal: "ichki", external: "tashqi (autsors)",
   ozish: "Ozish", balans: "Balans", sport: "Sport", d3: "3 kun", w1: "1 hafta", w2: "2 hafta", w3: "3 hafta", w4: "4 hafta", m1: "1 oy",
   web: "sayt", mobile_app: "ilova", phone: "telefon", telegram: "Telegram", instagram: "Instagram",
@@ -269,6 +337,11 @@ function readOrderInput(b: Record<string, unknown>, partial: boolean) {
     if (!Number.isFinite(p) || p < 1000 || p > 10_000_000) return err("Kunlik narx noto‘g‘ri");
     out["pricePerDay"] = Math.round(p);
   }
+  if ("daysTotal" in b && b["daysTotal"] !== "" && b["daysTotal"] != null) {
+    const d = Number(b["daysTotal"]);
+    if (!Number.isInteger(d) || d < 1 || d > 60) return err("Kunlar soni 1–60 oralig‘ida bo‘lsin");
+    out["daysTotal"] = d;
+  }
   if ("paidAmount" in b && b["paidAmount"] !== "" && b["paidAmount"] != null) {
     const p = Number(b["paidAmount"]);
     if (!Number.isFinite(p) || p < 0 || p > 100_000_000) return err("To‘langan summa noto‘g‘ri");
@@ -279,9 +352,10 @@ function readOrderInput(b: Record<string, unknown>, partial: boolean) {
 
 /** Inserts a validated order (from readOrderInput) for a customer and builds its delivery schedule. */
 async function insertOrder(staffId: number, customer: Customer, data: Record<string, unknown>, leadIdRaw?: unknown) {
-  const q = quote(data["ration"] as RationKey, data["plan"] as PlanKey, data["pricePerDay"] as number | undefined);
+  const q = quote(data["ration"] as RationKey, data["plan"] as PlanKey, data["pricePerDay"] as number | undefined, data["daysTotal"] as number | undefined);
   const paymentStatus = (data["paymentStatus"] as string) ?? "unpaid";
-  const crmStatus = (data["crmStatus"] as string) ?? (paymentStatus === "paid" ? "active" : "awaiting_payment");
+  // Paid in full or a prepayment (partial) → the subscription is on and goes to the delivery list.
+  const crmStatus = (data["crmStatus"] as string) ?? (paymentStatus === "paid" || paymentStatus === "partial" ? "active" : "awaiting_payment");
   const leadId = Number(leadIdRaw);
   const [order] = await db
     .insert(ordersTable)
@@ -330,9 +404,12 @@ adminApi.post("/admin/orders", rateLimit("admin-orders", 120, 60 * 60 * 1000), a
  */
 adminApi.post("/admin/customers/quick", rateLimit("admin-quick", 120, 60 * 60 * 1000), async (req, res) => {
   const b = (req.body ?? {}) as Record<string, unknown>;
-  const phone = normalizePhone(b["phone"]);
-  if (!phone) { bad(res, "Telefon raqami noto‘g‘ri (+998 XX XXX XX XX)"); return; }
+  const phone = staffPhone(b["phone"]);
+  if (!phone) { bad(res, PHONE_ERR); return; }
+  const name = str(b["name"], 60);
+  if (!name || name.length < 2) { bad(res, NAME_ERR); return; }
   const source = oneOf(ORDER_SOURCES, b["source"]) ?? "phone";
+  const slot = oneOf(DELIVERY_SLOTS, b["deliverySlot"]);
   const district = oneOf([...DISTRICTS] as string[], b["district"]) as string | null;
   const address = str(b["address"], 200);
   const note = str(b["note"], 2000);
@@ -340,6 +417,7 @@ adminApi.post("/admin/customers/quick", rateLimit("admin-quick", 120, 60 * 60 * 
   let orderData: Record<string, unknown> | null = null;
   if (b["order"] && typeof b["order"] === "object") {
     const ob: Record<string, unknown> = { ...(b["order"] as Record<string, unknown>), source };
+    if (!("deliverySlot" in ob) && slot) ob["deliverySlot"] = slot;
     if (!ob["startDate"]) ob["startDate"] = defaultStartDate();
     if (!("district" in ob)) ob["district"] = district;
     if (!("address" in ob)) ob["address"] = address;
@@ -349,13 +427,18 @@ adminApi.post("/admin/customers/quick", rateLimit("admin-quick", 120, 60 * 60 * 
   }
 
   const [before] = await db.select({ id: customersTable.id }).from(customersTable).where(eq(customersTable.phone, phone)).limit(1);
-  const customer = await upsertCustomer(phone, {
-    name: str(b["name"], 60), district, address, source,
-    deliverySlot: (orderData?.["deliverySlot"] as DeliverySlot | undefined) ?? oneOf(DELIVERY_SLOTS, b["deliverySlot"]),
+  let customer = await upsertCustomer(phone, {
+    name, district, address, source,
+    deliverySlot: (orderData?.["deliverySlot"] as DeliverySlot | undefined) ?? slot,
   });
   const staffId = req.staff!.id;
   if (!before) await addEvent({ customerId: customer.id, staffId, type: "customer_added", body: `Qo‘lda qo‘shildi · manba: ${valueLabel(source)}` });
-  if (note) await addEvent({ customerId: customer.id, staffId, type: "note", body: note });
+  // The note is the customer's permanent reminder (allergies, intercom…) and is also logged in the history.
+  if (note) {
+    const notes = customer.notes && !customer.notes.includes(note) ? `${customer.notes}\n${note}` : note;
+    [customer] = await db.update(customersTable).set({ notes, updatedAt: new Date() }).where(eq(customersTable.id, customer.id)).returning() as [typeof customer];
+    await addEvent({ customerId: customer.id, staffId, type: "note", body: note });
+  }
   const order = orderData ? await insertOrder(staffId, customer, orderData) : null;
   res.status(before ? 200 : 201).json({ customer, existing: !!before, order });
 });
@@ -370,16 +453,23 @@ adminApi.patch("/admin/orders/:id", async (req, res) => {
   if (error) { bad(res, error); return; }
   if (!Object.keys(data).length) { bad(res, "O‘zgarish yo‘q"); return; }
 
-  // Price follows plan / ration / price changes.
-  if ("plan" in data || "ration" in data || "pricePerDay" in data) {
-    const q = quote((data["ration"] ?? order.ration) as RationKey, (data["plan"] ?? order.plan) as PlanKey, (data["pricePerDay"] ?? order.pricePerDay) as number);
+  // Price follows plan / days / ration / price changes. A new plan resets the day count unless days are given.
+  if ("plan" in data || "ration" in data || "pricePerDay" in data || "daysTotal" in data) {
+    const days = (data["daysTotal"] as number | undefined) ?? ("plan" in data ? undefined : order.daysTotal);
+    const q = quote((data["ration"] ?? order.ration) as RationKey, (data["plan"] ?? order.plan) as PlanKey, (data["pricePerDay"] ?? order.pricePerDay) as number, days);
     Object.assign(data, { daysTotal: q.days, pricePerDay: q.pricePerDay, discountPct: q.discountPct, amount: q.amount });
   }
   if (data["paymentStatus"] === "paid" && !("paidAmount" in data)) data["paidAmount"] = (data["amount"] as number) ?? order.amount;
-  if (data["paymentStatus"] === "paid" && !("crmStatus" in data) && ["new", "contacted", "awaiting_payment"].includes(order.crmStatus)) data["crmStatus"] = "active";
+  if ((data["paymentStatus"] === "paid" || data["paymentStatus"] === "partial") && !("crmStatus" in data) && ["new", "contacted", "awaiting_payment"].includes(order.crmStatus)) data["crmStatus"] = "active";
+  if ("paidAmount" in data && !("paymentStatus" in data)) {
+    const amt = (data["amount"] as number) ?? order.amount, paid = data["paidAmount"] as number;
+    data["paymentStatus"] = paid <= 0 ? "unpaid" : paid >= amt ? "paid" : "partial";
+  }
+  if ("startDate" in data && (data["startDate"] as string) < tashkentDate() && data["startDate"] !== order.startDate) { bad(res, "Boshlanish sanasi o‘tgan kun bo‘lishi mumkin emas"); return; }
 
   const [next] = await db.update(ordersTable).set({ ...data, updatedAt: new Date() }).where(eq(ordersTable.id, id)).returning();
-  if ("startDate" in data || "plan" in data) await rebuildSchedule(next!);
+  if ("startDate" in data && data["startDate"] !== order.startDate) await rebuildSchedule(next!, { reset: true });
+  else if (next!.daysTotal !== order.daysTotal) await rebuildSchedule(next!);
   await updateFutureDays(id, {
     ...("deliverySlot" in data ? { deliverySlot: data["deliverySlot"] as DeliverySlot } : {}),
     ...("courierType" in data ? { courierType: data["courierType"] as CourierType } : {}),
@@ -396,6 +486,49 @@ adminApi.patch("/admin/orders/:id", async (req, res) => {
   res.json({ order: (await orderView([next!]))[0] });
 });
 
+/** Pause: freeze the order's days from `from` to `to` (inclusive). Each frozen day is appended at the end. */
+adminApi.post("/admin/orders/:id/freeze", async (req, res) => {
+  const id = idParam(req);
+  if (!id) { bad(res, "ID"); return; }
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
+  if (!order) { res.status(404).json({ error: "Topilmadi" }); return; }
+  const from = req.body?.from, to = req.body?.to ?? req.body?.from;
+  if (!isIsoDate(from) || !isIsoDate(to) || to < from) { bad(res, "Sanalarni to‘g‘ri tanlang"); return; }
+  const min = firstEditableDay();
+  if (from < min) { bad(res, `Soat 18:00 qoidasi: ${min} dan oldingi kunlarni muzlatib bo‘lmaydi`); return; }
+  const n = await freezeDays(order, from, to);
+  if (!n) { bad(res, "Bu oraliqda muzlatiladigan yetkazish kuni yo‘q"); return; }
+  await addEvent({ customerId: order.customerId, orderId: id, staffId: req.staff!.id, type: "order_updated", body: `Muzlatildi: ${from}${to !== from ? " – " + to : ""} (${n} kun, obuna oxiriga qo‘shildi; 30 kun ichida ishlatilmasa kuyadi)` });
+  const [next] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
+  res.json({ order: (await orderView([next!]))[0], frozen: n });
+});
+
+adminApi.post("/admin/orders/:id/unfreeze", async (req, res) => {
+  const id = idParam(req);
+  const dayId = Number(req.body?.dayId);
+  if (!id || !Number.isSafeInteger(dayId)) { bad(res, "ID"); return; }
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
+  if (!order) { res.status(404).json({ error: "Topilmadi" }); return; }
+  if (!(await unfreezeDay(order, dayId))) { bad(res, "Bu kunni qaytarib bo‘lmaydi (o‘tgan yoki 18:00 dan keyin qulflangan)"); return; }
+  await addEvent({ customerId: order.customerId, orderId: id, staffId: req.staff!.id, type: "order_updated", body: "Muzlatish bekor qilindi (1 kun)" });
+  const [next] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
+  res.json({ order: (await orderView([next!]))[0] });
+});
+
+/** Permanent delete of a mistaken / test order (owner only). Use "Bekor" for real cancellations. */
+adminApi.delete("/admin/orders/:id", requireOwner, async (req, res) => {
+  const id = idParam(req);
+  if (!id) { bad(res, "ID"); return; }
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
+  if (!order) { res.status(404).json({ error: "Topilmadi" }); return; }
+  await db.transaction(async (tx) => {
+    await tx.delete(deliveryDaysTable).where(eq(deliveryDaysTable.orderId, id));
+    await tx.delete(ordersTable).where(eq(ordersTable.id, id));
+  });
+  await addEvent({ customerId: order.customerId, staffId: req.staff!.id, type: "order_updated", body: `Buyurtma #${id} o‘chirildi (${valueLabel(order.ration)} ${order.sku} · ${valueLabel(order.plan)})` });
+  res.json({ ok: true });
+});
+
 // ─── 3. Tomorrow: delivery lists by shift and courier, and renewals ─────────
 async function deliveryRows(day: string) {
   const rows = await db
@@ -403,20 +536,37 @@ async function deliveryRows(day: string) {
     .from(deliveryDaysTable)
     .innerJoin(ordersTable, eq(ordersTable.id, deliveryDaysTable.orderId))
     .innerJoin(customersTable, eq(customersTable.id, ordersTable.customerId))
-    .where(and(eq(deliveryDaysTable.day, day), inArray(deliveryDaysTable.status, ["scheduled", "locked", "delivered"]), eq(ordersTable.crmStatus, "active")))
+    .where(and(
+      eq(deliveryDaysTable.day, day), inArray(deliveryDaysTable.status, ["scheduled", "locked", "delivered", "failed"]),
+      eq(ordersTable.crmStatus, "active"), isNull(customersTable.archivedAt),
+    ))
     .orderBy(deliveryDaysTable.deliverySlot, deliveryDaysTable.courierType, deliveryDaysTable.district);
   return rows.map(({ d, o, c }) => ({
     dayId: d.id, orderId: o.id, customerId: c.id, name: c.name, phone: c.phone, sku: d.sku, ration: o.ration,
-    deliverySlot: d.deliverySlot, courierType: d.courierType, district: d.district, address: d.address, status: d.status, note: o.note,
+    deliverySlot: d.deliverySlot, courierType: d.courierType, district: d.district, address: d.address, status: d.status,
+    note: o.note, customerNotes: c.notes,
   }));
 }
 
 adminApi.get("/admin/delivery", async (req, res) => {
   const day = isIsoDate(req.query["day"]) ? (req.query["day"] as string) : addDays(tashkentDate(), 1);
   const rows = await deliveryRows(day);
-  const kitchen: Record<string, number> = {};
-  for (const r of rows) kitchen[r.sku] = (kitchen[r.sku] ?? 0) + 1;
-  res.json({ day, rows, kitchen });
+  // Kitchen: portions per ration + calories, split by shift; plus every allergy / note.
+  const byKey = new Map<string, { ration: string; sku: number; morning: number; evening: number; total: number }>();
+  for (const r of rows) {
+    if (r.status === "failed") continue;
+    const k = `${r.ration}:${r.sku}`;
+    const e = byKey.get(k) ?? { ration: r.ration, sku: r.sku, morning: 0, evening: 0, total: 0 };
+    if (r.deliverySlot === "evening") e.evening++; else e.morning++;
+    e.total++;
+    byKey.set(k, e);
+  }
+  const order = ["ozish", "balans", "sport"];
+  const kitchen = [...byKey.values()].sort((a, b) => order.indexOf(a.ration) - order.indexOf(b.ration) || a.sku - b.sku);
+  const notes = rows.filter((r) => r.customerNotes || r.note).map((r) => ({
+    name: r.name, ration: r.ration, sku: r.sku, deliverySlot: r.deliverySlot, text: [r.customerNotes, r.note].filter(Boolean).join(" · "),
+  }));
+  res.json({ day, today: tashkentDate(), rows, kitchen, notes });
 });
 
 adminApi.get("/admin/delivery.csv", async (req, res) => {
@@ -430,10 +580,10 @@ adminApi.get("/admin/delivery.csv", async (req, res) => {
     if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return `"${s.replace(/"/g, '""')}"`;
   };
-  const head = ["Sana", "Smena", "Kuryer", "Ism", "Telefon (+998)", "Tuman", "Manzil", "Kaloriya", "Rasion", "Izoh"];
+  const head = ["Sana", "Smena", "Kuryer", "Ism", "Telefon (+998)", "Tuman", "Manzil", "Kaloriya", "Rasion", "Izoh / allergiya"];
   // "97 777 88 99": stays text in Excel (a leading "+" would be read as a formula).
   const localPhone = (p: string) => p.replace(/^\+998(\d{2})(\d{3})(\d{2})(\d{2})$/, "$1 $2 $3 $4");
-  const lines = rows.map((r) => [day, SLOT_LABEL[r.deliverySlot as DeliverySlot], r.courierType === "external" ? "Tashqi" : "Ichki", r.name, localPhone(r.phone), r.district, r.address, r.sku, r.ration, r.note].map(cell).join(","));
+  const lines = rows.map((r) => [day, SLOT_LABEL[r.deliverySlot as DeliverySlot], r.courierType === "external" ? "Tashqi" : "Ichki", r.name, localPhone(r.phone), r.district, r.address, r.sku, r.ration, [r.customerNotes, r.note].filter(Boolean).join(" · ")].map(cell).join(","));
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="yetkazish-${day}${slot ? "-" + slot : ""}${courier ? "-" + courier : ""}.csv"`);
   res.send("﻿" + [head.map(cell).join(","), ...lines].join("\r\n"));
@@ -446,6 +596,15 @@ adminApi.patch("/admin/delivery-days/:id", async (req, res) => {
   const patch: Record<string, unknown> = {};
   if ("courierType" in (req.body ?? {})) { const v = oneOf(COURIER_TYPES, req.body.courierType); if (!v) { bad(res, "Kuryer turi noto‘g‘ri"); return; } patch["courierType"] = v; }
   if ("deliverySlot" in (req.body ?? {})) { const v = oneOf(DELIVERY_SLOTS, req.body.deliverySlot); if (!v) { bad(res, "Smena noto‘g‘ri"); return; } patch["deliverySlot"] = v; }
+  if ("status" in (req.body ?? {})) {
+    const v = oneOf(["delivered", "failed", "scheduled"] as const, req.body.status);
+    if (!v) { bad(res, "Holat noto‘g‘ri"); return; }
+    const [cur] = await db.select().from(deliveryDaysTable).where(eq(deliveryDaysTable.id, id)).limit(1);
+    if (!cur) { res.status(404).json({ error: "Topilmadi" }); return; }
+    if (cur.day > tashkentDate()) { bad(res, "Kelajakdagi kunni belgilab bo‘lmaydi — yetkazish kuni kelganda belgilang"); return; }
+    if (!["scheduled", "locked", "delivered", "failed"].includes(cur.status)) { bad(res, "Bu kun muzlatilgan yoki bekor qilingan"); return; }
+    patch["status"] = v;
+  }
   if (!Object.keys(patch).length) { bad(res, "O‘zgarish yo‘q"); return; }
   const [day] = await db.update(deliveryDaysTable).set({ ...patch, updatedAt: new Date() }).where(eq(deliveryDaysTable.id, id)).returning();
   if (!day) { res.status(404).json({ error: "Topilmadi" }); return; }
@@ -458,7 +617,7 @@ adminApi.patch("/admin/delivery-days/:id", async (req, res) => {
 adminApi.get("/admin/renewals", async (_req, res) => {
   const active = await db.select({ o: ordersTable, c: customersTable }).from(ordersTable)
     .innerJoin(customersTable, eq(customersTable.id, ordersTable.customerId))
-    .where(eq(ordersTable.crmStatus, "active"));
+    .where(and(eq(ordersTable.crmStatus, "active"), isNull(customersTable.archivedAt)));
   const prog = await orderProgress(active.map((r) => r.o.id));
   const items = active
     .map(({ o, c }) => ({ o, c, p: prog.get(o.id)! }))
@@ -491,4 +650,16 @@ adminApi.patch("/admin/staff/:id", requireOwner, async (req, res) => {
   const [row] = await db.update(staffTable).set(patch).where(eq(staffTable.id, id)).returning();
   if (!row) { res.status(404).json({ error: "Topilmadi" }); return; }
   res.json({ staff: row });
+});
+/** Remove a deactivated staff member completely (owner only). */
+adminApi.delete("/admin/staff/:id", requireOwner, async (req, res) => {
+  const id = idParam(req);
+  if (!id) { bad(res, "ID"); return; }
+  if (id === req.staff!.id) { bad(res, "O‘zingizni o‘chira olmaysiz"); return; }
+  const [row] = await db.select().from(staffTable).where(eq(staffTable.id, id)).limit(1);
+  if (!row) { res.status(404).json({ error: "Topilmadi" }); return; }
+  if (row.active) { bad(res, "Avval xodimni faolsizlantiring"); return; }
+  await db.execute(sql`DELETE FROM staff_login_tokens WHERE staff_id = ${id}`);
+  await db.delete(staffTable).where(eq(staffTable.id, id));
+  res.json({ ok: true });
 });
