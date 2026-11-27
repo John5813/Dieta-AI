@@ -251,6 +251,7 @@ async function ensureCrmSchema(): Promise<void> {
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS customers_phone ON customers (phone);`);
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS customers_tg ON customers (telegram_chat_id);`);
   await db.execute(sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS archived_at timestamp;`);
+
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS staff (
       id bigserial PRIMARY KEY,
@@ -368,6 +369,34 @@ async function ensureCrmSchema(): Promise<void> {
     UPDATE leads SET customer_id = c.id FROM customers c
     WHERE leads.customer_id IS NULL AND c.phone = leads.phone;
   `);
+  // Special portions (2x go'sht, garnirsiz…) and the kitchen's weekly menu.
+  await db.execute(sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS extras jsonb;`);
+  await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS extras jsonb;`);
+  await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS extras_per_day integer NOT NULL DEFAULT 0;`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS kitchen_extras (
+      code text PRIMARY KEY,
+      label text NOT NULL,
+      price integer NOT NULL DEFAULT 0,
+      target text,
+      mode text,
+      value real NOT NULL DEFAULT 0,
+      sort integer NOT NULL DEFAULT 0,
+      active boolean NOT NULL DEFAULT true,
+      updated_at timestamp NOT NULL DEFAULT now()
+    );
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS kitchen_menu (
+      id bigserial PRIMARY KEY,
+      weekday integer NOT NULL,
+      meal integer NOT NULL,
+      name text NOT NULL,
+      items jsonb NOT NULL DEFAULT '[]'::jsonb,
+      updated_at timestamp NOT NULL DEFAULT now()
+    );
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS kitchen_menu_slot ON kitchen_menu (weekday, meal);`);
 }
 
 export * from "./schema";

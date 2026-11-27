@@ -1,5 +1,5 @@
 import {
-  pgTable, text, integer, boolean, bigserial, bigint, timestamp, date, jsonb, index, uniqueIndex,
+  pgTable, text, integer, boolean, bigserial, bigint, timestamp, date, jsonb, index, uniqueIndex, real,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -31,6 +31,13 @@ export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 export const DAY_STATUSES = ["scheduled", "frozen", "locked", "delivered", "failed", "burned", "cancelled"] as const;
 export type DayStatus = (typeof DAY_STATUSES)[number];
 
+/**
+ * A special portion / add-on on a customer or an order: a catalog item (2x go'sht, +Oqsil,
+ * Garnirsiz, Laktozasiz…) or a free-text request (code "custom"). Label and price are a
+ * snapshot taken when it was chosen; the kitchen effect comes from the live catalog.
+ */
+export type ExtraItem = { code: string; label: string; qty: number; price: number };
+
 export const customersTable = pgTable(
   "customers",
   {
@@ -53,6 +60,8 @@ export const customersTable = pgTable(
     utmSource: text("utm_source"),
     utmCampaign: text("utm_campaign"),
     notes: text("notes"),
+    /** Permanent special-portion wishes; preselected in every new order. */
+    extras: jsonb("extras").$type<ExtraItem[]>(),
     lastContactAt: timestamp("last_contact_at"),
     /** Hidden from CRM lists (duplicates, tests, lost customers); a new request from the same phone restores it. */
     archivedAt: timestamp("archived_at"),
@@ -138,6 +147,9 @@ export const ordersTable = pgTable(
     address: text("address"),
     managerId: bigint("manager_id", { mode: "number" }),
     note: text("note"),
+    /** Special portions for this subscription and their price per day (added to pricePerDay in the amount). */
+    extras: jsonb("extras").$type<ExtraItem[]>(),
+    extrasPerDay: integer("extras_per_day").notNull().default(0),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -193,3 +205,41 @@ export const phoneVerificationsTable = pgTable(
   },
   (t) => [uniqueIndex("phone_verifications_code").on(t.codeHash)],
 );
+
+/**
+ * Catalog of special portions. `target` + `mode` + `value` say what the kitchen does:
+ * protein/add/1 = one more portion of the meal's main protein (2x go'sht), side/set/0 = no side dish.
+ */
+export const kitchenExtrasTable = pgTable("kitchen_extras", {
+  code: text("code").primaryKey(),
+  label: text("label").notNull(),
+  /** so'm per delivery day */
+  price: integer("price").notNull().default(0),
+  /** protein | side | null (label only, e.g. Laktozasiz) */
+  target: text("target"),
+  /** add (extra portions × qty) | set (portion multiplier) */
+  mode: text("mode"),
+  value: real("value").notNull().default(0),
+  sort: integer("sort").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+export type KitchenExtra = typeof kitchenExtrasTable.$inferSelect;
+
+/** One product of a dish; grams per calorie option ("1200": 140, …). */
+export type MenuItem = { product: string; role: "protein" | "side" | "other"; grams: Record<string, number> };
+
+/** Weekly kitchen menu: weekday 1–6 (Mon–Sat) × meal 0–4 (breakfast … dinner). */
+export const kitchenMenuTable = pgTable(
+  "kitchen_menu",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    weekday: integer("weekday").notNull(),
+    meal: integer("meal").notNull(),
+    name: text("name").notNull(),
+    items: jsonb("items").$type<MenuItem[]>().notNull(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("kitchen_menu_slot").on(t.weekday, t.meal)],
+);
+export type KitchenMeal = typeof kitchenMenuTable.$inferSelect;
