@@ -64,6 +64,9 @@ export const customersTable = pgTable(
     extras: jsonb("extras").$type<ExtraItem[]>(),
     /** Permanent meals per day (5 / 4 / 3); preselected in new orders. */
     meals: integer("meals"),
+    /** Delivery point shared from the browser at checkout. */
+    lat: real("lat"),
+    lng: real("lng"),
     lastContactAt: timestamp("last_contact_at"),
     /** Hidden from CRM lists (duplicates, tests, lost customers); a new request from the same phone restores it. */
     archivedAt: timestamp("archived_at"),
@@ -154,6 +157,14 @@ export const ordersTable = pgTable(
     extrasPerDay: integer("extras_per_day").notNull().default(0),
     /** Meals per day: 5 (standard), 4 (no 16:30 snack), 3 (no snacks). */
     meals: integer("meals").notNull().default(5),
+    /** Delivery point (website checkout). */
+    lat: real("lat"),
+    lng: real("lng"),
+    /** Online payment: payme | click | uzum; mode demo | live; provider reference; when it was paid. */
+    paymentProvider: text("payment_provider"),
+    paymentMode: text("payment_mode"),
+    paymentRef: text("payment_ref"),
+    paidAt: timestamp("paid_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

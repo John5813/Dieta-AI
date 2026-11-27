@@ -144,6 +144,7 @@
     orderCtx = { intent: intent, plan: PLANS[S.plan], planRation: RATIONS[S.ration], planSku: S.sku, meals: S.meals };
     orderTexts();
     $('.js-of-fields').style.display = ''; $('.js-of-ok').style.display = 'none'; $('.js-of-err').textContent = '';
+    var ck = $('.js-of-checkout'); ck.style.display = 'none'; ck.innerHTML = '';
     var last = K.lastLead();
     if (last && !$('#ofName').value) { $('#ofName').value = last.name || ''; $('#ofPhone').value = K.phoneFmt(K.phoneDigits(last.phone)); }
     openModal($('.js-order-modal'));
@@ -168,7 +169,19 @@
       btn.disabled = false;
       if (!r.ok) { $('.js-of-err').textContent = (r.data && r.data.error) || D.errNet; return; }
       if (r.data && r.data.key) K.saveLead({ id: r.data.id, key: r.data.key, name: name, phone: '+998' + digits });
-      $('.js-of-fields').style.display = 'none'; $('.js-of-ok').style.display = '';
+      $('.js-of-fields').style.display = 'none';
+      if (orderCtx.intent === 'manager') { $('.js-of-ok').style.display = ''; }
+      else {
+        // Test box / subscription: check the delivery point, then pay online (Payme / Click / Uzum).
+        var lead = r.data && r.data.key ? r.data : last, pt = K.planTotal(orderCtx.planRation, orderCtx.plan, orderCtx.meals);
+        var ckBox = $('.js-of-checkout'); ckBox.style.display = '';
+        K.checkout.create({
+          leadId: lead.id, key: lead.key,
+          summary: [[D.ofChoice, D.rations[orderCtx.planRation][0] + ' · ' + orderCtx.planSku + ' ' + D.kcal + ' · ' + D.mOpt[orderCtx.meals]], [D.plans[orderCtx.plan], pt.days + ' ' + D.daysW]],
+          total: K.fmt(pt.total) + ' ' + D.sum,
+          onDone: function () { K.goal('checkout_paid'); }
+        }).render(ckBox);
+      }
       K.track('Lead', { content_name: orderCtx.intent, content_category: orderCtx.planRation + '_' + orderCtx.plan });
       K.goal('order_submit_' + orderCtx.intent);
     }).catch(function () { btn.disabled = false; $('.js-of-err').textContent = D.errNet; });

@@ -178,3 +178,11 @@ body{background:var(--bg)}
 .mnote{color:#163A5C}
 .mrules .rules-mini{margin:8px 0}
 @media print{body.print-kitchen .ktable .mcell{color:#000;text-decoration:underline}}
+/* delivery point + online payment */
+.maplink{font:600 12px var(--f-b);color:var(--green);text-decoration:none;white-space:nowrap}
+.maplink:hover{text-decoration:underline}
+.pbadge{display:inline-flex;align-items:center;border-radius:8px;padding:2px 8px;font:700 12px var(--f-b);background:#EDE7FB;color:#3F2C82;border:1px solid #D5C9F5}
+.gbadge{display:inline-flex;align-items:center;border-radius:8px;padding:2px 8px;font:600 12px var(--f-b)}
+.g-inside{background:var(--green-soft);color:var(--green-ink)}
+.g-outside{background:#FDE4E1;color:#9B1C12}
+.g-denied{background:#FFF6DA;color:#7A5A00}

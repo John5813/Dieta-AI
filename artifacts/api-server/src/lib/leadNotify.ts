@@ -1,4 +1,4 @@
-import type { Lead } from "@workspace/db";
+import type { Customer, Lead, Order } from "@workspace/db";
 import { mealPrice, mealsText } from "./meals";
 import { logger } from "./logger";
 import * as tg from "./telegram";
@@ -83,4 +83,47 @@ export async function notifyLead(l: Lead, kind: "new" | "intent"): Promise<void>
   } catch (err) {
     logger.warn({ err, leadId: l.id }, "lead Telegram notification failed");
   }
+}
+
+async function send(text: string, ctx: Record<string, unknown>): Promise<void> {
+  const chat = chatId();
+  if (!chat || !process.env["TELEGRAM_BOT_TOKEN"]?.trim()) { logger.info(ctx, "Telegram not configured, no notification"); return; }
+  try { await tg.sendMessage(chat, text); } catch (err) { logger.warn({ err, ...ctx }, "Telegram notification failed"); }
+}
+const mapUrl = (lat: number, lng: number) => `https://maps.google.com/?q=${lat.toFixed(6)},${lng.toFixed(6)}`;
+const place = (district?: string | null, address?: string | null) =>
+  [district ? DISTRICT_LABEL[district] ?? district : "", address ? esc(address) : ""].filter(Boolean).join(", ");
+
+/** Checkout blocked: the delivery point is outside Tashkent, or no location was shared → the manager calls. */
+export async function notifyGeoBlocked(l: Lead): Promise<void> {
+  const why = l.geoStatus === "outside"
+    ? `📍 Yetkazish nuqtasi Toshkent shahridan <b>TASHQARIDA</b> (${l.geoSource === "map" ? "xaritada belgilangan" : "GPS"})`
+    : "📍 Joylashuv aniqlanmadi / ruxsat berilmadi";
+  const lines = [
+    `<b>☎️ Qo‘ng‘iroq qiling — onlayn to‘lov ochilmadi</b> (ariza #${l.id})`, why, "",
+    `👤 <b>${esc(l.name)}</b>`, `📞 ${esc(l.phone)}`,
+  ];
+  const pl = place(l.district, l.address);
+  if (pl) lines.push(`🏠 ${pl}`);
+  if (l.lat != null && l.lng != null) lines.push(`🗺 <a href="${mapUrl(l.lat, l.lng)}">Xaritada ochish</a>`);
+  if (l.customerId) lines.push(`\n👉 <a href="${siteBaseUrl()}/admin#c/${l.customerId}">CRM'da ochish</a>`);
+  await send(lines.join("\n"), { leadId: l.id });
+}
+
+/** A website order was paid (demo or live). */
+export async function notifyPaidOrder(o: Order, c: Customer): Promise<void> {
+  const prov = o.paymentProvider === "payme" ? "Payme" : o.paymentProvider === "click" ? "Click" : o.paymentProvider === "uzum" ? "Uzum" : o.paymentProvider ?? "";
+  const lines = [
+    `<b>✅ Saytda to‘landi${o.paymentMode === "demo" ? " (DEMO)" : ""} — ${esc(prov)}</b> · buyurtma #${o.id}`, "",
+    `👤 <b>${esc(c.name ?? "")}</b>`, `📞 ${esc(c.phone)}`,
+    `🍱 ${RATION_LABEL[o.ration as RationKey] ?? o.ration} ${o.sku} · ${mealsText(o.meals)} · ${PLAN_LABEL[o.plan as PlanKey] ?? o.plan} (${o.daysTotal} kun)`,
+    `💰 ${o.amount.toLocaleString("ru-RU")} so‘m`,
+    `🕒 ${o.deliverySlot === "evening" ? "kechki 18:00–22:30" : "ertalabki 08:00–10:00"} · boshlanish ${o.startDate}`,
+  ];
+  const pl = place(o.district, o.address);
+  if (pl) lines.push(`🏠 ${pl}`);
+  if (o.lat != null && o.lng != null) lines.push(`🗺 <a href="${mapUrl(o.lat, o.lng)}">Yetkazish nuqtasi</a>`);
+  if (o.note) lines.push(`📝 ${esc(o.note)}`);
+  lines.push(`\n👉 <a href="${siteBaseUrl()}/admin#c/${c.id}">CRM'da ochish</a>`);
+  await send(lines.join("\n"), { orderId: o.id });
 }

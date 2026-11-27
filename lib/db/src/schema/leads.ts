@@ -47,6 +47,14 @@ export const leadsTable = pgTable(
     planSku: integer("plan_sku"),
     /** Meals per day the visitor picked (5 / 4 / 3). */
     meals: integer("meals"),
+    /** Location check before online payment: inside | outside | denied (no permission / not found). */
+    lat: real("lat"),
+    lng: real("lng"),
+    geoAccuracy: real("geo_accuracy"),
+    geoStatus: text("geo_status"),
+    /** gps (browser location) | map (pin set by hand) */
+    geoSource: text("geo_source"),
+    geoAt: timestamp("geo_at"),
     /** Allergies / wishes typed into the website form. */
     note: text("note"),
     /** The CRM customer this request belongs to (one customer per phone). */

@@ -12,6 +12,7 @@ import {
   MEALS, WEEKDAYS, SKU_LIST, ROLES, ROLE_LABEL, type KitchenReport,
 } from "../lib/kitchen";
 import { rateLimit } from "../lib/guard";
+import { mapLink } from "../lib/geo";
 import { MEAL_COUNTS, MEAL_SETS, MEALS_NOTE, mealsOf, mealsText, mealPrice, mealPricing, saveMealPricing } from "../lib/meals";
 import { buildXlsx, XS, type XRow } from "../lib/xlsx";
 import { DISTRICT_LABEL } from "../lib/leadNotify";
@@ -115,7 +116,8 @@ adminApi.get("/admin/inbox", async (req, res) => {
     counts: Object.fromEntries(counts.rows.map((r) => [r.status, r.n])),
     items: rows.map((l) => ({
       id: l.id, customerId: l.customerId, name: l.name, phone: l.phone, lang: l.lang, intent: l.intent, status: l.status,
-      plan: l.plan, ration: l.planRation ?? l.ration, sku: l.planSku ?? l.sku, meals: l.meals, note: l.note, calories: l.calories, healthRisk: l.healthRisk,
+      plan: l.plan, ration: l.planRation ?? l.ration, sku: l.planSku ?? l.sku, meals: l.meals, note: l.note,
+      lat: l.lat, lng: l.lng, geoStatus: l.geoStatus, geoSource: l.geoSource, paymentStatus: l.paymentStatus, calories: l.calories, healthRisk: l.healthRisk,
       district: l.district, address: l.address, deliverySlot: l.deliverySlot, utmSource: l.utmSource, utmCampaign: l.utmCampaign,
       createdAt: l.createdAt,
     })),
@@ -621,6 +623,7 @@ async function deliveryRows(day: string) {
     dayId: d.id, orderId: o.id, customerId: c.id, name: c.name, phone: c.phone, sku: d.sku, ration: o.ration,
     deliverySlot: d.deliverySlot, courierType: d.courierType, district: d.district, address: d.address, status: d.status,
     note: o.note, customerNotes: c.notes, extras: o.extras ?? [], meals: o.meals,
+    lat: o.lat ?? c.lat, lng: o.lng ?? c.lng, paymentProvider: o.paymentProvider, paymentMode: o.paymentMode,
   }));
 }
 
@@ -657,7 +660,7 @@ adminApi.get("/admin/delivery.xlsx", async (req, res) => {
   const slot = oneOf(DELIVERY_SLOTS, req.query["slot"]);
   const courier = oneOf(COURIER_TYPES, req.query["courier"]);
   const rows = (await deliveryRows(day)).filter((r) => (!slot || r.deliverySlot === slot) && (!courier || r.courierType === courier));
-  const head = ["№", "Smena", "Kuryer", "Mijoz", "Telefon", "Tuman", "Manzil", "Rasion", "Kkal", "Mahal", "Maxsus porsiya", "Izoh / allergiya", "✓"];
+  const head = ["№", "Smena", "Kuryer", "Mijoz", "Telefon", "Tuman", "Manzil", "Xarita", "Rasion", "Kkal", "Mahal", "Maxsus porsiya", "Izoh / allergiya", "✓"];
   const what = [slot ? (slot === "evening" ? "Kechki 18:00–22:30" : "Ertalab 08:00–10:00") : "", courier ? (courier === "external" ? "Tashqi kuryer" : "Ichki kuryer") : ""].filter(Boolean).join(" · ");
   const sheetRows: XRow[] = [
     { cells: [`Yetkazish ro‘yxati — ${dayLabel(day)}${what ? " · " + what : ""} (${rows.length} ta)`], style: XS.title, height: 24 },
@@ -672,6 +675,7 @@ adminApi.get("/admin/delivery.xlsx", async (req, res) => {
         r.phone.replace(/^\+998(\d{2})(\d{3})(\d{2})(\d{2})$/, "+998 $1 $2 $3 $4"),
         r.district ? DISTRICT_LABEL[r.district] ?? r.district : "",
         r.address ?? "",
+        r.lat != null && r.lng != null ? mapLink(r.lat, r.lng) : "",
         RATION_NAME[r.ration] ?? r.ration,
         { v: r.sku, s: XS.num },
         r.meals !== 5 ? { v: mealsText(r.meals), s: XS.note } : { v: "5", s: XS.num },
@@ -684,8 +688,8 @@ adminApi.get("/admin/delivery.xlsx", async (req, res) => {
   if (!rows.length) sheetRows.push({ cells: ["Bu kunga yetkazish yo‘q"], style: XS.muted });
   xlsxHeaders(res, `yetkazish-${day}${slot ? "-" + slot : ""}${courier ? "-" + courier : ""}.xlsx`);
   res.send(buildXlsx([{
-    name: "Yetkazish", cols: [5, 19, 9, 20, 18, 16, 34, 10, 7, 16, 22, 32, 5], rows: sheetRows, merges: ["A1:M1"],
-    freezeRows: 2, autoFilter: rows.length ? `A2:M${rows.length + 2}` : undefined, landscape: true,
+    name: "Yetkazish", cols: [5, 19, 9, 20, 18, 16, 34, 22, 10, 7, 16, 22, 32, 5], rows: sheetRows, merges: ["A1:N1"],
+    freezeRows: 2, autoFilter: rows.length ? `A2:N${rows.length + 2}` : undefined, landscape: true,
   }]));
 });
 
@@ -756,10 +760,10 @@ adminApi.get("/admin/delivery.csv", async (req, res) => {
     if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return `"${s.replace(/"/g, '""')}"`;
   };
-  const head = ["Sana", "Smena", "Kuryer", "Ism", "Telefon (+998)", "Tuman", "Manzil", "Kaloriya", "Rasion", "Mahal", "Maxsus porsiya", "Izoh / allergiya"];
+  const head = ["Sana", "Smena", "Kuryer", "Ism", "Telefon (+998)", "Tuman", "Manzil", "Xarita", "Kaloriya", "Rasion", "Mahal", "Maxsus porsiya", "Izoh / allergiya"];
   // "97 777 88 99": stays text in Excel (a leading "+" would be read as a formula).
   const localPhone = (p: string) => p.replace(/^\+998(\d{2})(\d{3})(\d{2})(\d{2})$/, "$1 $2 $3 $4");
-  const lines = rows.map((r) => [day, SLOT_LABEL[r.deliverySlot as DeliverySlot], r.courierType === "external" ? "Tashqi" : "Ichki", r.name, localPhone(r.phone), r.district, r.address, r.sku, r.ration, mealsText(r.meals), extrasText(r.extras), [r.customerNotes, r.note].filter(Boolean).join(" · ")].map(cell).join(","));
+  const lines = rows.map((r) => [day, SLOT_LABEL[r.deliverySlot as DeliverySlot], r.courierType === "external" ? "Tashqi" : "Ichki", r.name, localPhone(r.phone), r.district, r.address, r.lat != null && r.lng != null ? mapLink(r.lat, r.lng) : "", r.sku, r.ration, mealsText(r.meals), extrasText(r.extras), [r.customerNotes, r.note].filter(Boolean).join(" · ")].map(cell).join(","));
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="yetkazish-${day}${slot ? "-" + slot : ""}${courier ? "-" + courier : ""}.csv"`);
   res.send("﻿" + [head.map(cell).join(","), ...lines].join("\r\n"));

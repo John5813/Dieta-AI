@@ -130,6 +130,8 @@
   // Optional contact card under the result: name + phone only when the visitor wants to order or get the menu.
   function contactHtml(m) {
     var D = K.d(), ration = m.ration;
+    // Test box: delivery point check → online payment (assets/checkout.js renders into this box).
+    if (S.done === 'test_drive' && S.ck) return '<div class="rec js-q-ck"></div>';
     if (S.done) {
       return '<div class="rec ok-box" role="status"><span class="ok-ic"><svg width="24" height="24"><use href="#i-check"/></svg></span><b class="d" style="font-size:20px">' + tr('okH') + '</b>' +
         '<span style="font-size:14px;line-height:1.5;color:var(--muted)">' + tr(S.done === 'manager' ? 'okMenu' : 'okQ') + '</span><a class="btn btn-line btn-block" href="/">' + tr('home') + '</a></div>';
@@ -199,6 +201,7 @@
 
   function render(focus) {
     $('.js-step').innerHTML = '<div class="qstep">' + stepHtml() + '</div>';
+    var ckBox = $('.js-q-ck'); if (ckBox && S.ck) S.ck.render(ckBox);
     $('.js-actions').innerHTML = actionsHtml();
     document.querySelectorAll('.js-prog i').forEach(function (el, i) { el.classList.toggle('on', i <= Math.min(S.step, 4)); });
     $('.js-steplbl').textContent = S.step < 5 ? tr('q') + ' ' + (S.step + 1) + ' / 5' : tr('result');
@@ -256,6 +259,15 @@
         K.goal('quiz_lead');
       }
       S.done = intent;
+      if (intent === 'test_drive' && S.lead) {
+        var Dk = K.d(), pt = K.planTotal(ration, 'd3', S.meals);
+        S.ck = K.checkout.create({
+          leadId: S.lead.id, key: S.lead.key,
+          summary: [[tr('match'), Dk.rations[ration][0] + ' · ' + mm.sku + ' ' + Dk.kcal + ' · ' + Dk.mOpt[S.meals]], [Dk.plans.d3, pt.days + ' ' + Dk.daysW]],
+          total: K.fmt(pt.total) + ' ' + Dk.sum,
+          onDone: function () { K.goal('checkout_paid'); }
+        });
+      }
       K.track(intent === 'test_drive' ? 'InitiateCheckout' : 'Contact', { content_name: intent });
       K.goal('quiz_intent_' + intent);
       render(false);
