@@ -601,19 +601,73 @@
 
   // ── 3. Yetkazish: day lists + kitchen + renewals ──
   var deliveryDay = null;
+  var WEEKDAY = ['yakshanba', 'dushanba', 'seshanba', 'chorshanba', 'payshanba', 'juma', 'shanba'];
+  var MONTH = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+  function dayLabel(day) { var d = new Date(day + 'T00:00:00Z'); return d.getUTCDate() + '-' + MONTH[d.getUTCMonth()] + ' ' + d.getUTCFullYear() + ', ' + WEEKDAY[d.getUTCDay()]; }
+  function xlsxLink(qs, text, cls) { return h('a', { class: 'btn ' + (cls || 'btn-soft') + ' btn-xs', href: '/api/admin/' + qs, download: '', text: text }); }
+
+  // Kitchen summary as plain text for Telegram: portions by shift, totals and allergies — no phones, no addresses.
+  function kitchenText(d) {
+    var tot = { morning: 0, evening: 0, total: 0 }, L1 = ['🍽 Oshxona varaqasi — ' + dayLabel(d.day), ''];
+    d.kitchen.forEach(function (k) { tot.morning += k.morning; tot.evening += k.evening; tot.total += k.total; });
+    if (!d.kitchen.length) L1.push('Bu kunga faol yetkazish yo‘q.');
+    [['morning', '🌅 Ertalab (08:00–10:00)'], ['evening', '🌙 Kechki (18:00–22:30)']].forEach(function (sl) {
+      var items = d.kitchen.filter(function (k) { return k[sl[0]] > 0; });
+      if (!items.length) return;
+      L1.push(sl[1]);
+      items.forEach(function (k) { L1.push('• ' + lbl('ration', k.ration) + ' ' + k.sku + ' kkal — ' + k[sl[0]] + ' ta'); });
+      L1.push('Jami: ' + tot[sl[0]] + ' ta', '');
+    });
+    if (d.kitchen.length) {
+      L1.push('📦 Kun bo‘yicha jami: ' + tot.total + ' ta quti');
+      d.kitchen.forEach(function (k) { L1.push('• ' + lbl('ration', k.ration) + ' ' + k.sku + ': ' + k.total + ' (ertalab ' + k.morning + ', kechki ' + k.evening + ')'); });
+    }
+    if (d.notes.length) {
+      L1.push('', '⚠️ Allergiya va izohlar');
+      d.notes.forEach(function (n) { L1.push('• ' + (n.name || 'Ismsiz') + ' — ' + lbl('ration', n.ration) + ' ' + n.sku + ', ' + (n.deliverySlot === 'evening' ? 'kechki' : 'ertalab') + ': ' + n.text); });
+    }
+    return L1.join('\n');
+  }
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+    return new Promise(function (resolve, reject) {
+      var ta = h('textarea', { style: 'position:fixed;left:-9999px;top:0', readonly: true }); ta.value = text;
+      document.body.appendChild(ta); ta.select();
+      var ok = false; try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      ta.remove(); if (ok) resolve(); else reject(new Error('Nusxalab bo‘lmadi'));
+    });
+  }
+  function printKitchen() {
+    document.body.classList.add('print-kitchen');
+    var done = function () { document.body.classList.remove('print-kitchen'); window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    window.print();
+  }
   function viewDelivery(v) {
     if (!deliveryDay) { var t = new Date(ME.today + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + 1); deliveryDay = t.toISOString().slice(0, 10); }
     var date = h('input', { class: 'inp', type: 'date', value: deliveryDay, style: 'max-width:200px', 'aria-label': 'Kun', onchange: function (e) { deliveryDay = e.target.value; route(); } });
     v.appendChild(h('div', { class: 'a-h' }, h('h1', { text: 'Yetkazish va uzaytirish' }), h('div', { class: 'acts' }, date,
-      h('a', { class: 'btn btn-line btn-xs', href: '/api/admin/delivery.csv?day=' + deliveryDay, text: '⬇ CSV (hammasi)' }))));
-    var kitchen = h('div', { class: 'card', style: 'margin-bottom:14px' }), groups = h('div', { class: 'groups' }), renew = h('div', { class: 'list' });
+      h('a', { class: 'btn btn-line btn-xs', href: '/api/admin/delivery.csv?day=' + deliveryDay, text: '⬇ CSV (hammasi)' }),
+      xlsxLink('delivery.xlsx?day=' + deliveryDay, '⬇ Excel (.xlsx)'))));
+    var kitchen = h('div', { class: 'card kitchen-card', style: 'margin-bottom:14px' }), groups = h('div', { class: 'groups' }), renew = h('div', { class: 'list' });
     v.appendChild(kitchen); v.appendChild(groups);
     v.appendChild(h('div', { class: 'a-h', style: 'margin-top:24px' }, h('h1', { text: 'Uzaytirishga qo‘ng‘iroq' }), h('span', { class: 'a-sub', text: 'Obunasi tugashiga 1–2 kun qolganlar' })));
     v.appendChild(renew);
 
     api('GET', '/delivery?day=' + deliveryDay).then(function (d) {
       // Kitchen: portions per ration and calories, by shift; then allergies / notes.
-      add(kitchen, h('h3', { text: 'Oshxona uchun: ' + d.day }));
+      var copyBtn = h('button', { type: 'button', class: 'btn btn-line btn-xs js-k-copy', onclick: function () {
+        copyText(kitchenText(d)).then(function () {
+          copyBtn.textContent = '✓ Nusxalandi'; copyBtn.classList.add('copied'); toast('Nusxalandi — Telegramga joylashtiring');
+          setTimeout(function () { copyBtn.textContent = '📋 Telegramga nusxalash'; copyBtn.classList.remove('copied'); }, 2500);
+        }).catch(fail);
+      }, text: '📋 Telegramga nusxalash' });
+      add(kitchen, h('div', { class: 'k-head' },
+        h('div', null, h('h3', { text: 'Oshxona uchun: ' + d.day }), h('div', { class: 'print-only k-title', text: 'Oshxona varaqasi — ' + dayLabel(d.day) })),
+        h('div', { class: 'acts no-print' },
+          h('button', { type: 'button', class: 'btn btn-line btn-xs js-k-print', onclick: printKitchen, text: '🖨 Chop etish' }),
+          copyBtn,
+          xlsxLink('kitchen.xlsx?day=' + d.day, '⬇ Oshxona Excel'))));
       if (!d.kitchen.length) kitchen.appendChild(h('div', { class: 'a-sub', text: 'Bu kunga faol yetkazish yo‘q' }));
       else {
         var tot = { morning: 0, evening: 0, total: 0 };
@@ -633,7 +687,9 @@
       [['morning', 'internal'], ['morning', 'external'], ['evening', 'internal'], ['evening', 'external']].forEach(function (g) {
         var rows = d.rows.filter(function (r) { return r.deliverySlot === g[0] && r.courierType === g[1]; });
         var card = h('div', { class: 'card group' }, h('h3', null, h('span', { text: lbl('slot', g[0]) + ' · ' + lbl('courier', g[1]) + ' (' + rows.length + ')' }),
-          rows.length ? h('a', { class: 'btn btn-line btn-xs', href: '/api/admin/delivery.csv?day=' + d.day + '&slot=' + g[0] + '&courier=' + g[1], text: 'CSV' }) : null));
+          rows.length ? h('span', { class: 'acts' },
+            h('a', { class: 'btn btn-line btn-xs', href: '/api/admin/delivery.csv?day=' + d.day + '&slot=' + g[0] + '&courier=' + g[1], text: 'CSV' }),
+            xlsxLink('delivery.xlsx?day=' + d.day + '&slot=' + g[0] + '&courier=' + g[1], 'Excel')) : null));
         if (!rows.length) card.appendChild(h('div', { class: 'a-sub', text: 'Bo‘sh' }));
         rows.forEach(function (r) {
           var setDay = function (body, msg) { api('PATCH', '/delivery-days/' + r.dayId, body).then(function () { toast(msg); route(); }).catch(fail); };

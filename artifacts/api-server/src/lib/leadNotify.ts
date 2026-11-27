@@ -18,7 +18,7 @@ const INTENT_LABEL: Record<string, string> = {
 };
 const RATION_LABEL: Record<RationKey, string> = { ozish: "Ozish", balans: "Balans", sport: "Sport" };
 const GOAL_LABEL: Record<string, string> = { ozish: "Ozish", saqlash: "Vaznni saqlash", oshirish: "Massa olish" };
-const DISTRICT_LABEL: Record<string, string> = {
+export const DISTRICT_LABEL: Record<string, string> = {
   bektemir: "Bektemir", chilonzor: "Chilonzor", mirobod: "Mirobod", mirzo_ulugbek: "Mirzo Ulug‘bek", olmazor: "Olmazor",
   sergeli: "Sergeli", shayxontohur: "Shayxontohur", uchtepa: "Uchtepa", yakkasaroy: "Yakkasaroy", yangihayot: "Yangihayot",
   yashnobod: "Yashnobod", yunusobod: "Yunusobod", other: "Boshqa / viloyat",

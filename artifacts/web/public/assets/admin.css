@@ -108,3 +108,22 @@ body{background:var(--bg)}
 .dsel{display:flex;flex-direction:column;gap:6px}
 @media (min-width:860px){.selgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media (max-width:430px){.form .two.two-m1{grid-template-columns:1fr}}
+/* kitchen sheet: actions + print */
+.k-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.k-head h3{margin:0}
+.btn.copied{box-shadow:inset 0 0 0 1.5px var(--green2);color:var(--green-ink)}
+.print-only{display:none}
+@media print{
+  @page{margin:14mm}
+  body.print-kitchen{background:#fff}
+  body.print-kitchen .a-top,body.print-kitchen #view>*:not(.kitchen-card),body.print-kitchen .no-print,body.print-kitchen .toast,body.print-kitchen .modal{display:none!important}
+  body.print-kitchen .a-main{padding:0;max-width:none}
+  body.print-kitchen .kitchen-card{border:0;box-shadow:none;padding:0;margin:0!important}
+  body.print-kitchen .k-head h3{display:none}
+  body.print-kitchen .print-only{display:block}
+  body.print-kitchen .k-title{font:700 20px var(--f-b);color:#000;margin-bottom:12px}
+  body.print-kitchen .ktable{font-size:15px}
+  body.print-kitchen .ktable th,body.print-kitchen .ktable td{border:1px solid #999;color:#000}
+  body.print-kitchen .knotes{background:none;border:1px solid #999;border-radius:6px;color:#000;break-inside:avoid}
+  body.print-kitchen .knotes .meta{color:#000}
+}

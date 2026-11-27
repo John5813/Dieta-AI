@@ -7,6 +7,8 @@ import {
   type Order, type DeliverySlot, type CourierType,
 } from "@workspace/db";
 import { rateLimit } from "../lib/guard";
+import { buildXlsx, wrapHeight, XS, type XRow } from "../lib/xlsx";
+import { DISTRICT_LABEL } from "../lib/leadNotify";
 import { logger } from "../lib/logger";
 import { normalizePhone, DISTRICTS } from "./leads";
 import { PLAN_DAYS, getSiteConfig, type PlanKey, type RationKey } from "../lib/siteConfig";
@@ -548,10 +550,24 @@ async function deliveryRows(day: string) {
   }));
 }
 
-adminApi.get("/admin/delivery", async (req, res) => {
-  const day = isIsoDate(req.query["day"]) ? (req.query["day"] as string) : addDays(tashkentDate(), 1);
-  const rows = await deliveryRows(day);
-  // Kitchen: portions per ration + calories, split by shift; plus every allergy / note.
+type DeliveryRow = Awaited<ReturnType<typeof deliveryRows>>[number];
+const RATION_NAME: Record<string, string> = { ozish: "Ozish", balans: "Balans", sport: "Sport" };
+const WEEKDAY = ["yakshanba", "dushanba", "seshanba", "chorshanba", "payshanba", "juma", "shanba"];
+const MONTH = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"];
+/** "2026-11-28" → "28-noyabr 2026, shanba" */
+function dayLabel(day: string): string {
+  const d = new Date(day + "T00:00:00Z");
+  return `${d.getUTCDate()}-${MONTH[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${WEEKDAY[d.getUTCDay()]}`;
+}
+const dayParam = (req: Request) => (isIsoDate(req.query["day"]) ? (req.query["day"] as string) : addDays(tashkentDate(), 1));
+const xlsxHeaders = (res: Response, file: string) => {
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="${file}"`);
+  res.setHeader("Cache-Control", "no-store");
+};
+
+/** Kitchen sheet: portions per ration + calories split by shift, and every allergy / note (no phones, no addresses). */
+function kitchenSummary(rows: DeliveryRow[]) {
   const byKey = new Map<string, { ration: string; sku: number; morning: number; evening: number; total: number }>();
   for (const r of rows) {
     if (r.status === "failed") continue;
@@ -563,14 +579,90 @@ adminApi.get("/admin/delivery", async (req, res) => {
   }
   const order = ["ozish", "balans", "sport"];
   const kitchen = [...byKey.values()].sort((a, b) => order.indexOf(a.ration) - order.indexOf(b.ration) || a.sku - b.sku);
-  const notes = rows.filter((r) => r.customerNotes || r.note).map((r) => ({
+  const notes = rows.filter((r) => r.status !== "failed" && (r.customerNotes || r.note)).map((r) => ({
     name: r.name, ration: r.ration, sku: r.sku, deliverySlot: r.deliverySlot, text: [r.customerNotes, r.note].filter(Boolean).join(" · "),
   }));
-  res.json({ day, today: tashkentDate(), rows, kitchen, notes });
+  return { kitchen, notes };
+}
+
+adminApi.get("/admin/delivery", async (req, res) => {
+  const day = dayParam(req);
+  const rows = await deliveryRows(day);
+  res.json({ day, today: tashkentDate(), rows, ...kitchenSummary(rows) });
+});
+
+/** Courier list as a ready-to-print Excel table (all lists, or one shift / courier type). */
+adminApi.get("/admin/delivery.xlsx", async (req, res) => {
+  const day = dayParam(req);
+  const slot = oneOf(DELIVERY_SLOTS, req.query["slot"]);
+  const courier = oneOf(COURIER_TYPES, req.query["courier"]);
+  const rows = (await deliveryRows(day)).filter((r) => (!slot || r.deliverySlot === slot) && (!courier || r.courierType === courier));
+  const head = ["№", "Smena", "Kuryer", "Mijoz", "Telefon", "Tuman", "Manzil", "Rasion", "Kkal", "Izoh / allergiya", "✓"];
+  const what = [slot ? (slot === "evening" ? "Kechki 18:00–22:30" : "Ertalab 08:00–10:00") : "", courier ? (courier === "external" ? "Tashqi kuryer" : "Ichki kuryer") : ""].filter(Boolean).join(" · ");
+  const sheetRows: XRow[] = [
+    { cells: [`Yetkazish ro‘yxati — ${dayLabel(day)}${what ? " · " + what : ""} (${rows.length} ta)`], style: XS.title, height: 24 },
+    { cells: head, style: XS.head, height: 20 },
+    ...rows.map((r, i) => ({
+      style: XS.text,
+      cells: [
+        { v: i + 1, s: XS.num },
+        r.deliverySlot === "evening" ? "Kechki 18:00–22:30" : "Ertalab 08:00–10:00",
+        r.courierType === "external" ? "Tashqi" : "Ichki",
+        r.name ?? "",
+        r.phone.replace(/^\+998(\d{2})(\d{3})(\d{2})(\d{2})$/, "+998 $1 $2 $3 $4"),
+        r.district ? DISTRICT_LABEL[r.district] ?? r.district : "",
+        r.address ?? "",
+        RATION_NAME[r.ration] ?? r.ration,
+        { v: r.sku, s: XS.num },
+        [r.customerNotes, r.note].filter(Boolean).join(" · "),
+        { v: r.status === "delivered" ? "✓" : r.status === "failed" ? "✗" : "", s: XS.num },
+      ],
+    })),
+  ];
+  if (!rows.length) sheetRows.push({ cells: ["Bu kunga yetkazish yo‘q"], style: XS.muted });
+  xlsxHeaders(res, `yetkazish-${day}${slot ? "-" + slot : ""}${courier ? "-" + courier : ""}.xlsx`);
+  res.send(buildXlsx([{
+    name: "Yetkazish", cols: [5, 19, 9, 20, 18, 16, 38, 10, 7, 38, 5], rows: sheetRows, merges: ["A1:K1"],
+    freezeRows: 2, autoFilter: rows.length ? `A2:K${rows.length + 2}` : undefined, landscape: true,
+  }]));
+});
+
+/** Kitchen-only Excel: portions by ration / kcal and shift, plus allergies — no phones, no addresses. */
+adminApi.get("/admin/kitchen.xlsx", async (req, res) => {
+  const day = dayParam(req);
+  const { kitchen, notes } = kitchenSummary(await deliveryRows(day));
+  const tot = kitchen.reduce((a, k) => ({ m: a.m + k.morning, e: a.e + k.evening, t: a.t + k.total }), { m: 0, e: 0, t: 0 });
+  const rows: XRow[] = [
+    { cells: [`Oshxona varaqasi — ${dayLabel(day)}`], style: XS.title, height: 24 },
+    { cells: [`kaloria.uz · jami ${tot.t} ta kunlik quti`], style: XS.muted },
+    { cells: [] },
+    { cells: ["Rasion", "Kkal", "Ertalab 08:00–10:00", "Kechki 18:00–22:30", "Jami"], style: XS.head, height: 20 },
+    ...kitchen.map((k) => ({ style: XS.text, cells: [RATION_NAME[k.ration] ?? k.ration, { v: k.sku, s: XS.num }, { v: k.morning, s: XS.num }, { v: k.evening, s: XS.num }, { v: k.total, s: XS.num }] })),
+    { cells: [{ v: "Jami", s: XS.totalLabel }, { v: "", s: XS.totalLabel }, { v: tot.m, s: XS.totalNum }, { v: tot.e, s: XS.totalNum }, { v: tot.t, s: XS.totalNum }] },
+  ];
+  if (!kitchen.length) rows.push({ cells: ["Bu kunga faol yetkazish yo‘q"], style: XS.muted });
+  const merges = ["A1:E1", "A2:E2"];
+  rows.push({ cells: [] }, { cells: ["⚠ Allergiya va izohlar"], style: XS.section, height: 20 });
+  merges.push(`A${rows.length}:E${rows.length}`);
+  if (!notes.length) {
+    rows.push({ cells: ["Izoh yo‘q"], style: XS.muted });
+  } else {
+    rows.push({ cells: ["Mijoz", "Rasion · kkal", "Smena", "Izoh / allergiya", ""], style: XS.head, height: 20 });
+    merges.push(`D${rows.length}:E${rows.length}`);
+    for (const n of notes) {
+      rows.push({
+        height: Math.max(wrapHeight(n.text, 32), wrapHeight(n.name ?? "", 22)),
+        cells: [{ v: n.name ?? "", s: XS.note }, { v: `${RATION_NAME[n.ration] ?? n.ration} ${n.sku}`, s: XS.note }, { v: n.deliverySlot === "evening" ? "Kechki" : "Ertalab", s: XS.note }, { v: n.text, s: XS.note }, { v: "", s: XS.note }],
+      });
+      merges.push(`D${rows.length}:E${rows.length}`);
+    }
+  }
+  xlsxHeaders(res, `oshxona-${day}.xlsx`);
+  res.send(buildXlsx([{ name: "Oshxona", cols: [22, 16, 20, 20, 12], rows, merges }]));
 });
 
 adminApi.get("/admin/delivery.csv", async (req, res) => {
-  const day = isIsoDate(req.query["day"]) ? (req.query["day"] as string) : addDays(tashkentDate(), 1);
+  const day = dayParam(req);
   const slot = oneOf(DELIVERY_SLOTS, req.query["slot"]);
   const courier = oneOf(COURIER_TYPES, req.query["courier"]);
   const rows = (await deliveryRows(day)).filter((r) => (!slot || r.deliverySlot === slot) && (!courier || r.courierType === courier));
