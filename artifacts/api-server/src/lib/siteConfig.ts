@@ -1,3 +1,4 @@
+import { mealPricing, type MealPricing } from "./meals";
 /**
  * Business settings the public website shows, all from environment variables
  * so prices and contacts change without a code deploy.
@@ -52,6 +53,7 @@ function cleanUrl(v: string | undefined): string {
 
 export interface SiteConfig {
   baseUrl: string;
+  mealDiscounts: MealPricing;
   prices: Record<RationKey, number>;
   discounts: Record<PlanKey, number>;
   planDays: Record<PlanKey, number>;
@@ -92,6 +94,8 @@ export function getSiteConfig(): SiteConfig {
     company: { name: envText("MERCHANT_LEGAL_NAME", 120), inn: envText("MERCHANT_INN", 20), address: envText("MERCHANT_ADDRESS", 200) },
     text: { delivery: pair("SITE_DELIVERY"), kitchen: pair("SITE_KITCHEN"), dietitian: pair("SITE_DIETITIAN") },
     instagram: cleanUrl(process.env["SITE_INSTAGRAM_URL"]),
+    /** Percent off the day price for 4 and 3 meals (−10% / −20% by default; edited in the CRM). */
+    mealDiscounts: mealPricing(),
   };
 }
 

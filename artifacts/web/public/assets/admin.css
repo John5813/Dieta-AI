@@ -172,3 +172,9 @@ body{background:var(--bg)}
 .ktable .pg span,.ktable .pg small{display:block}
 .ktable .pg small{font-size:12px;color:var(--muted)}
 @media (max-width:560px){.ktable{font-size:13px}.ktable th,.ktable td{padding:6px 5px}.k-labels td,.k-products td,.k-dishes td{font-size:12.5px}}
+/* meals per day (3 / 4) */
+.mbadge{display:inline-flex;align-items:center;border-radius:8px;padding:2px 8px;font:700 12px var(--f-b);background:#DCEBF7;color:#163A5C;border:1px solid #BFD6EC}
+.ktable .mcell{color:#163A5C;font-weight:700}
+.mnote{color:#163A5C}
+.mrules .rules-mini{margin:8px 0}
+@media print{body.print-kitchen .ktable .mcell{color:#000;text-decoration:underline}}

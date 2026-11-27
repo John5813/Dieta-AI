@@ -7,6 +7,7 @@ import { rateLimit } from "../lib/guard";
 import { logger } from "../lib/logger";
 import { notifyLead } from "../lib/leadNotify";
 import { addEvent, appendCustomerNote, SKUS, upsertCustomer } from "../lib/crm";
+import { mealsOf } from "../lib/meals";
 import { getSiteConfig, PLAN_DAYS, type PlanKey, type RationKey } from "../lib/siteConfig";
 
 /**
@@ -139,6 +140,7 @@ router.post("/v1/leads", rateLimit("lead-create", 12, 60 * 60 * 1000), async (re
         address: str(b["address"], 200),
         deliverySlot: slotOf(b["deliverySlot"]),
         planSku: skuOf(b["planSku"], rationOf(b["planRation"])),
+        meals: mealsOf(b["meals"]),
         note: str(b["note"], 500),
         utmSource: str(utm["source"], 120),
         utmMedium: str(utm["medium"], 120),
@@ -157,7 +159,7 @@ router.post("/v1/leads", rateLimit("lead-create", 12, 60 * 60 * 1000), async (re
       });
       await db.update(leadsTable).set({ customerId: customer.id }).where(eq(leadsTable.id, row!.id));
       row!.customerId = customer.id;
-      await addEvent({ customerId: customer.id, leadId: row!.id, type: "lead", body: row!.intent, meta: { plan: row!.plan, ration: row!.planRation ?? row!.ration, sku: row!.planSku, calories: row!.calories } });
+      await addEvent({ customerId: customer.id, leadId: row!.id, type: "lead", body: row!.intent, meta: { plan: row!.plan, ration: row!.planRation ?? row!.ration, sku: row!.planSku, meals: row!.meals, calories: row!.calories } });
       await appendCustomerNote(customer.id, row!.note);
     } catch (err) {
       logger.error({ err, leadId: row!.id }, "lead → customer link failed");
@@ -201,6 +203,7 @@ router.post("/v1/leads/:id/intent", rateLimit("lead-intent", 30, 60 * 60 * 1000)
         address: str(b["address"], 200) ?? lead.address,
         deliverySlot: slotOf(b["deliverySlot"]) ?? lead.deliverySlot,
         planSku: skuOf(b["planSku"], rationOf(b["planRation"]) ?? (lead.planRation as RationKey | null)) ?? lead.planSku,
+        meals: mealsOf(b["meals"]) ?? lead.meals,
         note: str(b["note"], 500) ?? lead.note,
         updatedAt: new Date(),
       })
@@ -209,7 +212,7 @@ router.post("/v1/leads/:id/intent", rateLimit("lead-intent", 30, 60 * 60 * 1000)
     if (row!.customerId) {
       try {
         await upsertCustomer(row!.phone, { district: row!.district, address: row!.address, deliverySlot: row!.deliverySlot });
-        await addEvent({ customerId: row!.customerId, leadId: row!.id, type: "lead", body: intent, meta: { plan: row!.plan, ration: row!.planRation, sku: row!.planSku } });
+        await addEvent({ customerId: row!.customerId, leadId: row!.id, type: "lead", body: intent, meta: { plan: row!.plan, ration: row!.planRation, sku: row!.planSku, meals: row!.meals } });
         await appendCustomerNote(row!.customerId, row!.note);
       } catch (err) {
         logger.error({ err, leadId: row!.id }, "lead intent CRM event failed");

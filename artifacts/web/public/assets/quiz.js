@@ -44,7 +44,7 @@
   var ACT = [1.2, 1.375, 1.55, 1.725];
   var GOALS = ['ozish', 'saqlash', 'oshirish'];
   var LIM = { age: [16, 80], height: [140, 210], weight: [40, 180] };
-  var S = { step: 0, gender: null, goal: null, age: 29, height: 165, weight: 72, act: null, risk: null, name: '', phone: '', district: '', address: '', note: '', slot: 'morning', lead: null, result: null, sending: false, err: '', done: null };
+  var S = { step: 0, gender: null, goal: null, age: 29, height: 165, weight: 72, act: null, risk: null, name: '', phone: '', district: '', address: '', note: '', slot: 'morning', meals: 5, lead: null, result: null, sending: false, err: '', done: null };
 
   // Same formula as @workspace/nutrition (and the mobile app); the server recomputes it.
   function calc() {
@@ -121,7 +121,7 @@
           '<div style="display:flex;flex-direction:column;gap:16px;min-width:0"><div class="rec"><span class="mt">' + tr('match') + '</span><div class="row"><span class="nm">' + rn + '</span><span class="m" style="font-weight:600">' + m.sku + ' ' + D.kcal + '</span></div>' +
           '<span class="near">' + (Math.abs(r.calories - m.sku) <= 20 ? tr('exact') : tr('near').replace('{k}', K.fmt(r.calories)).replace('{sku}', m.sku).replace('{d}', Math.abs(r.calories - m.sku))) + '</span>' +
           '<div class="thumbs">' + thumbs + '</div><span class="th-cap js-th-cap" aria-live="polite">' + tr('thumbHint') + '</span>' +
-          '<div class="row" style="border-top:1px solid var(--line);padding-top:12px"><span style="font-size:14px">' + tr('from') + '</span><span><span class="d" style="font-size:24px;font-weight:800">' + K.fmt(price) + '</span><span class="m" style="font-size:12px"> ' + D.sumDay + '</span></span></div>' +
+          '<div class="row" style="border-top:1px solid var(--line);padding-top:12px"><span style="font-size:14px">' + tr('from') + '</span><span><span class="d js-q-price" style="font-size:24px;font-weight:800">' + K.fmt(K.mealPrice(price, S.meals)) + '</span><span class="m" style="font-size:12px"> ' + D.sumDay + '</span></span></div>' +
           '</div>' + contactHtml(m) + '</div></div>';
     }
     return '';
@@ -134,10 +134,10 @@
       return '<div class="rec ok-box" role="status"><span class="ok-ic"><svg width="24" height="24"><use href="#i-check"/></svg></span><b class="d" style="font-size:20px">' + tr('okH') + '</b>' +
         '<span style="font-size:14px;line-height:1.5;color:var(--muted)">' + tr(S.done === 'manager' ? 'okMenu' : 'okQ') + '</span><a class="btn btn-line btn-block" href="/">' + tr('home') + '</a></div>';
     }
-    var testTotal = K.planTotal(ration, 'd3').total, dis = S.sending ? ' disabled' : '';
+    var testTotal = K.planTotal(ration, 'd3', S.meals).total, dis = S.sending ? ' disabled' : '';
     var btns = S.risk === 1
       ? '<button type="submit" class="btn btn-hot btn-block" data-intent="manager"' + dis + '>' + tr('mgr') + '</button>'
-      : '<button type="submit" class="btn btn-hot btn-block" data-intent="test_drive" style="justify-content:space-between"' + dis + '><span>' + tr('payTest') + '</span><span class="m" style="font-size:12px">' + K.fmt(testTotal) + ' ' + D.sum + '</span></button>' +
+      : '<button type="submit" class="btn btn-hot btn-block" data-intent="test_drive" style="justify-content:space-between"' + dis + '><span>' + tr('payTest') + '</span><span class="m js-q-test" style="font-size:12px">' + K.fmt(testTotal) + ' ' + D.sum + '</span></button>' +
         '<button type="submit" class="btn btn-line btn-block" data-intent="manager"' + dis + '><span class="bl"><span>' + tr('sendMenu') + '</span><small>' + tr('sendMenuSub') + '</small></span></button>' +
         // Carries the recommended ration, its calories and the chosen delivery time to the price calculator.
         '<a class="btn btn-ink btn-block js-subs" href="' + subsHref(m) + '" data-ration="' + ration + '" data-sku="' + m.sku + '">' + tr('subs') + '</a>';
@@ -148,6 +148,11 @@
       '<fieldset class="slots"><legend>' + tr('slotLabel') + '</legend>' +
         '<label class="slot"><input type="radio" name="deliverySlot" value="morning"' + (S.slot !== 'evening' ? ' checked' : '') + '><span><b>' + tr('slotM') + '</b><small>08:00–10:00</small></span></label>' +
         '<label class="slot"><input type="radio" name="deliverySlot" value="evening"' + (S.slot === 'evening' ? ' checked' : '') + '><span><b>' + tr('slotE') + '</b><small>18:00–22:30</small></span></label></fieldset>' +
+      // 5 meals is the standard; 4 drops the 16:30 snack, 3 drops both snacks.
+      '<fieldset class="q-meals"><legend>' + D.mRow + '</legend>' + [5, 4, 3].map(function (n) {
+        return '<label class="slot"><input type="radio" name="meals" value="' + n + '"' + (S.meals === n ? ' checked' : '') + '><span><b>' + D.mOpt[n] + '</b><small>' + D.mSub[n] + '</small></span></label>';
+      }).join('') + '</fieldset>' +
+      '<p class="m-note js-qm-note"' + (S.meals === 5 ? ' hidden' : '') + '>' + K.esc(K.mealNote(S.meals)) + '</p>' +
       '<div class="fld"><label for="gDistrict">' + tr('district') + '</label><select id="gDistrict" class="inp" name="district"><option value="">' + tr('districtPick') + '</option>' +
         DISTRICTS.map(function (d) { return '<option value="' + d[0] + '"' + (S.district === d[0] ? ' selected' : '') + '>' + d[1] + '</option>'; }).join('') +
         '<option value="other"' + (S.district === 'other' ? ' selected' : '') + '>' + tr('districtOther') + '</option></select>' +
@@ -159,7 +164,7 @@
       '<span class="consent">' + tr('consent') + ' <a href="/privacy">' + tr('privacy') + '</a></span></form>';
   }
 
-  function subsHref(m) { return '/?plan=' + m.ration + '&kcal=' + m.sku + '&slot=' + (S.slot === 'evening' ? 'evening' : 'morning') + '#narxlar'; }
+  function subsHref(m) { return '/?plan=' + m.ration + '&kcal=' + m.sku + '&slot=' + (S.slot === 'evening' ? 'evening' : 'morning') + (S.meals !== 5 ? '&meals=' + S.meals : '') + '#narxlar'; }
 
   function actionsHtml() {
     if (S.step < 5) {
@@ -233,9 +238,9 @@
     var plan = intent === 'test_drive' ? 'd3' : undefined;
     var a = K.attribution(), hp = document.querySelector('.js-contact input[name=website]');
     var req = S.lead
-      ? K.post('/api/v1/leads/' + S.lead.id + '/intent', { key: S.lead.key, intent: intent, plan: plan, planRation: ration, planSku: mm.sku, deliverySlot: S.slot, district: S.district, address: S.address, note: S.note })
+      ? K.post('/api/v1/leads/' + S.lead.id + '/intent', { key: S.lead.key, intent: intent, plan: plan, planRation: ration, planSku: mm.sku, meals: S.meals, deliverySlot: S.slot, district: S.district, address: S.address, note: S.note })
       : K.post('/api/v1/leads', {
-          name: S.name, phone: S.phone, lang: K.lang, intent: intent, plan: plan, planRation: ration, planSku: mm.sku, deliverySlot: S.slot,
+          name: S.name, phone: S.phone, lang: K.lang, intent: intent, plan: plan, planRation: ration, planSku: mm.sku, meals: S.meals, deliverySlot: S.slot,
           district: S.district, address: S.address.trim().slice(0, 200), note: S.note.trim().slice(0, 500), website: hp ? hp.value : '',
           quiz: { gender: S.gender === 1 ? 'erkak' : 'ayol', goal: GOALS[S.goal], age: S.age, height: S.height, weight: S.weight, activity: ACT[S.act], healthRisk: S.risk === 1 },
           utm: a.utm, referrer: a.referrer, landingPath: a.landingPath
@@ -307,6 +312,14 @@
       t.value = S[k]; syncRange(k); renderLabel();
     }
     if (t.id === 'gDistrict') { S.district = t.value; var n = $('.js-other-note'); if (n) n.hidden = t.value !== 'other'; }
+    if (t.name === 'meals' && t.closest('.js-contact')) {
+      S.meals = +t.value;
+      var mm2 = S.result ? { ration: S.result.ration, sku: S.result.sku } : match(calc().calories), D2 = K.d();
+      var pe = $('.js-q-price'); if (pe) pe.textContent = K.fmt(K.mealPrice(K.CFG.prices[mm2.ration], S.meals));
+      var te = $('.js-q-test'); if (te) te.textContent = K.fmt(K.planTotal(mm2.ration, 'd3', S.meals).total) + ' ' + D2.sum;
+      var ne = $('.js-qm-note'); if (ne) { ne.textContent = K.mealNote(S.meals); ne.hidden = S.meals === 5; }
+      var a2 = $('.js-subs'); if (a2) a2.href = subsHref({ ration: a2.dataset.ration, sku: a2.dataset.sku });
+    }
     if (t.name === 'deliverySlot' && t.closest('.js-contact')) {
       S.slot = t.value;
       var a = $('.js-subs'); if (a) a.href = subsHref({ ration: a.dataset.ration, sku: a.dataset.sku });

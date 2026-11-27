@@ -62,6 +62,8 @@ export const customersTable = pgTable(
     notes: text("notes"),
     /** Permanent special-portion wishes; preselected in every new order. */
     extras: jsonb("extras").$type<ExtraItem[]>(),
+    /** Permanent meals per day (5 / 4 / 3); preselected in new orders. */
+    meals: integer("meals"),
     lastContactAt: timestamp("last_contact_at"),
     /** Hidden from CRM lists (duplicates, tests, lost customers); a new request from the same phone restores it. */
     archivedAt: timestamp("archived_at"),
@@ -150,6 +152,8 @@ export const ordersTable = pgTable(
     /** Special portions for this subscription and their price per day (added to pricePerDay in the amount). */
     extras: jsonb("extras").$type<ExtraItem[]>(),
     extrasPerDay: integer("extras_per_day").notNull().default(0),
+    /** Meals per day: 5 (standard), 4 (no 16:30 snack), 3 (no snacks). */
+    meals: integer("meals").notNull().default(5),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -243,3 +247,10 @@ export const kitchenMenuTable = pgTable(
   (t) => [uniqueIndex("kitchen_menu_slot").on(t.weekday, t.meal)],
 );
 export type KitchenMeal = typeof kitchenMenuTable.$inferSelect;
+
+/** Small key → JSON settings edited in the CRM (e.g. meal_pricing: {"4": 10, "3": 20} percent off). */
+export const crmSettingsTable = pgTable("crm_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});

@@ -1,4 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
+import { mealPrice } from "./meals";
 import {
   db, customersTable, crmEventsTable, ordersTable, deliveryDaysTable,
   type Customer, type Order, type DeliverySlot, type CourierType,
@@ -48,10 +49,11 @@ export function scheduleDays(start: string, count: number): string[] {
 
 /** Price of an order; `daysOverride` is a manager-set number of delivery days (e.g. a custom plan). */
 /** Order price: days × (ration price + special portions per day) − plan discount, rounded to 1000 so'm. */
-export function quote(ration: RationKey, plan: PlanKey, pricePerDay?: number, daysOverride?: number, extrasPerDay = 0) {
+export function quote(ration: RationKey, plan: PlanKey, pricePerDay?: number, daysOverride?: number, extrasPerDay = 0, meals = 5) {
   const cfg = getSiteConfig();
   const days = daysOverride ?? PLAN_DAYS[plan];
-  const price = pricePerDay ?? cfg.prices[ration];
+  // No manual price → the standard 5-meal price, minus the 3/4-meal discount.
+  const price = pricePerDay ?? mealPrice(cfg.prices[ration], meals);
   const discountPct = cfg.discounts[plan] ?? 0;
   const amount = Math.round((days * (price + extrasPerDay) * (1 - discountPct / 100)) / 1000) * 1000;
   return { days, pricePerDay: price, discountPct, amount };

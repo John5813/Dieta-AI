@@ -27,7 +27,7 @@
     k4: '04 — Цены', priceH: 'Выберите срок — цена посчитается сразу', rLabel: 'Рацион', dLabel: 'Срок',
     sundayNote: 'В воскресенье доставки нет, поэтому 1 неделя = 6 дней доставки. Замороженные дни переносятся в конец подписки.',
     rcTitle: 'Расчёт', rcRation: 'Рацион', rcTerm: 'Срок', rcDays: 'Дней доставки', rcPrice: 'Цена за день', rcDisc: 'Скидка', rcTotal: 'Итого',
-    order: 'Оставить заказ', orderHow: 'Менеджер позвонит, подтвердит заказ и пришлёт ссылку на оплату через Payme · Click · Uzum', mgr: 'Связаться с менеджером', testNote: 'Пробный бокс — по предоплате', kLabel: 'Калорийность',
+    order: 'Оставить заказ', orderHow: 'Менеджер позвонит, подтвердит заказ и пришлёт ссылку на оплату через Payme · Click · Uzum', mgr: 'Связаться с менеджером', testNote: 'Пробный бокс — по предоплате', kLabel: 'Калорийность', mLabel: 'Приёмов пищи в день',
     rcThanks: '*** Спасибо! Приятного аппетита ***',
     k5: '05 — Заморозка', freezeH: 'Планы изменились? Заморозьте день.',
     r1: 'Заморозка бесплатна и без условий — сколько угодно дней.',
@@ -87,6 +87,9 @@
       ofTitle: { test_drive: 'Sinov boksini buyurtma qilish', subscription: 'Obunani rasmiylashtirish', manager: 'Menejer qo‘ng‘iroq qiladi' },
       ofSend: { test_drive: 'Buyurtma qoldirish', subscription: 'Buyurtma qoldirish', manager: 'So‘rov yuborish' },
       ofChoice: 'Tanlovingiz', ofTotal: 'Jami',
+      mOpt: { 5: '5 mahal', 4: '4 mahal', 3: '3 mahal' }, mSub: { 5: 'standart', 4: '16:30 perekussiz', 3: 'perekussiz' },
+      mWhat: { 4: 'Perekus 16:30 bo‘lmaydi', 3: 'ikkala perekus (11:00 va 16:30) bo‘lmaydi' },
+      mNote: '{n} mahal: {what}. Kunlik narx 5 mahal narxidan −{p}% arzon.', mRow: 'Mahal soni',
       errContact: 'Ism va telefon raqamini to‘g‘ri kiriting', errNet: 'Internet bilan bog‘lanib bo‘lmadi. Qaytadan urinib ko‘ring.',
       genders: ['Ayol', 'Erkak'],
       goals: [['−', 'Ozish', 'Ortiqcha vazndan xalos bo‘lish'], ['=', 'Vaznni saqlash', 'To‘g‘ri va tartibli ovqatlanish'], ['+', 'Massa olish', 'Mashg‘ulot va mushak uchun']],
@@ -111,6 +114,9 @@
       ofTitle: { test_drive: 'Заказать пробный бокс', subscription: 'Оформить подписку', manager: 'Менеджер перезвонит' },
       ofSend: { test_drive: 'Оставить заказ', subscription: 'Оставить заказ', manager: 'Отправить запрос' },
       ofChoice: 'Ваш выбор', ofTotal: 'Итого',
+      mOpt: { 5: '5 приёмов', 4: '4 приёма', 3: '3 приёма' }, mSub: { 5: 'стандарт', 4: 'без перекуса 16:30', 3: 'без перекусов' },
+      mWhat: { 4: 'без перекуса в 16:30', 3: 'без обоих перекусов (11:00 и 16:30)' },
+      mNote: '{n} приёма: {what}. Цена за день на {p}% ниже 5-разовой.', mRow: 'Приёмов пищи',
       errContact: 'Введите имя и номер телефона правильно', errNet: 'Нет связи с интернетом. Попробуйте ещё раз.',
       genders: ['Женщина', 'Мужчина'],
       goals: [['−', 'Похудеть', 'Избавиться от лишнего веса'], ['=', 'Держать вес', 'Правильный режим питания'], ['+', 'Набрать массу', 'Для тренировок и мышц']],
@@ -125,6 +131,12 @@
   CFG.prices = CFG.prices || { ozish: 159000, balans: 179000, sport: 209000 };
   CFG.discounts = CFG.discounts || { d3: 0, w1: 0, w2: 3, w3: 5, w4: 7, m1: 10 };
   CFG.planDays = CFG.planDays || { d3: 3, w1: 6, w2: 12, w3: 18, w4: 24, m1: 26 };
+  // 4 / 3 meals: percent off the 5-meal day price (−10% / −20%; set in the CRM).
+  CFG.mealDiscounts = CFG.mealDiscounts || { 4: 10, 3: 20 };
+  function mealPrice(base, meals) {
+    var pct = (+meals === 4 || +meals === 3) ? (+CFG.mealDiscounts[meals] || 0) : 0;
+    return pct ? Math.round(base * (1 - pct / 100) / 1000) * 1000 : base;
+  }
   // Calorie options per ration — the same list the quiz recommends from and the CRM sells.
   var SKUS = { ozish: [1200, 1400], balans: [1600, 1900], sport: [2200, 2500] };
   CFG.telegram = CFG.telegram || '';
@@ -198,15 +210,21 @@
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, status: r.status, data: j }; }); });
   }
 
+  /** "4 mahal: Perekus 16:30 bo‘lmaydi. … −10% …" (empty for 5 meals). */
+  function mealNote(meals) {
+    var D = DATA[lang]; meals = +meals;
+    if (meals !== 4 && meals !== 3) return '';
+    return D.mNote.replace('{n}', meals).replace('{what}', D.mWhat[meals]).replace('{p}', +CFG.mealDiscounts[meals] || 0);
+  }
   function fmt(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
   function phoneDigits(v) { var d = String(v || '').replace(/\D/g, ''); if (d.length > 9 && d.indexOf('998') === 0) d = d.slice(3); return d.slice(0, 9); }
   function phoneFmt(d) { return [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)].filter(Boolean).join(' '); }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function fdate(d) { var D = DATA[lang]; return lang === 'uz' ? d.getDate() + '-' + D.months[d.getMonth()] : d.getDate() + ' ' + D.months[d.getMonth()]; }
-  function planTotal(ration, plan) {
-    var days = CFG.planDays[plan], price = CFG.prices[ration], disc = CFG.discounts[plan] || 0;
+  function planTotal(ration, plan, meals) {
+    var days = CFG.planDays[plan], price = mealPrice(CFG.prices[ration], meals || 5), disc = CFG.discounts[plan] || 0;
     var gross = days * price; var total = Math.round(gross * (1 - disc / 100) / 1000) * 1000;
-    return { days: days, price: price, disc: disc, gross: gross, total: total };
+    return { days: days, price: price, disc: disc, gross: gross, total: total, meals: +meals || 5, mealPct: (+meals === 4 || +meals === 3) ? (+CFG.mealDiscounts[meals] || 0) : 0 };
   }
 
   // Keep the last lead (id + key) so a later plan choice updates the same CRM row.
@@ -258,7 +276,7 @@
     RU: RU, DATA: DATA, CFG: CFG, SKUS: SKUS,
     get lang() { return lang; }, d: function () { return DATA[lang]; }, t: function (key) { return lang === 'ru' ? RU[key] : null; },
     onLang: function (fn) { listeners.push(fn); }, applyLang: applyLang, setLang: setLang,
-    attribution: attribution, track: track, goal: goal, post: post, fmt: fmt, esc: esc, fdate: fdate, planTotal: planTotal,
+    attribution: attribution, track: track, goal: goal, post: post, fmt: fmt, esc: esc, fdate: fdate, planTotal: planTotal, mealPrice: mealPrice, mealNote: mealNote,
     phoneDigits: phoneDigits, phoneFmt: phoneFmt, saveLead: saveLead, lastLead: lastLead, initLinks: initLinks
   };
 })();

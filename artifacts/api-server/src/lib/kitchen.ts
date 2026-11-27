@@ -5,6 +5,7 @@
 import { asc, sql } from "drizzle-orm";
 import { db, kitchenExtrasTable, kitchenMenuTable, type ExtraItem, type KitchenExtra, type KitchenMeal, type MenuItem } from "@workspace/db";
 import { logger } from "./logger";
+import { MEAL_SETS, mealsText, type MealCount } from "./meals";
 
 export const SKU_LIST = [1200, 1400, 1600, 1900, 2200, 2500] as const;
 export const MEALS = [
@@ -143,7 +144,10 @@ export function portionFactor(role: string, extras: ExtraItem[] | null | undefin
 export type KitchenRow = {
   name: string | null; ration: string; sku: number; deliverySlot: string; status: string;
   extras: ExtraItem[] | null; customerNotes: string | null; note: string | null;
+  /** 5 / 4 / 3 meals a day */
+  meals: number;
 };
+const mealSet = (n: number) => MEAL_SETS[(n === 4 || n === 3 ? n : 5) as MealCount];
 type Split = { morning: number; evening: number; total: number };
 const split = (): Split => ({ morning: 0, evening: 0, total: 0 });
 const bump = (s: Split, slot: string, v: number) => { if (slot === "evening") s.evening += v; else s.morning += v; s.total += v; };
@@ -161,10 +165,11 @@ export function kitchenReport(day: string, rowsIn: KitchenRow[], menu: KitchenMe
   const weekday = new Date(day + "T00:00:00Z").getUTCDay();
   const order = ["ozish", "balans", "sport"];
 
-  const rmap = new Map<string, { ration: string; sku: number; special: Record<string, number>; specialBoxes: number } & Split>();
+  const rmap = new Map<string, { ration: string; sku: number; meals: number; mealsLabel: string; special: Record<string, number>; specialBoxes: number } & Split>();
   for (const r of rows) {
-    const k = `${r.ration}:${r.sku}`;
-    const e = rmap.get(k) ?? { ration: r.ration, sku: r.sku, special: {}, specialBoxes: 0, ...split() };
+    const meals = r.meals || 5;
+    const k = `${r.ration}:${r.sku}:${meals}`;
+    const e = rmap.get(k) ?? { ration: r.ration, sku: r.sku, meals, mealsLabel: meals === 5 ? "" : `${meals} mahal`, special: {}, specialBoxes: 0, ...split() };
     bump(e, r.deliverySlot, 1);
     if (r.extras?.length) {
       e.specialBoxes++;
@@ -172,12 +177,13 @@ export function kitchenReport(day: string, rowsIn: KitchenRow[], menu: KitchenMe
     }
     rmap.set(k, e);
   }
-  const rations = [...rmap.values()].sort((a, b) => order.indexOf(a.ration) - order.indexOf(b.ration) || a.sku - b.sku);
+  const rations = [...rmap.values()].sort((a, b) => order.indexOf(a.ration) - order.indexOf(b.ration) || a.sku - b.sku || b.meals - a.meals);
 
   const meals = menu.filter((m) => m.weekday === weekday).sort((a, b) => a.meal - b.meal);
   const dishes = meals.map((m) => {
     const d = { meal: m.meal, mealLabel: MEALS[m.meal]?.label ?? "", time: MEALS[m.meal]?.time ?? "", name: m.name, special: 0, ...split() };
-    for (const r of rows) {
+    // A 3- or 4-meal box skips the snacks it does not include.
+    for (const r of rows.filter((x) => mealSet(x.meals).includes(m.meal))) {
       bump(d, r.deliverySlot, 1);
       if (m.items.some((it) => portionFactor(it.role, r.extras, catalog) !== 1)) d.special++;
     }
@@ -190,8 +196,8 @@ export function kitchenReport(day: string, rowsIn: KitchenRow[], menu: KitchenMe
       const key = it.product.trim().toLowerCase();
       const p = pmap.get(key) ?? { product: it.product.trim(), role: it.role, meals: new Set<string>(), portions: split(), grams: split() };
       if (it.role === "protein") p.role = "protein";
-      p.meals.add(MEALS[m.meal]?.label ?? "");
-      for (const r of rows) {
+      p.meals.add(`${MEALS[m.meal]?.label ?? ""} ${MEALS[m.meal]?.time ?? ""}`.trim());
+      for (const r of rows.filter((x) => mealSet(x.meals).includes(m.meal))) {
         const f = portionFactor(it.role, r.extras, catalog);
         bump(p.portions, r.deliverySlot, f);
         bump(p.grams, r.deliverySlot, f * (Number(it.grams[String(r.sku)]) || 0));
@@ -210,9 +216,9 @@ export function kitchenReport(day: string, rowsIn: KitchenRow[], menu: KitchenMe
     .sort((a, b) => roleOrder.indexOf(a.role) - roleOrder.indexOf(b.role) || b.grams.total - a.grams.total || a.product.localeCompare(b.product));
 
   const labels = rows
-    .filter((r) => r.extras?.length || r.customerNotes || r.note)
+    .filter((r) => r.extras?.length || r.customerNotes || r.note || (r.meals || 5) !== 5)
     .map((r) => ({
-      name: r.name, ration: r.ration, sku: r.sku, deliverySlot: r.deliverySlot,
+      name: r.name, ration: r.ration, sku: r.sku, deliverySlot: r.deliverySlot, meals: r.meals || 5, mealsText: mealsText(r.meals || 5),
       extras: (r.extras ?? []).map(extraLabel), note: [r.customerNotes, r.note].filter(Boolean).join(" · "),
     }))
     .sort((a, b) => (a.deliverySlot === b.deliverySlot ? 0 : a.deliverySlot === "morning" ? -1 : 1) || order.indexOf(a.ration) - order.indexOf(b.ration) || a.sku - b.sku);

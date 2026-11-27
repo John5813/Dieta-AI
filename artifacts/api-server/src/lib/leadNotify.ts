@@ -1,4 +1,5 @@
 import type { Lead } from "@workspace/db";
+import { mealPrice, mealsText } from "./meals";
 import { logger } from "./logger";
 import * as tg from "./telegram";
 import { getSiteConfig, siteBaseUrl, PLAN_DAYS, type PlanKey, type RationKey } from "./siteConfig";
@@ -57,8 +58,9 @@ export function buildLeadMessage(l: Lead, kind: "new" | "intent"): string {
     if (ration && RATION_LABEL[ration]) {
       const cfg = getSiteConfig();
       const days = PLAN_DAYS[plan];
-      const total = Math.round((days * cfg.prices[ration] * (1 - (cfg.discounts[plan] ?? 0) / 100)) / 1000) * 1000;
-      line += ` · ${RATION_LABEL[ration]}${l.planSku ? " " + l.planSku : ""} · ${days} kun · ≈ ${total.toLocaleString("ru-RU")} so‘m`;
+      const total = Math.round((days * mealPrice(cfg.prices[ration], l.meals ?? 5) * (1 - (cfg.discounts[plan] ?? 0) / 100)) / 1000) * 1000;
+      const meals = l.meals === 4 || l.meals === 3 ? l.meals : 5;
+      line += ` · ${RATION_LABEL[ration]}${l.planSku ? " " + l.planSku : ""} · ${mealsText(meals)} · ${days} kun · ≈ ${total.toLocaleString("ru-RU")} so‘m`;
     }
     lines.push(line);
   }
