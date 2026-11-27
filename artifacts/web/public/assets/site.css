@@ -449,3 +449,29 @@ textarea.inp{height:auto;min-height:72px;padding:12px 16px;resize:vertical;font-
 .q-meals{border:0;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .q-meals legend{font-weight:600;font-size:14px;color:var(--ink);padding:0;margin-bottom:6px}
 @media (min-width:1080px){.mseg{display:inline-grid;align-self:flex-start;grid-template-columns:repeat(3,auto)}.mseg button{padding:0 18px}}
+
+/* checkout: delivery point (GPS / map pin) → Tashkent check → Payme / Click / Uzum */
+.ck{display:flex;flex-direction:column;gap:10px}
+.ck-h{font:700 17px var(--f-b);color:var(--ink)}
+.ck-h.big{font:700 20px var(--f-d);letter-spacing:-.02em}
+.ck-p{margin:0;font-size:14px;line-height:1.5;color:var(--muted)}
+.ck-busy{margin:0;font-size:14px;color:var(--green-ink);font-weight:600}
+.ck-map{height:300px;border-radius:16px;overflow:hidden;border:1px solid var(--line2);background:var(--mist)}
+.ck-pin{margin:0;font-size:13px;font-weight:600;color:var(--muted2)}
+.ck-pin.in{color:var(--green-ink)}
+.ck-pin.out{color:#9B1C12}
+.ck-block{display:flex;flex-direction:column;gap:6px;background:#FDE4E1;border-radius:14px;padding:12px 14px;color:#5B1A12}
+.ck-block b{font-size:15px;line-height:1.4}
+.ck-block span{font-size:13px;line-height:1.45}
+.ck-ok{margin:0;font-size:14px;font-weight:600;color:var(--green-ink)}
+.ck-ok a{color:var(--green);font-weight:500}
+.ck-prov{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ck-pbtn{flex-direction:column;gap:0;min-height:60px;padding:0 8px;background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--line2);font:700 17px var(--f-b)}
+.ck-pbtn small{font:600 10px var(--f-b);text-transform:uppercase;letter-spacing:.06em;color:var(--muted2)}
+.ck-pbtn:hover{box-shadow:inset 0 0 0 2px var(--green2)}
+.ck-payme{color:#00838F}.ck-click{color:#0B5CAD}.ck-uzum{color:#6C2BD9}
+.ck-demo{margin:0;font-size:12px;line-height:1.45;color:#5C4400;background:var(--ph);border-radius:10px;padding:8px 10px}
+.ck .linkbtn{border:0;background:none;color:var(--green);font:600 14px var(--f-b);cursor:pointer;text-decoration:underline;padding:4px 0;align-self:flex-start}
+.ck .btn{white-space:normal;height:auto;min-height:52px;padding:12px 18px;text-align:center;line-height:1.3}
+.ck .ck-pbtn{min-height:60px;padding:8px}
+.ck.ok-box .of-sum,.ck.ok-box .ck-p{align-self:stretch}

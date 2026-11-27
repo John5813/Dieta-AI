@@ -401,6 +401,21 @@ async function ensureCrmSchema(): Promise<void> {
   await db.execute(sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS meals integer;`);
   await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS meals integer NOT NULL DEFAULT 5;`);
   await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS meals integer;`);
+  // Location check + online payment (website checkout).
+  await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS lat real;`);
+  await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS lng real;`);
+  await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS geo_accuracy real;`);
+  await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS geo_status text;`);
+  await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS geo_at timestamp;`);
+  await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS geo_source text;`);
+  await db.execute(sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS lat real;`);
+  await db.execute(sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS lng real;`);
+  await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS lat real;`);
+  await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS lng real;`);
+  await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_provider text;`);
+  await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_mode text;`);
+  await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_ref text;`);
+  await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS paid_at timestamp;`);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS crm_settings (
       key text PRIMARY KEY,

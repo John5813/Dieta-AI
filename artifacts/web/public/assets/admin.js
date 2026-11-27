@@ -216,7 +216,8 @@
       h('div', { class: 'row sp' },
         h('div', { class: 'row' }, h('span', { class: 'nm', text: l.name || 'Ismsiz' }), phoneLink(l.phone)),
         h('div', { class: 'row' }, badge(l.status, lbl('lead', l.status)), h('span', { class: 'a-sub', text: when(l.createdAt) }))),
-      h('div', { class: 'row' }, badge('contacted', lbl('intent', l.intent)), l.healthRisk ? badge('risk', '⚠ Sog‘liq cheklovi') : null, l.lang === 'ru' ? badge('finished', 'RU') : null),
+      h('div', { class: 'row' }, badge('contacted', lbl('intent', l.intent)), l.healthRisk ? badge('risk', '⚠ Sog‘liq cheklovi') : null, l.lang === 'ru' ? badge('finished', 'RU') : null,
+        geoBadge(l), l.geoStatus !== 'denied' ? mapA(l.lat, l.lng) : null, l.paymentStatus === 'paid' ? h('span', { class: 'pbadge', text: '💳 Saytda to‘landi' }) : null),
       meta.length ? h('div', { class: 'meta' }, meta.map(function (m) { return h('span', { text: m }); })) : null,
       l.note ? h('div', { class: 'meta warn-note', text: '📝 ' + l.note }) : null,
       h('div', { class: 'acts' }, acts));
@@ -234,6 +235,21 @@
   }
 
   // ── special portions (2x go'sht, +Oqsil, garnirsiz, laktozasiz…) ──
+  // ── delivery point (map link) and online payment ──
+  function mapA(lat, lng, text) {
+    if (lat == null || lng == null) return null;
+    return h('a', { class: 'maplink', href: 'https://maps.google.com/?q=' + (+lat).toFixed(6) + ',' + (+lng).toFixed(6), target: '_blank', rel: 'noopener', text: text || '🗺 Xaritada' });
+  }
+  var PROV = { payme: 'Payme', click: 'Click', uzum: 'Uzum' };
+  function payBadge(o) {
+    if (!o || !o.paymentProvider) return null;
+    return h('span', { class: 'pbadge', title: o.paymentRef || '', text: '💳 ' + (PROV[o.paymentProvider] || o.paymentProvider) + (o.paymentMode === 'demo' ? ' · demo' : '') });
+  }
+  function geoBadge(l) {
+    if (!l.geoStatus) return null;
+    var t = l.geoStatus === 'inside' ? '📍 Toshkent ichida' : l.geoStatus === 'outside' ? '📍 Toshkentdan tashqarida' : '📍 Joylashuv berilmadi';
+    return h('span', { class: 'gbadge g-' + l.geoStatus, text: t + (l.geoSource === 'map' && l.geoStatus !== 'denied' ? ' (xarita)' : l.geoSource === 'gps' && l.geoStatus !== 'denied' ? ' (GPS)' : '') });
+  }
   function extraText(e) { return e.qty > 1 ? e.label + ' ×' + e.qty : e.label; }
   // ── meals per day: 5 (standard) / 4 (no 16:30 snack) / 3 (no snacks) ──
   function mealsText(n) { n = +n || 5; return n === 5 ? '5 mahal' : n + ' mahal (' + ME.options.mealsNote[n] + ')'; }
@@ -520,7 +536,7 @@
           var o = c.order;
           list.appendChild(h('a', { class: 'item click', href: '#c/' + c.id, style: 'text-decoration:none' },
             h('div', { class: 'row sp' }, h('div', { class: 'row' }, h('span', { class: 'nm', text: c.name || 'Ismsiz' }), h('span', { class: 'ph', text: fmtPhone(c.phone) })),
-              c.archivedAt ? badge('finished', 'Arxivda') : o ? badge(o.status, lbl('order', o.status)) : badge('finished', 'Buyurtma yo‘q')),
+              h('span', { class: 'row' }, payBadge(o), c.archivedAt ? badge('finished', 'Arxivda') : o ? badge(o.status, lbl('order', o.status)) : badge('finished', 'Buyurtma yo‘q'))),
             (o && o.meals < 5) || (!o && c.meals < 5) || (o && o.extras && o.extras.length) || (c.extras && c.extras.length)
               ? h('div', { class: 'row' }, mealsBadge(o ? o.meals : c.meals), extrasBadges(o && o.extras && o.extras.length ? o.extras : c.extras)) : null,
             o ? h('div', { class: 'meta' }, h('span', { text: lbl('ration', o.ration) + ' ' + o.sku + ' · ' + lbl('plan', o.plan) }),
@@ -577,6 +593,7 @@
         h('label', null, 'Doimiy eslatma (allergiya, domofon…)', notes),
         h('label', null, 'Doimiy mahal soni (yangi buyurtmalarga avtomatik)', cm),
         cx.el,
+        c.lat != null ? h('div', { class: 'meta' }, h('span', { text: 'Yetkazish nuqtasi: ' + (+c.lat).toFixed(5) + ', ' + (+c.lng).toFixed(5) }), mapA(c.lat, c.lng)) : null,
         h('div', { class: 'meta' }, h('span', { text: 'Manba: ' + lbl('source', c.firstSource) }), c.utmSource ? h('span', { text: 'UTM: ' + c.utmSource + (c.utmCampaign ? ' / ' + c.utmCampaign : '') }) : null, h('span', { text: 'Qo‘shilgan: ' + when(c.createdAt) })),
         h('button', { type: 'submit', class: 'btn btn-soft btn-xs', text: 'Saqlash' }));
 
@@ -649,7 +666,8 @@
         h('span', { class: 'meta', text: 'Summa: ' + fmt(o.amount) + ' so‘m · To‘langan:' }), paidInput,
         h('button', { type: 'submit', class: 'btn btn-soft btn-xs', text: 'Saqlash' }),
         debt && o.paymentStatus !== 'unpaid' ? badge('ending', 'Qarz: ' + fmt(debt) + ' so‘m') : null),
-      o.address || o.district ? h('div', { class: 'meta', text: '📍 ' + place(o.district, o.address) }) : null,
+      o.address || o.district || o.lat != null ? h('div', { class: 'meta' }, h('span', { text: '📍 ' + (place(o.district, o.address) || 'Manzil yo‘q') }), mapA(o.lat, o.lng)) : null,
+      o.paymentProvider ? h('div', { class: 'row' }, payBadge(o), h('span', { class: 'a-sub', text: 'to‘langan ' + when(o.paidAt) + (o.paymentRef ? ' · ' + o.paymentRef : '') })) : null,
       o.extras && o.extras.length ? h('div', { class: 'row' }, h('span', { class: 'a-sub', text: 'Maxsus porsiya:' }), extrasBadges(o.extras),
         o.extrasPerDay ? h('span', { class: 'a-sub', text: '+' + fmt(o.extrasPerDay) + ' so‘m/kun' }) : null) : null,
       o.note ? h('div', { class: 'meta', text: '📝 ' + o.note }) : null,
@@ -860,7 +878,7 @@
           card.appendChild(h('div', { class: 'drow' },
             h('div', null,
               h('div', null, h('a', { href: '#c/' + r.customerId, class: 'nm', style: 'font-size:15px;text-decoration:none', text: r.name || 'Ismsiz' }), ' ', phoneLink(r.phone)),
-              h('div', { class: 'meta' }, h('span', { text: lbl('ration', r.ration) + ' ' + r.sku }), h('span', { text: place(r.district, r.address) || 'Manzil yo‘q' })),
+              h('div', { class: 'meta' }, h('span', { text: lbl('ration', r.ration) + ' ' + r.sku }), h('span', { text: place(r.district, r.address) || 'Manzil yo‘q' }), mapA(r.lat, r.lng), payBadge(r)),
               r.meals < 5 || (r.extras && r.extras.length) ? h('div', { class: 'row' }, mealsBadge(r.meals), extrasBadges(r.extras)) : null,
               r.customerNotes || r.note ? h('div', { class: 'meta warn-note', text: '⚠ ' + [r.customerNotes, r.note].filter(Boolean).join(' · ') }) : null,
               h('div', { class: 'row', style: 'margin-top:6px' }, marks)),

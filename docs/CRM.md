@@ -33,6 +33,13 @@ Oshxona va kuryerlar panelga kirmaydi — ular uchun "Yetkazish" bo'limidan CSV 
 - Mahal soni: Yangi mijoz (doimiy), «+ Buyurtma», arizadan buyurtma, «Obunani tahrirlash», mijoz kartasi. Sayt (Narxlar, buyurtma oynasi, /hisoblash) tanlovi arizaga va buyurtmaga o'tadi.
 - Oshpaz uchun alohida menyu yo'q: 5 mahallik menyudan 4 mahalliklarga 16:30 perekus, 3 mahalliklarga ikkala perekus hisoblanmaydi. Obuna kartasi, yetkazish ro'yxati, CSV/Excel va quti yorliqlarida «3 mahal / 4 mahal» aniq yoziladi.
 
+## Saytda onlayn buyurtma va to'lov (demo)
+- Sinov (3 kun) yoki obuna tanlagan mijoz forma to'ldirgach **"O'zingiz joylashuvingizni ko'rsating"** bosqichi: "📍 Mening hozirgi joylashuvimni aniqlash" (brauzer GPS) yoki "🗺 xaritadan yetkazish joyini belgilang" (uy/ishxona — Leaflet + OpenStreetMap, Toshkent chegarasi chizilgan).
+- Server nuqtani **Toshkent shahri ma'muriy chegarasi** (OpenStreetMap relation 2216724, ~50 m aniqlik) bilan tekshiradi. Ichida → Payme / Click / Uzum. Tashqarida yoki GPS rad etilsa → "menejer sizga telefon qiladi", to'lov ochilmaydi, ariza va nuqta menejerga Telegram orqali yuboriladi (xaritadan Toshkent ichidagi manzilni belgilash imkoni qoladi).
+- **Demo rejim** (`MEAL_PAYMENT_MODE` bo'sh yoki `demo`): tugma bosilsa darhol to'langan; CRM'da mijoz, faol obuna (rasion, kkal, mahal, vaqt, tuman, manzil, nuqta, "💳 Payme · demo"), Yetkazish va Oshxona ro'yxatlariga tushadi, Telegram xabari "✅ Saytda to'landi (DEMO)".
+- Haqiqiy to'lovga o'tish: `lib/checkout/providers.ts` da provayder `start()` ni merchant sahifasiga yo'naltiradigan qilib yozish va to'lov tasdiqlanganda webhook'da `markOrderPaid()` ni chaqirish; keyin `MEAL_PAYMENT_MODE=live`.
+- Yetkazish ro'yxati, CSV va delivery.xlsx'da "Xarita" (Google Maps havolasi); oshxona varaqasida manzil va koordinata yo'q.
+
 ## Oshxona uchun (ekran, Chop etish, Telegramga nusxalash, kitchen.xlsx)
 Telefon va manzil hech qayerda chiqmaydi. Uch qism: **a) Rasionlar** (ertalab/kechki/jami + «3 ta (1 ta: 2x go'sht)»), **b) Taom va mahsulotlar yig'indisi** — o'sha kun menyusi bo'yicha har bir taom va mahsulotdan nechta porsiya va necha gramm (2x go'sht = 2 porsiya, Garnirsiz = 0), **c) Quti yorlig'i** — mijoz, rasion·kkal, smena, maxsus porsiya, allergiya/izoh. kitchen.xlsx — 3 varaq.
 
