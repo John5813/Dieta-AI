@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import {
   db, leadsTable, customersTable, crmEventsTable, ordersTable, deliveryDaysTable, staffTable,
+  type Customer,
   DELIVERY_SLOTS, COURIER_TYPES, ORDER_SOURCES, ORDER_STATUSES, PAYMENT_STATUSES,
   type Order, type DeliverySlot, type CourierType,
 } from "@workspace/db";
@@ -146,6 +147,17 @@ adminApi.get("/admin/customers", async (req, res) => {
   });
 });
 
+/** Does this phone already belong to a customer? (duplicate check while typing). Registered before /customers/:id. */
+adminApi.get("/admin/customers/lookup", async (req, res) => {
+  const phone = normalizePhone(req.query["phone"]);
+  if (!phone) { res.json({ customer: null }); return; }
+  const [c] = await db.select().from(customersTable).where(eq(customersTable.phone, phone)).limit(1);
+  if (!c) { res.json({ customer: null }); return; }
+  const orders = await db.select().from(ordersTable).where(eq(ordersTable.customerId, c.id)).orderBy(desc(ordersTable.createdAt)).limit(1);
+  const [latest] = await orderView(orders);
+  res.json({ customer: { id: c.id, name: c.name, phone: c.phone, district: c.district, order: latest ? { ration: latest.ration, sku: latest.sku, plan: latest.plan, status: latest.status } : null } });
+});
+
 adminApi.get("/admin/customers/:id", async (req, res) => {
   const id = idParam(req);
   if (!id) { bad(res, "ID"); return; }
@@ -223,7 +235,7 @@ const VALUE_LABEL: Record<string, string> = {
   unpaid: "To‘lanmagan", pending: "Kutilmoqda", paid: "To‘langan", partial: "Qisman", refunded: "Qaytarilgan",
   morning: "ertalab 08:00–10:00", evening: "kechki 18:00–22:30", internal: "ichki", external: "tashqi (autsors)",
   ozish: "Ozish", balans: "Balans", sport: "Sport", d3: "3 kun", w1: "1 hafta", w2: "2 hafta", w3: "3 hafta", w4: "4 hafta", m1: "1 oy",
-  web: "sayt", mobile_app: "ilova", phone: "telefon", telegram: "Telegram",
+  web: "sayt", mobile_app: "ilova", phone: "telefon", telegram: "Telegram", instagram: "Instagram",
 };
 const valueLabel = (v: unknown) => (v == null || v === "" ? "—" : VALUE_LABEL[String(v)] ?? String(v));
 
@@ -265,23 +277,16 @@ function readOrderInput(b: Record<string, unknown>, partial: boolean) {
   return { error: null, data: out };
 }
 
-adminApi.post("/admin/orders", rateLimit("admin-orders", 120, 60 * 60 * 1000), async (req, res) => {
-  const b = (req.body ?? {}) as Record<string, unknown>;
-  const customerId = Number(b["customerId"]);
-  if (!Number.isSafeInteger(customerId) || customerId <= 0) { bad(res, "Mijoz tanlanmagan"); return; }
-  const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
-  if (!customer) { res.status(404).json({ error: "Mijoz topilmadi" }); return; }
-  if (!b["startDate"]) b["startDate"] = defaultStartDate();
-  const { error, data } = readOrderInput(b, false);
-  if (error) { bad(res, error); return; }
+/** Inserts a validated order (from readOrderInput) for a customer and builds its delivery schedule. */
+async function insertOrder(staffId: number, customer: Customer, data: Record<string, unknown>, leadIdRaw?: unknown) {
   const q = quote(data["ration"] as RationKey, data["plan"] as PlanKey, data["pricePerDay"] as number | undefined);
   const paymentStatus = (data["paymentStatus"] as string) ?? "unpaid";
   const crmStatus = (data["crmStatus"] as string) ?? (paymentStatus === "paid" ? "active" : "awaiting_payment");
-  const leadId = Number(b["leadId"]);
+  const leadId = Number(leadIdRaw);
   const [order] = await db
     .insert(ordersTable)
     .values({
-      customerId,
+      customerId: customer.id,
       leadId: Number.isSafeInteger(leadId) && leadId > 0 ? leadId : null,
       source: (data["source"] as string) ?? "phone",
       ration: data["ration"] as string, sku: data["sku"] as number, plan: data["plan"] as string,
@@ -292,18 +297,67 @@ adminApi.post("/admin/orders", rateLimit("admin-orders", 120, 60 * 60 * 1000), a
       courierType: (data["courierType"] as string) ?? "internal",
       district: ("district" in data ? data["district"] : customer.district) as string | null,
       address: ("address" in data ? data["address"] : customer.address) as string | null,
-      managerId: req.staff!.id, note: (data["note"] as string) ?? null,
+      managerId: staffId, note: (data["note"] as string) ?? null,
     })
     .returning();
   await rebuildSchedule(order!);
   await upsertCustomer(customer.phone, { district: order!.district, address: order!.address, deliverySlot: order!.deliverySlot as DeliverySlot });
   if (order!.leadId) await db.update(leadsTable).set({ status: "converted", updatedAt: new Date() }).where(eq(leadsTable.id, order!.leadId));
   await addEvent({
-    customerId, orderId: order!.id, staffId: req.staff!.id, type: "order_created",
-    body: `${order!.ration} ${order!.sku} · ${order!.plan} · ${order!.startDate} · ${SLOT_LABEL[order!.deliverySlot as DeliverySlot]}`,
+    customerId: customer.id, orderId: order!.id, staffId, type: "order_created",
+    body: `${valueLabel(order!.ration)} ${order!.sku} · ${valueLabel(order!.plan)} · ${order!.startDate} · ${SLOT_LABEL[order!.deliverySlot as DeliverySlot]}`,
     meta: { source: order!.source, amount: order!.amount, paymentStatus, crmStatus },
   });
-  res.status(201).json({ order: (await orderView([order!]))[0] });
+  return (await orderView([order!]))[0]!;
+}
+
+adminApi.post("/admin/orders", rateLimit("admin-orders", 120, 60 * 60 * 1000), async (req, res) => {
+  const b = (req.body ?? {}) as Record<string, unknown>;
+  const customerId = Number(b["customerId"]);
+  if (!Number.isSafeInteger(customerId) || customerId <= 0) { bad(res, "Mijoz tanlanmagan"); return; }
+  const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
+  if (!customer) { res.status(404).json({ error: "Mijoz topilmadi" }); return; }
+  if (!b["startDate"]) b["startDate"] = defaultStartDate();
+  const { error, data } = readOrderInput(b, false);
+  if (error) { bad(res, error); return; }
+  res.status(201).json({ order: await insertOrder(req.staff!.id, customer, data, b["leadId"]) });
+});
+
+/**
+ * "+ Yangi mijoz qo'shish": saves a customer (call / interest) and, optionally,
+ * an order in one go. The order is validated before anything is written, and
+ * an existing phone updates that customer instead of creating a duplicate.
+ */
+adminApi.post("/admin/customers/quick", rateLimit("admin-quick", 120, 60 * 60 * 1000), async (req, res) => {
+  const b = (req.body ?? {}) as Record<string, unknown>;
+  const phone = normalizePhone(b["phone"]);
+  if (!phone) { bad(res, "Telefon raqami noto‘g‘ri (+998 XX XXX XX XX)"); return; }
+  const source = oneOf(ORDER_SOURCES, b["source"]) ?? "phone";
+  const district = oneOf([...DISTRICTS] as string[], b["district"]) as string | null;
+  const address = str(b["address"], 200);
+  const note = str(b["note"], 2000);
+
+  let orderData: Record<string, unknown> | null = null;
+  if (b["order"] && typeof b["order"] === "object") {
+    const ob: Record<string, unknown> = { ...(b["order"] as Record<string, unknown>), source };
+    if (!ob["startDate"]) ob["startDate"] = defaultStartDate();
+    if (!("district" in ob)) ob["district"] = district;
+    if (!("address" in ob)) ob["address"] = address;
+    const { error, data } = readOrderInput(ob, false);
+    if (error) { bad(res, error); return; }
+    orderData = data;
+  }
+
+  const [before] = await db.select({ id: customersTable.id }).from(customersTable).where(eq(customersTable.phone, phone)).limit(1);
+  const customer = await upsertCustomer(phone, {
+    name: str(b["name"], 60), district, address, source,
+    deliverySlot: (orderData?.["deliverySlot"] as DeliverySlot | undefined) ?? oneOf(DELIVERY_SLOTS, b["deliverySlot"]),
+  });
+  const staffId = req.staff!.id;
+  if (!before) await addEvent({ customerId: customer.id, staffId, type: "customer_added", body: `Qo‘lda qo‘shildi · manba: ${valueLabel(source)}` });
+  if (note) await addEvent({ customerId: customer.id, staffId, type: "note", body: note });
+  const order = orderData ? await insertOrder(staffId, customer, orderData) : null;
+  res.status(before ? 200 : 201).json({ customer, existing: !!before, order });
 });
 
 adminApi.patch("/admin/orders/:id", async (req, res) => {

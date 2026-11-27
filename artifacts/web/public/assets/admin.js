@@ -54,9 +54,9 @@
     plan: { d3: '3 kun (sinov)', w1: '1 hafta (6 kun)', w2: '2 hafta', w3: '3 hafta', w4: '4 hafta', m1: '1 oy' },
     slot: { morning: 'Ertalab 08:00–10:00', evening: 'Kechki 18:00–22:30' },
     courier: { internal: 'Ichki kuryer', external: 'Tashqi (autsors)' },
-    source: { web: 'Sayt', mobile_app: 'Ilova', phone: 'Telefon', telegram: 'Telegram' },
+    source: { phone: 'Telefon', instagram: 'Instagram', telegram: 'Telegram', web: 'Sayt', mobile_app: 'Ilova' },
     district: { bektemir: 'Bektemir', chilonzor: 'Chilonzor', mirobod: 'Mirobod', mirzo_ulugbek: 'Mirzo Ulug‘bek', olmazor: 'Olmazor', sergeli: 'Sergeli', shayxontohur: 'Shayxontohur', uchtepa: 'Uchtepa', yakkasaroy: 'Yakkasaroy', yangihayot: 'Yangihayot', yashnobod: 'Yashnobod', yunusobod: 'Yunusobod', other: 'Boshqa / viloyat' },
-    event: { call: '📞 Qo‘ng‘iroq', note: '📝 Izoh', lead: '🌐 Ariza', lead_status: '↪ Ariza holati', order_created: '🧾 Buyurtma yaratildi', order_updated: '✏️ Buyurtma o‘zgardi', delivery_change: '🚚 Yetkazish o‘zgardi' }
+    event: { call: '📞 Qo‘ng‘iroq', note: '📝 Izoh', lead: '🌐 Ariza', lead_status: '↪ Ariza holati', order_created: '🧾 Buyurtma yaratildi', order_updated: '✏️ Buyurtma o‘zgardi', delivery_change: '🚚 Yetkazish o‘zgardi', customer_added: '➕ Mijoz qo‘shildi' }
   };
   var lbl = function (group, v) { return (L[group] && L[group][v]) || v || '—'; };
   var fmt = function (n) { return String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); };
@@ -111,6 +111,7 @@
     root.appendChild(h('header', { class: 'a-top' },
       h('div', { class: 'a-top-in' },
         h('span', { class: 'a-brand' }, 'kaloria.uz', h('small', { text: 'CRM' })),
+        h('button', { type: 'button', class: 'btn btn-hot btn-xs a-new', onclick: function () { newCustomerForm(); } }, h('span', { 'aria-hidden': 'true', text: '+ ' }), h('span', { class: 'a-new-long', text: 'Yangi mijoz qo‘shish' }), h('span', { class: 'a-new-short', text: 'Yangi mijoz' })),
         h('span', { class: 'a-user' }, ME.name + ' · ' + (ME.role === 'owner' ? 'admin' : 'menejer'),
           h('form', { method: 'post', action: '/admin/logout' }, h('button', { type: 'submit', class: 'btn btn-line btn-xs', text: 'Chiqish' })))),
       h('nav', { class: 'a-tabs', 'aria-label': 'Bo‘limlar' }, tabs.map(function (t) {
@@ -182,9 +183,8 @@
     } }, h('label', null, 'Natija', outcome), h('label', null, 'Izoh', note), h('button', { type: 'submit', class: 'btn btn-hot btn-block', text: 'Saqlash' })));
   }
 
-  // ── order form (new subscription; also for phone orders) ──
-  function orderForm(pre, done) {
-    if (!pre.customerId) { toast('Avval mijozni tanlang', true); return; }
+  // ── order fields (shared by "Yangi buyurtma" and "Yangi mijoz qo'shish") ──
+  function orderFields(pre) {
     var O = ME.options, P = ME.pricing;
     var ration = select('ration', O.rations.map(function (r) { return [r.id, lbl('ration', r.id)]; }), pre.ration || 'balans');
     var sku = h('select', { class: 'inp', name: 'sku' });
@@ -192,14 +192,10 @@
     var start = h('input', { class: 'inp', type: 'date', name: 'startDate', value: ME.defaultStart, required: true });
     var slot = select('deliverySlot', opts('slot', ['morning', 'evening']), pre.deliverySlot || 'morning');
     var courier = select('courierType', opts('courier', ['internal', 'external']), pre.courierType || 'internal');
-    var district = select('district', [['', 'Tanlang']].concat(O.districts.map(function (d) { return [d, lbl('district', d)]; })), pre.district || '');
-    var address = h('input', { class: 'inp', name: 'address', maxlength: '200', value: pre.address || '', placeholder: 'Ko‘cha, uy, mo‘ljal' });
     var price = h('input', { class: 'inp', type: 'number', name: 'pricePerDay', min: '1000', step: '1000' });
     var pay = select('paymentStatus', opts('pay', ['unpaid', 'pending', 'paid']), 'unpaid');
-    var source = select('source', opts('source', O.sources), pre.source || 'phone');
-    var note = h('textarea', { name: 'note', placeholder: 'Allergiya, domofon, qo‘shimcha talablar…' });
     var sum = h('div', { class: 'sum' });
-    [ration, plan, slot, courier, district, pay, source].forEach(function (s) { s.className = 'inp'; });
+    [ration, plan, slot, courier, pay].forEach(function (x) { x.className = 'inp'; });
     function fillSku() {
       var r = O.rations.filter(function (x) { return x.id === ration.value; })[0];
       clear(sku); r.skus.forEach(function (k) { var o = h('option', { value: k, text: k + ' kkal' }); if (+pre.sku === k) o.selected = true; sku.appendChild(o); });
@@ -214,19 +210,40 @@
     plan.addEventListener('change', recalc); price.addEventListener('input', recalc);
     fillSku(); recalc();
     var hint = ME.cutoffPassed ? 'Soat 18:00 o‘tdi — standart boshlanish indinga qo‘yildi.' : 'Standart: ertadan (18:00 gacha). Yakshanba yetkazilmaydi.';
-    var close = modal('Yangi buyurtma', h('form', { class: 'form', onsubmit: function (e) {
-      e.preventDefault();
-      var body = { customerId: pre.customerId, leadId: pre.leadId || null, ration: ration.value, sku: +sku.value, plan: plan.value, startDate: start.value, deliverySlot: slot.value, courierType: courier.value, district: district.value || null, address: address.value, paymentStatus: pay.value, source: source.value, note: note.value };
-      if (price.value) body.pricePerDay = +price.value;
-      api('POST', '/orders', body).then(function () { close(); toast('Buyurtma yaratildi'); done && done(); }).catch(fail);
-    } },
+    var el = h('div', { class: 'form' },
       h('div', { class: 'two' }, h('label', null, 'Rasion', ration), h('label', null, 'Kaloriya', sku)),
       h('div', { class: 'two' }, h('label', null, 'Muddat', plan), h('label', null, 'Boshlanish sanasi', start)),
       h('span', { class: 'a-sub', text: hint }),
       h('div', { class: 'two' }, h('label', null, 'Yetkazish vaqti', slot), h('label', null, 'Kuryer', courier)),
-      h('div', { class: 'two' }, h('label', null, 'Tuman', district), h('label', null, 'Manzil', address)),
       h('div', { class: 'two' }, h('label', null, 'Kunlik narx (ixtiyoriy)', price), h('label', null, 'To‘lov', pay)),
-      h('label', null, 'Manba', source), h('label', null, 'Izoh', note), sum,
+      sum);
+    return {
+      el: el,
+      values: function () {
+        var o = { ration: ration.value, sku: +sku.value, plan: plan.value, startDate: start.value, deliverySlot: slot.value, courierType: courier.value, paymentStatus: pay.value };
+        if (price.value) o.pricePerDay = +price.value;
+        return o;
+      }
+    };
+  }
+
+  // ── order form (new subscription for an existing customer) ──
+  function orderForm(pre, done) {
+    if (!pre.customerId) { toast('Avval mijozni tanlang', true); return; }
+    var O = ME.options, f = orderFields(pre);
+    var district = select('district', [['', 'Tanlang']].concat(O.districts.map(function (d) { return [d, lbl('district', d)]; })), pre.district || ''); district.className = 'inp';
+    var address = h('input', { class: 'inp', name: 'address', maxlength: '200', value: pre.address || '', placeholder: 'Ko‘cha, uy, mo‘ljal' });
+    var source = select('source', opts('source', O.sources), pre.source || 'phone'); source.className = 'inp';
+    var note = h('textarea', { name: 'note', placeholder: 'Allergiya, domofon, qo‘shimcha talablar…' });
+    var close = modal('Yangi buyurtma', h('form', { class: 'form', onsubmit: function (e) {
+      e.preventDefault();
+      var body = f.values();
+      body.customerId = pre.customerId; body.leadId = pre.leadId || null; body.district = district.value || null; body.address = address.value; body.source = source.value; body.note = note.value;
+      api('POST', '/orders', body).then(function () { close(); toast('Buyurtma yaratildi'); done && done(); }).catch(fail);
+    } },
+      f.el,
+      h('div', { class: 'two' }, h('label', null, 'Tuman', district), h('label', null, 'Manzil', address)),
+      h('label', null, 'Manba', source), h('label', null, 'Izoh', note),
       h('button', { type: 'submit', class: 'btn btn-hot btn-block', text: 'Buyurtmani saqlash' })), true);
   }
 
@@ -236,7 +253,7 @@
     var q = h('input', { class: 'inp', type: 'search', placeholder: 'Telefon yoki ism bo‘yicha qidirish', value: lastQuery, 'aria-label': 'Qidirish' });
     var list = h('div', { class: 'list' });
     v.appendChild(h('div', { class: 'a-h' }, h('h1', { text: 'Mijozlar va obunalar' }),
-      h('button', { type: 'button', class: 'btn btn-hot btn-xs', onclick: newCustomerForm, text: '+ Telefon buyurtma' })));
+      h('button', { type: 'button', class: 'btn btn-hot btn-xs', onclick: function () { newCustomerForm(); }, text: '+ Yangi mijoz qo‘shish' })));
     v.appendChild(h('div', { class: 'toolbar' }, q));
     v.appendChild(list);
     var timer;
@@ -260,25 +277,67 @@
     load();
   }
 
+  // ── "+ Yangi mijoz qo'shish": customer (call / interest) with an optional order ──
   function newCustomerForm() {
-    var phone = h('input', { class: 'inp', name: 'phone', inputmode: 'tel', placeholder: '90 123 45 67', required: true });
-    var name = h('input', { class: 'inp', name: 'name', maxlength: '60' });
-    var district = select('district', [['', 'Tanlang']].concat(ME.options.districts.map(function (d) { return [d, lbl('district', d)]; })), ''); district.className = 'inp';
-    var address = h('input', { class: 'inp', name: 'address', maxlength: '200' });
-    var slot = select('deliverySlot', opts('slot', ['morning', 'evening']), 'morning'); slot.className = 'inp';
-    var close = modal('Telefon orqali yangi mijoz', h('form', { class: 'form', onsubmit: function (e) {
+    var O = ME.options;
+    var name = h('input', { class: 'inp', name: 'name', maxlength: '60', autocomplete: 'off' });
+    var phone = h('input', { class: 'inp', name: 'phone', inputmode: 'tel', placeholder: '+998 90 123 45 67', required: true, autocomplete: 'off' });
+    var dup = h('div', { class: 'dup', hidden: true, role: 'status' });
+    var source = select('source', opts('source', ['phone', 'instagram', 'telegram', 'web']), 'phone'); source.className = 'inp';
+    var district = select('district', [['', 'Tanlang']].concat(O.districts.map(function (d) { return [d, lbl('district', d)]; })), ''); district.className = 'inp';
+    var address = h('input', { class: 'inp', name: 'address', maxlength: '200', placeholder: 'Ko‘cha, uy, mo‘ljal' });
+    var note = h('textarea', { name: 'note', placeholder: 'Nima so‘radi, qachon qayta qo‘ng‘iroq qilish va h.k.' });
+    var withOrder = h('input', { type: 'checkbox', name: 'withOrder' });
+    var of = orderFields({});
+    var orderBox = h('div', { class: 'order-box', hidden: true }, of.el);
+    var submit = h('button', { type: 'submit', class: 'btn btn-hot btn-block', text: 'Mijozni saqlash' });
+    var existing = null, lastLookup = '', timer;
+
+    withOrder.addEventListener('change', function () {
+      orderBox.hidden = !withOrder.checked;
+      submit.textContent = withOrder.checked ? 'Mijoz va buyurtmani saqlash' : 'Mijozni saqlash';
+    });
+    // Duplicate check as soon as the number is complete.
+    phone.addEventListener('input', function () {
+      clearTimeout(timer);
+      var d = phone.value.replace(/\D/g, ''); if (d.length > 9 && d.indexOf('998') === 0) d = d.slice(3);
+      if (d.length !== 9) { existing = null; dup.hidden = true; return; }
+      if (d === lastLookup) return;
+      timer = setTimeout(function () {
+        lastLookup = d;
+        api('GET', '/customers/lookup?phone=' + d).then(function (r) {
+          existing = r.customer; clear(dup);
+          if (!existing) { dup.hidden = true; return; }
+          var o = existing.order;
+          add(dup, [h('b', { text: 'Bu raqam bazada bor: ' + (existing.name || 'Ismsiz') }),
+            h('span', { text: o ? lbl('ration', o.ration) + ' ' + o.sku + ' · ' + lbl('plan', o.plan) + ' · ' + lbl('order', o.status) : 'Hali buyurtmasi yo‘q' }),
+            h('span', { class: 'a-sub', text: 'Saqlasangiz yangi mijoz ochilmaydi — mavjud kartadagi bo‘sh maydonlar to‘ldiriladi.' }),
+            h('a', { class: 'btn btn-line btn-xs', href: '#c/' + existing.id, onclick: function () { closeModal(); }, text: 'Mavjud kartani ochish' })]);
+          dup.hidden = false;
+          if (!name.value && existing.name) name.value = existing.name;
+        }).catch(fail);
+      }, 250);
+    });
+
+    var closeModal = modal('Yangi mijoz qo‘shish', h('form', { class: 'form', onsubmit: function (e) {
       e.preventDefault();
-      api('POST', '/customers', { phone: phone.value, name: name.value, district: district.value || null, address: address.value, deliverySlot: slot.value, source: 'phone' }).then(function (d) {
-        close();
-        api('POST', '/customers/' + d.customer.id + '/events', { type: 'call', outcome: 'Kiruvchi qo‘ng‘iroq', body: '' }).catch(function () {});
-        orderForm({ customerId: d.customer.id, source: 'phone', deliverySlot: slot.value, district: district.value, address: address.value }, function () { location.hash = '#c/' + d.customer.id; });
-      }).catch(fail);
+      var body = { name: name.value, phone: phone.value, source: source.value, district: district.value || null, address: address.value, note: note.value };
+      if (withOrder.checked) body.order = of.values();
+      submit.disabled = true;
+      api('POST', '/customers/quick', body).then(function (r) {
+        closeModal();
+        toast(r.existing ? 'Bu raqam bazada bor edi — mavjud mijoz yangilandi' + (r.order ? ' va buyurtma qo‘shildi' : '') : 'Yangi mijoz qo‘shildi' + (r.order ? ' (buyurtma bilan)' : ''));
+        if (location.hash === '#c/' + r.customer.id) route(); else location.hash = '#c/' + r.customer.id;
+      }).catch(function (err) { submit.disabled = false; fail(err); });
     } },
-      h('label', null, 'Telefon (+998)', phone), h('label', null, 'Ism', name),
-      h('div', { class: 'two' }, h('label', null, 'Tuman', district), h('label', null, 'Yetkazish vaqti', slot)),
+      h('div', { class: 'two' }, h('label', null, 'Telefon (+998)', phone), h('label', null, 'Ism', name)),
+      dup,
+      h('div', { class: 'two' }, h('label', null, 'Manba', source), h('label', null, 'Tuman', district)),
       h('label', null, 'Manzil', address),
-      h('span', { class: 'a-sub', text: 'Bu raqam bazada bo‘lsa, mavjud mijoz ochiladi (dublikat bo‘lmaydi).' }),
-      h('button', { type: 'submit', class: 'btn btn-hot btn-block', text: 'Davom etish → buyurtma' })));
+      h('label', null, 'Izoh', note),
+      h('label', { class: 'toggle' }, withOrder, h('span', { text: 'Shu yerning o‘zida buyurtma/obuna ham qo‘shish' })),
+      orderBox,
+      submit), true);
   }
 
   function viewCustomer(v, id) {
