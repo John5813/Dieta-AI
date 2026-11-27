@@ -47,12 +47,13 @@ export function scheduleDays(start: string, count: number): string[] {
 }
 
 /** Price of an order; `daysOverride` is a manager-set number of delivery days (e.g. a custom plan). */
-export function quote(ration: RationKey, plan: PlanKey, pricePerDay?: number, daysOverride?: number) {
+/** Order price: days × (ration price + special portions per day) − plan discount, rounded to 1000 so'm. */
+export function quote(ration: RationKey, plan: PlanKey, pricePerDay?: number, daysOverride?: number, extrasPerDay = 0) {
   const cfg = getSiteConfig();
   const days = daysOverride ?? PLAN_DAYS[plan];
   const price = pricePerDay ?? cfg.prices[ration];
   const discountPct = cfg.discounts[plan] ?? 0;
-  const amount = Math.round((days * price * (1 - discountPct / 100)) / 1000) * 1000;
+  const amount = Math.round((days * (price + extrasPerDay) * (1 - discountPct / 100)) / 1000) * 1000;
   return { days, pricePerDay: price, discountPct, amount };
 }
 

@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { ensureSchema, pool } from "@workspace/db";
+import { seedKitchen } from "./lib/kitchen";
 import { startBotPolling, stopBotPolling } from "./lib/bot";
 
 const rawPort = process.env["PORT"]?.trim();
@@ -24,6 +25,7 @@ const server = app.listen(port, "0.0.0.0", async (err) => {
 
   try {
     await ensureSchema();
+    await seedKitchen();
     logger.info("Database schema is ready");
   } catch (error) {
     logger.error({ err: error }, "Database schema initialization failed");

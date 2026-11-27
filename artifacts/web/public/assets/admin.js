@@ -142,7 +142,7 @@
       h('p', { class: 'a-sub', text: 'Havola 10 daqiqa amal qiladi. Ro‘yxatda bo‘lmasangiz, bot sizning Telegram ID raqamingizni ko‘rsatadi — uni adminga yuboring.' })));
   }
 
-  var VIEWS = [['inbox', 'Arizalar'], ['customers', 'Mijozlar'], ['delivery', 'Yetkazish']];
+  var VIEWS = [['inbox', 'Arizalar'], ['customers', 'Mijozlar'], ['delivery', 'Yetkazish'], ['menu', 'Menyu']];
   function shell() {
     var tabs = VIEWS.slice();
     if (ME.role === 'owner') tabs.push(['staff', 'Xodimlar']);
@@ -163,7 +163,7 @@
   function route() {
     var hash = (location.hash || '#inbox').slice(1), parts = hash.split('/');
     var view = parts[0] === 'c' ? 'customers' : parts[0];
-    if (['inbox', 'customers', 'delivery', 'staff'].indexOf(view) < 0) view = 'inbox';
+    if (['inbox', 'customers', 'delivery', 'menu', 'staff'].indexOf(view) < 0) view = 'inbox';
     // Customer search / filter only survive while working inside "Mijozlar".
     if (view !== 'customers') custState = { q: '', status: '' };
     root.querySelectorAll('[data-view]').forEach(function (a) { a.setAttribute('aria-selected', String(a.getAttribute('data-view') === view)); });
@@ -173,6 +173,7 @@
     if (view === 'customers') return viewCustomers(v);
     if (view === 'delivery') return viewDelivery(v);
     if (view === 'staff') return viewStaff(v);
+    if (view === 'menu') return viewMenu(v);
   }
 
   // ── 1. Arizalar ──
@@ -231,6 +232,75 @@
     } }, h('label', null, 'Natija', outcome), h('label', null, 'Izoh (tarixga yoziladi)', note), h('button', { type: 'submit', class: 'btn btn-hot btn-block', text: 'Saqlash' })));
   }
 
+  // ── special portions (2x go'sht, +Oqsil, garnirsiz, laktozasiz…) ──
+  function extraText(e) { return e.qty > 1 ? e.label + ' ×' + e.qty : e.label; }
+  function extrasBadges(list) {
+    if (!list || !list.length) return null;
+    return h('span', { class: 'xbadges' }, list.map(function (e) { return h('span', { class: 'xbadge', text: (e.code === 'custom' ? '✎ ' : '') + extraText(e) }); }));
+  }
+  function extrasPerDay(list) { return (list || []).reduce(function (s2, e) { return s2 + (e.price || 0) * (e.qty || 1); }, 0); }
+  function sameExtras(a, b) {
+    var k = function (l) { return JSON.stringify((l || []).map(function (e) { return [e.code, e.code === 'custom' ? e.label : '', e.qty, e.code === 'custom' ? e.price : 0]; }).sort()); };
+    return k(a) === k(b);
+  }
+  /** Chips for the catalog + one free-text request; onChange fires on every change. */
+  function extrasPicker(initial, title, hint) {
+    var cat = ME.options.extras || [], sel = {}, onChange = [];
+    var customL = h('input', { class: 'inp', name: 'extraCustom', maxlength: '80', placeholder: 'Boshqa maxsus talab: masalan, piyozsiz, sous alohida' });
+    var customP = h('input', { class: 'inp', type: 'number', name: 'extraCustomPrice', min: '0', step: '1000', placeholder: 'Narx/kun (ixtiyoriy)' });
+    var chips = h('div', { class: 'xchips' }), sum = h('div', { class: 'xsum' });
+    function fire() { renderSum(); onChange.forEach(function (fn) { fn(); }); }
+    function renderChips() {
+      clear(chips);
+      cat.forEach(function (c) {
+        var on = sel[c.code] != null;
+        var btn = h('button', { type: 'button', class: 'xchip', 'aria-pressed': String(on), 'data-code': c.code, onclick: function () {
+          if (on) delete sel[c.code];
+          else {
+            // Only one side-dish rule at a time (Garnir kamroq / Garnirsiz).
+            if (c.target === 'side' && c.mode === 'set') cat.forEach(function (o) { if (o.target === 'side' && o.mode === 'set') delete sel[o.code]; });
+            sel[c.code] = 1;
+          }
+          renderChips(); fire();
+        } }, c.label, c.price ? h('small', { text: ' +' + fmt(c.price) }) : null);
+        var wrap = h('span', { class: 'xwrap' }, btn);
+        if (on && (c.price > 0 || c.mode === 'add')) {
+          var q = select('qty', [[1, '×1'], [2, '×2'], [3, '×3']], sel[c.code], function (e) { sel[c.code] = +e.target.value; fire(); });
+          q.className = 'sel xqty'; q.setAttribute('aria-label', c.label + ' soni');
+          wrap.appendChild(q);
+        }
+        chips.appendChild(wrap);
+      });
+    }
+    function values() {
+      var out = cat.filter(function (c) { return sel[c.code] != null; }).map(function (c) { return { code: c.code, qty: sel[c.code] }; });
+      var l = customL.value.trim();
+      if (l.length >= 2) out.push({ code: 'custom', label: l, qty: 1, price: +customP.value || 0 });
+      return out;
+    }
+    function perDay() {
+      return cat.reduce(function (s2, c) { return s2 + (sel[c.code] != null ? c.price * sel[c.code] : 0); }, 0) + (customL.value.trim().length >= 2 ? (+customP.value || 0) : 0);
+    }
+    function renderSum() {
+      var v = perDay(), n = values().length;
+      sum.textContent = !n ? 'Tanlanmagan' : v ? 'Qo‘shimcha: +' + fmt(v) + ' so‘m / kun (kunlik narxga qo‘shiladi)' : 'Tanlandi: ' + n + ' ta · narxsiz';
+    }
+    function set(list) {
+      sel = {}; customL.value = ''; customP.value = '';
+      (list || []).forEach(function (e) {
+        if (e.code === 'custom') { customL.value = e.label || ''; customP.value = e.price || ''; }
+        else if (cat.some(function (c) { return c.code === e.code; })) sel[e.code] = e.qty || 1;
+      });
+      renderChips(); renderSum();
+    }
+    customL.addEventListener('input', fire); customP.addEventListener('input', fire);
+    set(initial);
+    var el = h('fieldset', { class: 'xpick' }, h('legend', { text: title || 'Maxsus porsiya / qo‘shimchalar' }),
+      hint ? h('span', { class: 'a-sub', text: hint }) : null, chips,
+      h('div', { class: 'two' }, customL, customP), sum);
+    return { el: el, values: values, perDay: perDay, set: set, onChange: function (fn) { onChange.push(fn); }, touched: false };
+  }
+
   // ── order fields (shared by "Yangi buyurtma" and "Yangi mijoz qo'shish") ──
   // opts.slotEl: an outer "Yetkazish vaqti" select to use instead of an own one.
   function orderFields(pre, o2) {
@@ -247,11 +317,13 @@
     var paid = h('input', { class: 'inp', type: 'number', name: 'paidAmount', min: '0', step: '1000', placeholder: 'Masalan 200 000' });
     var paidBox = h('label', { hidden: true }, 'To‘langan summa (so‘m)', paid);
     var sum = h('div', { class: 'sum' });
+    // Special portions: own picker, or the customer picker of "Yangi mijoz qo'shish".
+    var xp = o2.extrasPicker || extrasPicker(pre.extras || [], 'Maxsus porsiya / qo‘shimchalar', 'Mijozning doimiy talabi avtomatik tanlanadi; shu buyurtma uchun o‘zgartirish mumkin.');
     [ration, plan, courier, pay].forEach(function (x) { x.className = 'inp'; });
     if (!o2.slotEl) slot.className = 'inp';
     function total() {
-      var p = O.plans.filter(function (x) { return x.id === plan.value; })[0], per = +price.value || P.prices[ration.value], disc = P.discounts[plan.value] || 0;
-      return { days: p.days, per: per, disc: disc, total: Math.round(p.days * per * (1 - disc / 100) / 1000) * 1000 };
+      var p = O.plans.filter(function (x) { return x.id === plan.value; })[0], per = +price.value || P.prices[ration.value], disc = P.discounts[plan.value] || 0, ex = xp.perDay();
+      return { days: p.days, per: per, ex: ex, disc: disc, total: Math.round(p.days * (per + ex) * (1 - disc / 100) / 1000) * 1000 };
     }
     function fillSku() {
       var r = O.rations.filter(function (x) { return x.id === ration.value; })[0];
@@ -260,12 +332,13 @@
     }
     function recalc() {
       var t = total();
-      clear(sum); add(sum, [t.days + ' kun × ' + fmt(t.per) + ' so‘m' + (t.disc ? ' − ' + t.disc + '%' : '') + ' = ', h('b', { text: fmt(t.total) + ' so‘m' })]);
+      clear(sum); add(sum, [t.days + ' kun × ' + (t.ex ? '(' + fmt(t.per) + ' + ' + fmt(t.ex) + ' qo‘shimcha)' : fmt(t.per)) + ' so‘m' + (t.disc ? ' − ' + t.disc + '%' : '') + ' = ', h('b', { text: fmt(t.total) + ' so‘m' })]);
       if (pay.value === 'partial' && +paid.value) add(sum, ' · qarz: ' + fmt(Math.max(0, t.total - paid.value)) + ' so‘m');
     }
     ration.addEventListener('change', function () { pre.sku = null; fillSku(); recalc(); });
     plan.addEventListener('change', recalc); price.addEventListener('input', recalc); paid.addEventListener('input', recalc);
     pay.addEventListener('change', function () { paidBox.hidden = pay.value !== 'partial'; recalc(); });
+    xp.onChange(recalc);
     fillSku(); recalc();
     var hint = ME.cutoffPassed ? 'Soat 18:00 o‘tdi — standart boshlanish indinga qo‘yildi.' : 'Standart: ertadan (18:00 gacha). Yakshanba yetkazilmaydi.';
     var el = h('div', { class: 'form' },
@@ -273,14 +346,16 @@
       h('div', { class: 'two' }, h('label', null, 'Muddat', plan), h('label', null, 'Boshlanish sanasi', start)),
       h('span', { class: 'a-sub', text: hint }),
       h('div', { class: 'two' }, o2.slotEl ? null : h('label', null, 'Yetkazish vaqti', slot), h('label', null, 'Kuryer', courier)),
+      o2.extrasPicker ? null : xp.el,
       h('div', { class: 'two' }, h('label', null, 'To‘lov', pay), h('label', null, 'Kunlik narx (ixtiyoriy)', price)),
       paidBox, sum);
     return {
-      el: el,
+      el: el, extras: xp, recalc: recalc,
       values: function () {
         var o = { ration: ration.value, sku: +sku.value, plan: plan.value, startDate: start.value, deliverySlot: slot.value, courierType: courier.value, paymentStatus: pay.value };
         if (price.value) o.pricePerDay = +price.value;
         if (pay.value === 'partial') o.paidAmount = +paid.value || 0;
+        if (!o2.extrasPicker) o.extras = xp.values();
         return o;
       },
       check: function () {
@@ -295,6 +370,10 @@
   function orderForm(pre, done) {
     if (!pre.customerId) { toast('Avval mijozni tanlang', true); return; }
     var O = ME.options, f = orderFields(pre);
+    if (!pre.extras) {
+      var touched = false; f.extras.onChange(function () { touched = true; });
+      api('GET', '/customers/' + pre.customerId).then(function (d) { if (!touched && d.customer.extras && d.customer.extras.length) { f.extras.set(d.customer.extras); f.recalc(); } }).catch(function () {});
+    }
     var district = select('district', [['', 'Tanlang']].concat(O.districts.map(function (d) { return [d, lbl('district', d)]; })), pre.district || ''); district.className = 'inp';
     var address = h('input', { class: 'inp', name: 'address', maxlength: '200', value: pre.address || '', placeholder: 'Ko‘cha, uy, mo‘ljal' });
     var source = select('source', opts('source', O.sources), pre.source || 'phone'); source.className = 'inp';
@@ -325,7 +404,8 @@
     var slot = select('deliverySlot', opts('slot', ['morning', 'evening']), 'morning'); slot.className = 'inp';
     var note = h('textarea', { name: 'note', placeholder: 'Allergiya, domofon, taom bo‘yicha istaklar…' });
     var withOrder = h('input', { type: 'checkbox', name: 'withOrder' });
-    var of = orderFields({}, { slotEl: slot });
+    var xp = extrasPicker([], 'Maxsus porsiya / qo‘shimchalar (doimiy)', 'Mijoz kartasida saqlanadi va har bir yangi buyurtmada avtomatik tanlanadi.');
+    var of = orderFields({}, { slotEl: slot, extrasPicker: xp });
     var orderBox = h('div', { class: 'order-box', hidden: true }, of.el);
     var submit = h('button', { type: 'submit', class: 'btn btn-hot btn-block', text: 'Mijozni saqlash' });
     var existing = null, lastLookup = '', autoName = '', timer;
@@ -369,7 +449,7 @@
       ok = fieldError(name, name.value.trim().length < 2 ? 'Mijoz ismini kiriting (kamida 2 harf)' : '') && ok;
       if (withOrder.checked) ok = of.check() && ok;
       if (!ok) { (phone.getAttribute('aria-invalid') === 'true' ? phone : name).focus(); return; }
-      var body = { name: name.value.trim(), phone: phone.value, source: source.value, district: district.value || null, address: address.value, deliverySlot: slot.value, note: note.value };
+      var body = { name: name.value.trim(), phone: phone.value, source: source.value, district: district.value || null, address: address.value, deliverySlot: slot.value, note: note.value, extras: xp.values() };
       if (withOrder.checked) body.order = of.values();
       submit.disabled = true;
       api('POST', '/customers/quick', body).then(function (r) {
@@ -383,6 +463,7 @@
       h('div', { class: 'two' }, h('label', null, 'Manba', source), h('label', null, 'Yetkazish vaqti', slot)),
       h('div', { class: 'two' }, h('label', null, 'Tuman', district), h('label', null, 'Manzil', address)),
       h('label', null, 'Doimiy eslatma (kartada saqlanadi)', note),
+      xp.el,
       h('label', { class: 'toggle' }, withOrder, h('span', { text: 'Shu yerning o‘zida buyurtma/obuna ham qo‘shish' })),
       orderBox,
       submit), true);
@@ -414,6 +495,7 @@
           list.appendChild(h('a', { class: 'item click', href: '#c/' + c.id, style: 'text-decoration:none' },
             h('div', { class: 'row sp' }, h('div', { class: 'row' }, h('span', { class: 'nm', text: c.name || 'Ismsiz' }), h('span', { class: 'ph', text: fmtPhone(c.phone) })),
               c.archivedAt ? badge('finished', 'Arxivda') : o ? badge(o.status, lbl('order', o.status)) : badge('finished', 'Buyurtma yo‘q')),
+            extrasBadges(o && o.extras && o.extras.length ? o.extras : c.extras),
             o ? h('div', { class: 'meta' }, h('span', { text: lbl('ration', o.ration) + ' ' + o.sku + ' · ' + lbl('plan', o.plan) }),
               o.progress ? h('span', { text: 'Qoldi: ' + o.progress.remaining + ' / ' + o.daysTotal + ' kun' }) : null,
               h('span', { text: lbl('pay', o.paymentStatus) }), h('span', { text: lbl('slot', o.deliverySlot) })) : h('div', { class: 'meta', text: lbl('source', c.firstSource) + ' · ' + when(c.createdAt) })));
@@ -433,7 +515,7 @@
       var hasOpen = d.orders.some(function (o) { return o.crmStatus === 'active' && o.progress && (o.progress.remaining > 0 || o.progress.frozen > 0); });
       var acts = [phoneLink(c.phone),
         h('button', { type: 'button', class: 'btn btn-soft btn-xs', onclick: function () { callForm(c.id, null, reload); }, text: '📞 Qo‘ng‘iroq' }),
-        h('button', { type: 'button', class: 'btn btn-hot btn-xs', onclick: function () { orderForm({ customerId: c.id, source: 'phone', deliverySlot: c.deliverySlot, district: c.district, address: c.address }, reload); }, text: '+ Buyurtma' })];
+        h('button', { type: 'button', class: 'btn btn-hot btn-xs', onclick: function () { orderForm({ customerId: c.id, source: 'phone', deliverySlot: c.deliverySlot, district: c.district, address: c.address, extras: c.extras || [] }, reload); }, text: '+ Buyurtma' })];
       if (archived) acts.push(h('button', { type: 'button', class: 'btn btn-line btn-xs', onclick: function () { api('POST', '/customers/' + c.id + '/archive', { archived: false }).then(function () { toast('Arxivdan qaytarildi'); reload(); }).catch(fail); }, text: 'Arxivdan qaytarish' }));
       else acts.push(h('button', { type: 'button', class: 'btn btn-line btn-xs', title: hasOpen ? 'Faol obunasi bor' : '', onclick: function () {
         if (hasOpen) { toast('Faol obunasi bor — avval obunani bekor qiling', true); return; }
@@ -452,18 +534,20 @@
       var district = select('district', [['', '—']].concat(ME.options.districts.map(function (x) { return [x, lbl('district', x)]; })), c.district || ''); district.className = 'inp';
       var address = h('input', { class: 'inp', value: c.address || '', maxlength: '200' });
       var notes = h('textarea', { text: c.notes || '', placeholder: 'Allergiya, domofon, taom bo‘yicha istaklar — kuryer va oshxona ro‘yxatida ham ko‘rinadi' });
+      var cx = extrasPicker(c.extras || [], 'Doimiy maxsus porsiya / qo‘shimchalar', 'Yangi buyurtma ochilganda avtomatik tanlanadi. Joriy obunani o‘zgartirish uchun obunadagi «Tahrirlash»ni bosing.');
       var info = h('form', { class: 'card form', novalidate: true, onsubmit: function (e) {
         e.preventDefault();
         var ok = fieldError(phone, phoneError(phone.value));
         ok = fieldError(name, name.value.trim().length < 2 ? 'Ism kamida 2 harf' : '') && ok;
         if (!ok) return;
-        api('PATCH', '/customers/' + c.id, { name: name.value.trim(), phone: phone.value, district: district.value || null, address: address.value, notes: notes.value })
+        api('PATCH', '/customers/' + c.id, { name: name.value.trim(), phone: phone.value, district: district.value || null, address: address.value, notes: notes.value, extras: cx.values() })
           .then(function () { toast('Saqlandi'); reload(); })
           .catch(function (err) { if (err.data && err.data.code === 'phone_taken') fieldError(phone, err.message); else fail(err); });
       } }, h('h3', { text: 'Mijoz' }),
         h('div', { class: 'two two-m1' }, h('label', null, 'Ism *', name), h('label', null, 'Telefon *', phone)),
         h('div', { class: 'two' }, h('label', null, 'Tuman', district), h('label', null, 'Manzil', address)),
         h('label', null, 'Doimiy eslatma (allergiya, domofon…)', notes),
+        cx.el,
         h('div', { class: 'meta' }, h('span', { text: 'Manba: ' + lbl('source', c.firstSource) }), c.utmSource ? h('span', { text: 'UTM: ' + c.utmSource + (c.utmCampaign ? ' / ' + c.utmCampaign : '') }) : null, h('span', { text: 'Qo‘shilgan: ' + when(c.createdAt) })),
         h('button', { type: 'submit', class: 'btn btn-soft btn-xs', text: 'Saqlash' }));
 
@@ -535,6 +619,8 @@
         h('button', { type: 'submit', class: 'btn btn-soft btn-xs', text: 'Saqlash' }),
         debt && o.paymentStatus !== 'unpaid' ? badge('ending', 'Qarz: ' + fmt(debt) + ' so‘m') : null),
       o.address || o.district ? h('div', { class: 'meta', text: '📍 ' + place(o.district, o.address) }) : null,
+      o.extras && o.extras.length ? h('div', { class: 'row' }, h('span', { class: 'a-sub', text: 'Maxsus porsiya:' }), extrasBadges(o.extras),
+        o.extrasPerDay ? h('span', { class: 'a-sub', text: '+' + fmt(o.extrasPerDay) + ' so‘m/kun' }) : null) : null,
       o.note ? h('div', { class: 'meta', text: '📝 ' + o.note }) : null,
       p.frozenDays && p.frozenDays.length ? h('div', { class: 'frozen-list' }, h('span', { class: 'a-sub', text: 'Muzlatilgan kunlar (obuna oxiriga qo‘shilgan):' }),
         p.frozenDays.map(function (f) {
@@ -559,6 +645,7 @@
     var district = select('district', [['', '—']].concat(O.districts.map(function (x) { return [x, lbl('district', x)]; })), o.district || ''); district.className = 'inp';
     var address = h('input', { class: 'inp', value: o.address || '', maxlength: '200' });
     var note = h('textarea', { text: o.note || '' });
+    var ox = extrasPicker(o.extras || [], 'Maxsus porsiya / qo‘shimchalar', 'Narxli qo‘shimchalar summani qayta hisoblaydi (qolgan kunlar soni bo‘yicha emas, butun obuna uchun).');
     var close = modal('Obunani tahrirlash', h('form', { class: 'form', onsubmit: function (e) {
       e.preventDefault();
       var b = {};
@@ -571,6 +658,7 @@
       if ((district.value || null) !== (o.district || null)) b.district = district.value || null;
       if (address.value !== (o.address || '')) b.address = address.value;
       if (note.value !== (o.note || '')) b.note = note.value;
+      if (!sameExtras(ox.values(), o.extras)) b.extras = ox.values();
       if (!Object.keys(b).length) { close(); return; }
       api('PATCH', '/orders/' + o.id, b).then(function () { close(); toast('Obuna yangilandi'); reload(); }).catch(fail);
     } },
@@ -579,6 +667,7 @@
       h('div', { class: 'two' }, h('label', null, started ? 'Boshlanish (yetkazish boshlangan)' : 'Boshlanish sanasi', start), h('label', null, 'Kunlik narx (so‘m)', price)),
       h('span', { class: 'a-sub', text: 'Kunlar sonini o‘zgartirsangiz, obuna oxiriga kun qo‘shiladi yoki oxiridan olinadi; summa qayta hisoblanadi.' }),
       h('div', { class: 'two' }, h('label', null, 'Tuman', district), h('label', null, 'Manzil', address)),
+      ox.el,
       h('label', null, 'Buyurtma izohi', note),
       h('button', { type: 'submit', class: 'btn btn-hot btn-block', text: 'Saqlash' })), true);
   }
@@ -606,25 +695,31 @@
   function dayLabel(day) { var d = new Date(day + 'T00:00:00Z'); return d.getUTCDate() + '-' + MONTH[d.getUTCMonth()] + ' ' + d.getUTCFullYear() + ', ' + WEEKDAY[d.getUTCDay()]; }
   function xlsxLink(qs, text, cls) { return h('a', { class: 'btn ' + (cls || 'btn-soft') + ' btn-xs', href: '/api/admin/' + qs, download: '', text: text }); }
 
-  // Kitchen summary as plain text for Telegram: portions by shift, totals and allergies — no phones, no addresses.
+  var rname = function (r) { return lbl('ration', r.ration) + ' ' + r.sku; };
+  var num = function (n) { return String(n).replace('.', ','); };
+  // Kitchen report as plain text for Telegram — the same three parts as the screen, no phones / addresses.
   function kitchenText(d) {
-    var tot = { morning: 0, evening: 0, total: 0 }, L1 = ['🍽 Oshxona varaqasi — ' + dayLabel(d.day), ''];
-    d.kitchen.forEach(function (k) { tot.morning += k.morning; tot.evening += k.evening; tot.total += k.total; });
-    if (!d.kitchen.length) L1.push('Bu kunga faol yetkazish yo‘q.');
-    [['morning', '🌅 Ertalab (08:00–10:00)'], ['evening', '🌙 Kechki (18:00–22:30)']].forEach(function (sl) {
-      var items = d.kitchen.filter(function (k) { return k[sl[0]] > 0; });
-      if (!items.length) return;
-      L1.push(sl[1]);
-      items.forEach(function (k) { L1.push('• ' + lbl('ration', k.ration) + ' ' + k.sku + ' kkal — ' + k[sl[0]] + ' ta'); });
-      L1.push('Jami: ' + tot[sl[0]] + ' ta', '');
+    var k = d.kitchen, L1 = ['🍽 Oshxona varaqasi — ' + dayLabel(d.day), ''];
+    var tot = k.rations.reduce(function (a, r) { return { m: a.m + r.morning, e: a.e + r.evening, t: a.t + r.total }; }, { m: 0, e: 0, t: 0 });
+    if (!k.rations.length) { L1.push('Bu kunga faol yetkazish yo‘q.'); return L1.join('\n'); }
+    L1.push('🍱 RASIONLAR (ertalab / kechki / jami)');
+    k.rations.forEach(function (r) {
+      var sp = Object.keys(r.special).map(function (l) { return r.special[l] + ' ta: ' + l; });
+      L1.push('• ' + rname(r) + ' kkal — ' + r.morning + ' / ' + r.evening + ' / ' + r.total + ' ta' + (sp.length ? ' (' + sp.join('; ') + ')' : ''));
     });
-    if (d.kitchen.length) {
-      L1.push('📦 Kun bo‘yicha jami: ' + tot.total + ' ta quti');
-      d.kitchen.forEach(function (k) { L1.push('• ' + lbl('ration', k.ration) + ' ' + k.sku + ': ' + k.total + ' (ertalab ' + k.morning + ', kechki ' + k.evening + ')'); });
-    }
-    if (d.notes.length) {
-      L1.push('', '⚠️ Allergiya va izohlar');
-      d.notes.forEach(function (n) { L1.push('• ' + (n.name || 'Ismsiz') + ' — ' + lbl('ration', n.ration) + ' ' + n.sku + ', ' + (n.deliverySlot === 'evening' ? 'kechki' : 'ertalab') + ': ' + n.text); });
+    L1.push('Jami: ' + tot.m + ' / ' + tot.e + ' / ' + tot.t + ' ta quti', '');
+    if (k.hasMenu) {
+      L1.push('👩‍🍳 TAOMLAR — ' + k.weekdayLabel + ' menyusi (ertalab / kechki / jami)');
+      k.dishes.forEach(function (x) { L1.push('• ' + x.mealLabel + ': ' + x.name + ' — ' + x.morning + ' / ' + x.evening + ' / ' + x.total + (x.special ? ' (maxsus: ' + x.special + ')' : '')); });
+      L1.push('', '🥩 MAHSULOTLAR (porsiya · gramm)');
+      k.products.forEach(function (p) { L1.push('• ' + p.product + ': ' + num(p.portions.total) + ' porsiya · ' + fmt(p.grams.total) + ' g (ertalab ' + num(p.portions.morning) + ' · ' + fmt(p.grams.morning) + ' g, kechki ' + num(p.portions.evening) + ' · ' + fmt(p.grams.evening) + ' g)'); });
+    } else L1.push('Menyu yo‘q (yakshanba yoki kiritilmagan).');
+    if (k.labels.length) {
+      L1.push('', '🏷 QUTI YORLIG‘I — maxsus talab va allergiyalar');
+      k.labels.forEach(function (l) {
+        L1.push('• ' + (l.name || 'Ismsiz') + ' — ' + rname(l) + ', ' + (l.deliverySlot === 'evening' ? 'kechki' : 'ertalab') +
+          (l.extras.length ? ' | maxsus: ' + l.extras.join(', ') : '') + (l.note ? ' | ⚠ ' + l.note : ''));
+      });
     }
     return L1.join('\n');
   }
@@ -637,6 +732,46 @@
       ta.remove(); if (ok) resolve(); else reject(new Error('Nusxalab bo‘lmadi'));
     });
   }
+  function tbl(head, rows, cls) {
+    return h('div', { class: 'ktable-wrap' }, h('table', { class: 'ktable' + (cls ? ' ' + cls : '') },
+      h('thead', null, h('tr', null, head.map(function (x) { return h('th', { text: x }); }))),
+      h('tbody', null, rows)));
+  }
+  var td = function (t, c) { return h('td', { class: c || null, text: t == null || t === '' ? '—' : String(t) }); };
+  /** The three kitchen parts: rations, dishes + products, box labels. */
+  function renderKitchen(box, d) {
+    var k = d.kitchen;
+    if (!k.rations.length) { box.appendChild(h('div', { class: 'a-sub', text: 'Bu kunga faol yetkazish yo‘q' })); return; }
+    var tot = k.rations.reduce(function (a, r) { return { m: a.m + r.morning, e: a.e + r.evening, t: a.t + r.total }; }, { m: 0, e: 0, t: 0 });
+    // a) rations
+    box.appendChild(h('h4', { class: 'k-sec', text: 'a) Rasionlar' }));
+    box.appendChild(tbl(['Rasion', 'Ertalab', 'Kechki', 'Jami', 'Maxsus porsiya'], k.rations.map(function (r) {
+      var sp = Object.keys(r.special).map(function (l) { return r.special[l] + ' ta: ' + l; }).join('; ');
+      return h('tr', null, td(rname(r)), td(r.morning || '—', 'n'), td(r.evening || '—', 'n'), h('th', { class: 'n', text: r.total }), td(sp ? r.total + ' ta (' + sp + ')' : '', sp ? 'xcell' : ''));
+    }).concat([h('tr', { class: 'ktot' }, h('th', { text: 'Jami' }), h('th', { class: 'n', text: tot.m }), h('th', { class: 'n', text: tot.e }), h('th', { class: 'n', text: tot.t }),
+      h('th', { text: k.rations.reduce(function (a, r) { return a + r.specialBoxes; }, 0) + ' ta maxsus quti' }))]), 'k-rations'));
+    // b) dishes + products
+    box.appendChild(h('h4', { class: 'k-sec', text: 'b) Taom va mahsulotlar yig‘indisi (oshpaz uchun)' + (k.hasMenu ? ' — ' + k.weekdayLabel + ' menyusi' : '') }));
+    if (!k.hasMenu) box.appendChild(h('div', { class: 'a-sub', text: 'Bu kun uchun menyu yo‘q — «Menyu» bo‘limida kiriting.' }));
+    else {
+      box.appendChild(tbl(['Mahal', 'Taom', 'Ertalab', 'Kechki', 'Jami'], k.dishes.map(function (x) {
+        return h('tr', null, td(x.mealLabel + ' · ' + x.time), td(x.name + (x.special ? ' (maxsus: ' + x.special + ')' : '')), td(x.morning, 'n'), td(x.evening, 'n'), h('th', { class: 'n', text: x.total }));
+      }), 'k-dishes'));
+      // "2,5 porsiya" over "340 g" — stays narrow on phones.
+      var pg = function (tag, p2, g) { return h(tag, { class: 'n pg' }, h('span', { text: num(p2) + ' porsiya' }), h('small', { text: fmt(g) + ' g' })); };
+      box.appendChild(tbl(['Mahsulot', 'Ertalab', 'Kechki', 'Jami'], k.products.map(function (p) {
+        return h('tr', null, h('td', null, h('b', { text: p.product }), h('div', { class: 'a-sub', text: p.roleLabel + ' · ' + p.meals })),
+          pg('td', p.portions.morning, p.grams.morning), pg('td', p.portions.evening, p.grams.evening), pg('th', p.portions.total, p.grams.total));
+      }), 'k-products'));
+    }
+    // c) box labels
+    box.appendChild(h('h4', { class: 'k-sec', text: 'c) Quti yorlig‘i — maxsus talab va allergiyalar' }));
+    if (!k.labels.length) box.appendChild(h('div', { class: 'a-sub', text: 'Maxsus talab yoki izoh yo‘q' }));
+    else box.appendChild(tbl(['Mijoz', 'Rasion · kkal', 'Smena', 'Maxsus porsiya', 'Allergiya / izoh'], k.labels.map(function (l) {
+      return h('tr', null, td(l.name || 'Ismsiz'), td(rname(l)), td(l.deliverySlot === 'evening' ? 'Kechki' : 'Ertalab'), td(l.extras.join(', '), l.extras.length ? 'xcell' : ''), td(l.note, l.note ? 'wcell' : ''));
+    }), 'k-labels'));
+  }
+
   function printKitchen() {
     document.body.classList.add('print-kitchen');
     var done = function () { document.body.classList.remove('print-kitchen'); window.removeEventListener('afterprint', done); };
@@ -668,20 +803,7 @@
           h('button', { type: 'button', class: 'btn btn-line btn-xs js-k-print', onclick: printKitchen, text: '🖨 Chop etish' }),
           copyBtn,
           xlsxLink('kitchen.xlsx?day=' + d.day, '⬇ Oshxona Excel'))));
-      if (!d.kitchen.length) kitchen.appendChild(h('div', { class: 'a-sub', text: 'Bu kunga faol yetkazish yo‘q' }));
-      else {
-        var tot = { morning: 0, evening: 0, total: 0 };
-        var tbl = h('table', { class: 'ktable' }, h('thead', null, h('tr', null, h('th', { text: 'Rasion' }), h('th', { text: 'Ertalab' }), h('th', { text: 'Kechki' }), h('th', { text: 'Jami' }))));
-        var tb = h('tbody'); tbl.appendChild(tb);
-        d.kitchen.forEach(function (k) {
-          tot.morning += k.morning; tot.evening += k.evening; tot.total += k.total;
-          tb.appendChild(h('tr', null, h('td', { text: lbl('ration', k.ration) + ' ' + k.sku }), h('td', { text: k.morning || '—' }), h('td', { text: k.evening || '—' }), h('th', { text: k.total })));
-        });
-        tb.appendChild(h('tr', { class: 'ktot' }, h('th', { text: 'Jami' }), h('th', { text: tot.morning }), h('th', { text: tot.evening }), h('th', { text: tot.total })));
-        kitchen.appendChild(h('div', { class: 'ktable-wrap' }, tbl));
-      }
-      if (d.notes.length) kitchen.appendChild(h('div', { class: 'knotes' }, h('b', { text: '⚠ Allergiya va izohlar' }),
-        d.notes.map(function (n) { return h('div', { class: 'meta' }, h('span', { text: (n.name || 'Ismsiz') + ' — ' + lbl('ration', n.ration) + ' ' + n.sku + ', ' + (n.deliverySlot === 'evening' ? 'kechki' : 'ertalab') + ':' }), h('b', { text: n.text })); })));
+      renderKitchen(kitchen, d);
 
       var canMark = d.day <= d.today;
       [['morning', 'internal'], ['morning', 'external'], ['evening', 'internal'], ['evening', 'external']].forEach(function (g) {
@@ -703,6 +825,7 @@
             h('div', null,
               h('div', null, h('a', { href: '#c/' + r.customerId, class: 'nm', style: 'font-size:15px;text-decoration:none', text: r.name || 'Ismsiz' }), ' ', phoneLink(r.phone)),
               h('div', { class: 'meta' }, h('span', { text: lbl('ration', r.ration) + ' ' + r.sku }), h('span', { text: place(r.district, r.address) || 'Manzil yo‘q' })),
+              extrasBadges(r.extras),
               r.customerNotes || r.note ? h('div', { class: 'meta warn-note', text: '⚠ ' + [r.customerNotes, r.note].filter(Boolean).join(' · ') }) : null,
               h('div', { class: 'row', style: 'margin-top:6px' }, marks)),
             h('div', { class: 'dsel' },
@@ -722,6 +845,93 @@
           h('div', { class: 'acts' }, h('button', { type: 'button', class: 'btn btn-soft btn-xs', onclick: function () { callForm(r.customerId, null, route); }, text: '📞 Qo‘ng‘iroq natijasi' }))));
       });
     }).catch(fail);
+  }
+
+  // ── Menyu: weekly kitchen menu and the special-portions catalog ──
+  var menuDay = null;
+  var ROLE_LBL = { protein: 'Asosiy oqsil', side: 'Garnir', other: 'Boshqa' };
+  function effectText(e) {
+    if (e.target === 'protein' && e.mode === 'add') return 'Asosiy oqsil +' + num(e.value) + ' porsiya' + (e.value === 1 ? ' (2 hissa)' : '');
+    if (e.target === 'side' && e.mode === 'set') return e.value === 0 ? 'Garnir qo‘yilmaydi' : 'Garnir ×' + num(e.value);
+    return 'Faqat yorliq (oshpazga eslatma)';
+  }
+  function viewMenu(v) {
+    if (!menuDay) { var wd = new Date(ME.today + 'T00:00:00Z').getUTCDay(); menuDay = wd === 0 ? 1 : wd; }
+    v.appendChild(h('div', { class: 'a-h' }, h('div', null, h('h1', { text: 'Oshxona menyusi' }), h('span', { class: 'a-sub', text: 'Har kun 5 mahal; mahsulot grammi har bir kaloriya uchun. «Oshxona uchun» hisobi shu menyudan olinadi.' }))));
+    var chips = h('div', { class: 'chips' }), list = h('div', { class: 'list' }), cat = h('div', { class: 'card', style: 'margin-top:18px' });
+    v.appendChild(chips); v.appendChild(list); v.appendChild(cat);
+    api('GET', '/menu').then(function (d) {
+      d.weekdays.slice(1).forEach(function (name, i) {
+        chips.appendChild(h('button', { type: 'button', class: 'chipb', 'aria-pressed': String(menuDay === i + 1), onclick: function () { menuDay = i + 1; route(); } }, name));
+      });
+      d.meals.forEach(function (meal, mi) {
+        var m = d.menu.filter(function (x) { return x.weekday === menuDay && x.meal === mi; })[0] || { weekday: menuDay, meal: mi, name: '', items: [] };
+        var rows = m.items.map(function (it) {
+          return h('tr', null, h('td', null, h('b', { text: it.product }), ' ', h('span', { class: 'role role-' + it.role, text: ROLE_LBL[it.role] })),
+            d.skus.map(function (k) { return td(it.grams[k] != null ? it.grams[k] : '—', 'n'); }));
+        });
+        list.appendChild(h('div', { class: 'card meal-card' },
+          h('div', { class: 'row sp' }, h('div', null, h('span', { class: 'a-sub', text: meal.label + ' · ' + meal.time }), h('div', { class: 'nm', text: m.name || 'Kiritilmagan' })),
+            h('button', { type: 'button', class: 'btn btn-line btn-xs', onclick: function () { mealForm(d, m); }, text: '✏️ Tahrirlash' })),
+          m.items.length ? tbl(['Mahsulot (g)'].concat(d.skus.map(String)), rows, 'k-menu') : h('div', { class: 'a-sub', text: 'Mahsulot kiritilmagan' })));
+      });
+      // catalog
+      add(cat, [h('h3', { text: 'Maxsus porsiyalar katalogi' }),
+        h('p', { class: 'a-sub', style: 'margin:-4px 0 8px', text: '«2x go‘sht» har bir taomdagi «Asosiy oqsil» mahsulotini ikki hissa qiladi. Narx kunlik narxga qo‘shiladi.' + (ME.role === 'owner' ? '' : ' Narxni faqat admin o‘zgartiradi.') })]);
+      d.extras.forEach(function (e) {
+        cat.appendChild(h('div', { class: 'drow' },
+          h('div', null, h('b', { text: e.label }), ' ', e.active ? null : badge('finished', 'O‘chirilgan'),
+            h('div', { class: 'meta' }, h('span', { text: e.price ? '+' + fmt(e.price) + ' so‘m/kun' : 'Narxsiz' }), h('span', { text: effectText(e) }))),
+          ME.role === 'owner' ? h('div', null, h('button', { type: 'button', class: 'btn btn-line btn-xs', onclick: function () { extraForm(e); }, text: 'Tahrirlash' })) : h('span')));
+      });
+    }).catch(fail);
+  }
+  function mealForm(d, m) {
+    var name = h('input', { class: 'inp', value: m.name, maxlength: '80', placeholder: 'Taom nomi' });
+    var rowsBox = h('div', { class: 'mi-rows' });
+    var dl = h('datalist', { id: 'k-products' }, d.products.map(function (p) { return h('option', { value: p }); }));
+    function itemRow(it) {
+      var prod = h('input', { class: 'inp', value: it.product || '', maxlength: '40', list: 'k-products', placeholder: 'Mahsulot', 'aria-label': 'Mahsulot' });
+      var role = select('role', d.roles.map(function (x) { return [x.id, x.label]; }), it.role || 'other'); role.className = 'inp';
+      var grams = d.skus.map(function (k) { return h('input', { class: 'inp g', type: 'number', min: '0', max: '2000', step: '5', value: it.grams && it.grams[k] != null ? it.grams[k] : '', 'data-sku': k, 'aria-label': k + ' kkal, gramm' }); });
+      var row = h('div', { class: 'mi-row' },
+        h('div', { class: 'mi-top' }, prod, role,
+          h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Olib tashlash', text: '✕', onclick: function () { row.remove(); } })),
+        h('div', { class: 'mi-grams' }, d.skus.map(function (k, i) { return h('label', null, h('span', { text: k }), grams[i]); }),
+          h('button', { type: 'button', class: 'linkbtn', text: '1600 dan hisoblash', title: '1600 kkal grammidan boshqalarini kaloriyaga mutanosib to‘ldiradi', onclick: function () {
+            var base = +grams[d.skus.indexOf(1600)].value; if (!base) { toast('Avval 1600 uchun grammni kiriting', true); return; }
+            d.skus.forEach(function (k, i) { if (k !== 1600) grams[i].value = Math.max(5, Math.round(base * k / 1600 / 5) * 5); });
+          } })));
+      row._val = function () { var g = {}; d.skus.forEach(function (k, i) { g[k] = +grams[i].value || 0; }); return { product: prod.value.trim(), role: role.value, grams: g }; };
+      return row;
+    }
+    m.items.forEach(function (it) { rowsBox.appendChild(itemRow(it)); });
+    var close = modal(d.weekdays[m.weekday] + ' · ' + d.meals[m.meal].label + ' (' + d.meals[m.meal].time + ')', h('form', { class: 'form', onsubmit: function (e) {
+      e.preventDefault();
+      var items = Array.prototype.map.call(rowsBox.children, function (row) { return row._val(); }).filter(function (it) { return it.product; });
+      api('PUT', '/menu/' + m.weekday + '/' + m.meal, { name: name.value, items: items }).then(function () { close(); toast('Menyu saqlandi'); route(); }).catch(fail);
+    } }, dl,
+      h('label', null, 'Taom nomi', name),
+      h('span', { class: 'a-sub', text: 'Mahsulotlar: gramm har bir kaloriya varianti uchun (1 porsiya). «Asosiy oqsil» — «2x go‘sht» va «+Oqsil» shu mahsulotga qo‘llanadi (bitta taomda bitta). «Garnir» — «Garnirsiz / kamroq» shunga ta’sir qiladi.' }),
+      rowsBox,
+      h('button', { type: 'button', class: 'btn btn-soft btn-xs', onclick: function () { rowsBox.appendChild(itemRow({ role: 'other', grams: {} })); }, text: '+ Mahsulot qo‘shish' }),
+      h('button', { type: 'submit', class: 'btn btn-hot btn-block', text: 'Saqlash' })), true);
+  }
+  function extraForm(e) {
+    var label = h('input', { class: 'inp', value: e.label, maxlength: '40' });
+    var price = h('input', { class: 'inp', type: 'number', min: '0', max: '500000', step: '1000', value: e.price });
+    var value = e.mode ? h('input', { class: 'inp', type: 'number', min: '0', max: e.mode === 'add' ? '3' : '1', step: e.mode === 'add' ? '0.5' : '0.25', value: e.value }) : null;
+    var active = h('input', { type: 'checkbox', checked: e.active });
+    var close = modal('Maxsus porsiya: ' + e.label, h('form', { class: 'form', onsubmit: function (ev) {
+      ev.preventDefault();
+      var b = { label: label.value, price: +price.value || 0, active: active.checked };
+      if (value) b.value = +value.value;
+      api('PATCH', '/extras/' + e.code, b).then(function () { return api('GET', '/me'); }).then(function (me) { ME = me; close(); toast('Saqlandi'); route(); }).catch(fail);
+    } },
+      h('div', { class: 'two' }, h('label', null, 'Nomi', label), h('label', null, 'Narx (so‘m / kun)', price)),
+      value ? h('label', null, e.mode === 'add' ? 'Asosiy oqsilga qo‘shimcha porsiya (1 = ikki hissa)' : 'Garnir ulushi (0 = umuman yo‘q, 0.5 = yarim)', value) : h('span', { class: 'a-sub', text: effectText(e) }),
+      h('label', { class: 'toggle' }, active, h('span', { text: 'Faol (formalarda tanlash mumkin)' })),
+      h('button', { type: 'submit', class: 'btn btn-hot btn-block', text: 'Saqlash' })));
   }
 
   // ── Xodimlar (owner) ──

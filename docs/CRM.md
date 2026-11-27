@@ -18,6 +18,17 @@ Oshxona va kuryerlar panelga kirmaydi — ular uchun "Yetkazish" bo'limidan CSV 
 | **Yetkazish** | Tanlangan kun (standart — ertaga): oshxona jadvali (rasion + kkal × ertalab/kechki/jami) va allergiya/izohlar; 4 ta ro'yxat: ertalab/kechki × ichki/tashqi; har qatorda shu kun uchun vaqt va kuryerni o'zgartirish; yetkazish kuni kelganda **✓ Yetkazildi / O'tkazib yuborildi** (bekor qilsa bo'ladi); CSV va **Excel (.xlsx)** — hammasi yoki har bir kuryer ro'yxati alohida (tayyor formatlangan jadval: sarlavha, ustun kengliklari, filtr, chop etishga moslangan); **oshxona uchun**: «Chop etish» (faqat oshxona varaqasi), «Telegramga nusxalash» (tayyor matn), «Oshxona Excel» — uchalasida ham mijoz telefoni va manzili yo'q; **Uzaytirishga qo'ng'iroq** |
 | **Xodimlar** (admin) | Qo'shish, rolni o'zgartirish (Admin/Menejer), faolsizlantirish (sessiya darhol tugaydi), faol bo'lmagan xodimni o'chirish |
 
+| **Menyu** | Hafta kunlari (Dushanba–Shanba) × 5 mahal: taom nomi va mahsulotlar — har bir kaloriya (1200…2500) uchun gramm, turi: «Asosiy oqsil» (2x go'sht / +Oqsil shunga qo'llanadi), «Garnir» (Garnirsiz / kamroq), «Boshqa». «1600 dan hisoblash» boshqa kaloriyalarni mutanosib to'ldiradi. Pastda maxsus porsiyalar katalogi (narx/kun va ta'siri — faqat admin o'zgartiradi) |
+
+## Maxsus porsiya / qo'shimchalar
+- Tanlov: 2x go'sht, +Oqsil, Garnir kamroq, Garnirsiz, Laktozasiz, Yong'oqsiz (+ soni ×1–3) va ixtiyoriy «boshqa maxsus talab» (narx bilan yoki narxsiz).
+- Mijoz kartasida **doimiy** talab saqlanadi va har bir yangi buyurtmada (+ Buyurtma, arizadan buyurtma, Yangi mijoz) avtomatik tanlanadi; buyurtmada alohida o'zgartirish mumkin («Tahrirlash»).
+- Narxli qo'shimchalar kunlik narxga qo'shiladi: summa = kunlar × (rasion narxi + qo'shimchalar) − chegirma.
+- Ro'yxat, obuna kartasi va yetkazish qatorlarida belgi (badge) bilan ko'rinadi; CSV/Excel'da «Maxsus porsiya» ustuni.
+
+## Oshxona uchun (ekran, Chop etish, Telegramga nusxalash, kitchen.xlsx)
+Telefon va manzil hech qayerda chiqmaydi. Uch qism: **a) Rasionlar** (ertalab/kechki/jami + «3 ta (1 ta: 2x go'sht)»), **b) Taom va mahsulotlar yig'indisi** — o'sha kun menyusi bo'yicha har bir taom va mahsulotdan nechta porsiya va necha gramm (2x go'sht = 2 porsiya, Garnirsiz = 0), **c) Quti yorlig'i** — mijoz, rasion·kkal, smena, maxsus porsiya, allergiya/izoh. kitchen.xlsx — 3 varaq.
+
 ## Qoidalar
 - Bitta telefon (+998…) = bitta mijoz; sayt arizalari avtomatik shu mijozga bog'lanadi (eski arizalar ham birlashtirildi).
 - Boshlanish sanasi standart: 18:00 gacha bo'lsa ertadan, keyin indindan; yakshanba yetkazilmaydi. Menejer o'zgartira oladi.
