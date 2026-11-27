@@ -43,6 +43,10 @@ export const leadsTable = pgTable(
     address: text("address"),
     /** morning (08:00–10:00) | evening (18:00–22:30) */
     deliverySlot: text("delivery_slot"),
+    /** Calories the visitor picked for the chosen plan (1200/1400/1600/1900/2200/2500). */
+    planSku: integer("plan_sku"),
+    /** Allergies / wishes typed into the website form. */
+    note: text("note"),
     /** The CRM customer this request belongs to (one customer per phone). */
     customerId: bigint("customer_id", { mode: "number" }),
 

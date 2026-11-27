@@ -104,7 +104,7 @@ adminApi.get("/admin/inbox", async (req, res) => {
     counts: Object.fromEntries(counts.rows.map((r) => [r.status, r.n])),
     items: rows.map((l) => ({
       id: l.id, customerId: l.customerId, name: l.name, phone: l.phone, lang: l.lang, intent: l.intent, status: l.status,
-      plan: l.plan, ration: l.planRation ?? l.ration, sku: l.sku, calories: l.calories, healthRisk: l.healthRisk,
+      plan: l.plan, ration: l.planRation ?? l.ration, sku: l.planSku ?? l.sku, note: l.note, calories: l.calories, healthRisk: l.healthRisk,
       district: l.district, address: l.address, deliverySlot: l.deliverySlot, utmSource: l.utmSource, utmCampaign: l.utmCampaign,
       createdAt: l.createdAt,
     })),

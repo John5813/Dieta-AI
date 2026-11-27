@@ -216,6 +216,7 @@
         h('div', { class: 'row' }, badge(l.status, lbl('lead', l.status)), h('span', { class: 'a-sub', text: when(l.createdAt) }))),
       h('div', { class: 'row' }, badge('contacted', lbl('intent', l.intent)), l.healthRisk ? badge('risk', '⚠ Sog‘liq cheklovi') : null, l.lang === 'ru' ? badge('finished', 'RU') : null),
       meta.length ? h('div', { class: 'meta' }, meta.map(function (m) { return h('span', { text: m }); })) : null,
+      l.note ? h('div', { class: 'meta warn-note', text: '📝 ' + l.note }) : null,
       h('div', { class: 'acts' }, acts));
   }
 
@@ -240,7 +241,7 @@
     var plan = select('plan', O.plans.map(function (p) { return [p.id, lbl('plan', p.id)]; }), pre.plan || 'w1');
     var start = h('input', { class: 'inp', type: 'date', name: 'startDate', value: ME.defaultStart, min: ME.today, required: true });
     var slot = o2.slotEl || select('deliverySlot', opts('slot', ['morning', 'evening']), pre.deliverySlot || 'morning');
-    var courier = select('courierType', opts('courier', ['internal', 'external']), pre.courierType || ((pre.deliverySlot === 'evening') ? 'external' : 'internal'));
+    var courier = select('courierType', opts('courier', ['internal', 'external']), pre.courierType || 'internal');
     var price = h('input', { class: 'inp', type: 'number', name: 'pricePerDay', min: '1000', step: '1000' });
     var pay = select('paymentStatus', opts('pay', ['unpaid', 'pending', 'partial', 'paid']), 'unpaid');
     var paid = h('input', { class: 'inp', type: 'number', name: 'paidAmount', min: '0', step: '1000', placeholder: 'Masalan 200 000' });
@@ -265,8 +266,6 @@
     ration.addEventListener('change', function () { pre.sku = null; fillSku(); recalc(); });
     plan.addEventListener('change', recalc); price.addEventListener('input', recalc); paid.addEventListener('input', recalc);
     pay.addEventListener('change', function () { paidBox.hidden = pay.value !== 'partial'; recalc(); });
-    // Evening deliveries usually go to the outsourced company; the admin can still change it.
-    slot.addEventListener('change', function () { courier.value = slot.value === 'evening' ? 'external' : 'internal'; });
     fillSku(); recalc();
     var hint = ME.cutoffPassed ? 'Soat 18:00 o‘tdi — standart boshlanish indinga qo‘yildi.' : 'Standart: ertadan (18:00 gacha). Yakshanba yetkazilmaydi.';
     var el = h('div', { class: 'form' },
@@ -529,10 +528,7 @@
           patch({ crmStatus: val });
         })),
         labeled('To‘lov', select('paymentStatus', opts('pay', ME.options.paymentStatuses), o.paymentStatus, function (e) { patch({ paymentStatus: e.target.value }); })),
-        labeled('Yetkazish vaqti', select('deliverySlot', opts('slot', ['morning', 'evening']), o.deliverySlot, function (e) {
-          var b = { deliverySlot: e.target.value, courierType: e.target.value === 'evening' ? 'external' : 'internal' };
-          patch(b, 'Saqlandi — kuryer: ' + lbl('courier', b.courierType));
-        })),
+        labeled('Yetkazish vaqti', select('deliverySlot', opts('slot', ['morning', 'evening']), o.deliverySlot, function (e) { patch({ deliverySlot: e.target.value }); })),
         labeled('Kuryer', select('courierType', opts('courier', ['internal', 'external']), o.courierType, function (e) { patch({ courierType: e.target.value }); }))),
       h('form', { class: 'row pay-row', onsubmit: function (e) { e.preventDefault(); patch({ paidAmount: +paidInput.value || 0 }, 'To‘lov summasi saqlandi'); } },
         h('span', { class: 'meta', text: 'Summa: ' + fmt(o.amount) + ' so‘m · To‘langan:' }), paidInput,

@@ -102,6 +102,16 @@ export async function upsertCustomer(
   return row!;
 }
 
+/** Adds a website note (allergy, intercom…) to the customer's permanent note unless it is already there. */
+export async function appendCustomerNote(customerId: number, note: string | null | undefined): Promise<void> {
+  const text = (note ?? "").trim();
+  if (!text) return;
+  const [c] = await db.select({ notes: customersTable.notes }).from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
+  if (!c || (c.notes ?? "").includes(text)) return;
+  const notes = (c.notes ? c.notes + "\n" : "") + text;
+  await db.update(customersTable).set({ notes: notes.slice(0, 2000), updatedAt: new Date() }).where(eq(customersTable.id, customerId));
+}
+
 export async function addEvent(e: {
   customerId: number; type: string; body?: string | null; orderId?: number | null; leadId?: number | null;
   staffId?: number | null; meta?: Record<string, unknown> | null;

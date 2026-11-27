@@ -217,6 +217,8 @@ export async function ensureSchema(): Promise<void> {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS leads_phone ON leads (phone);`);
   await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS delivery_slot text;`);
   await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS customer_id bigint;`);
+  await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS plan_sku integer;`);
+  await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS note text;`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS leads_customer ON leads (customer_id);`);
   await ensureCrmSchema();
   await db.execute(sql`CREATE INDEX IF NOT EXISTS leads_created ON leads (created_at);`);

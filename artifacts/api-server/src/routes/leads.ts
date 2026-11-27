@@ -6,7 +6,7 @@ import { ACTIVITY_LEVELS, calculateNutrition, matchRation, type Goal } from "@wo
 import { rateLimit } from "../lib/guard";
 import { logger } from "../lib/logger";
 import { notifyLead } from "../lib/leadNotify";
-import { addEvent, upsertCustomer } from "../lib/crm";
+import { addEvent, appendCustomerNote, SKUS, upsertCustomer } from "../lib/crm";
 import { getSiteConfig, PLAN_DAYS, type PlanKey, type RationKey } from "../lib/siteConfig";
 
 /**
@@ -51,6 +51,13 @@ const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 
 function planOf(v: unknown): PlanKey | null {
   return typeof v === "string" && v in PLAN_DAYS ? (v as PlanKey) : null;
+}
+/** A calorie option that exists for the ration (or for any ration when none is given). */
+function skuOf(v: unknown, ration: RationKey | null): number | null {
+  const n = Number(v);
+  if (!Number.isInteger(n)) return null;
+  const ok = ration ? SKUS[ration].includes(n) : Object.values(SKUS).some((list) => list.includes(n));
+  return ok ? n : null;
 }
 function rationOf(v: unknown): RationKey | null {
   return typeof v === "string" && RATIONS.has(v as RationKey) ? (v as RationKey) : null;
@@ -131,6 +138,8 @@ router.post("/v1/leads", rateLimit("lead-create", 12, 60 * 60 * 1000), async (re
         district: districtOf(b["district"]),
         address: str(b["address"], 200),
         deliverySlot: slotOf(b["deliverySlot"]),
+        planSku: skuOf(b["planSku"], rationOf(b["planRation"])),
+        note: str(b["note"], 500),
         utmSource: str(utm["source"], 120),
         utmMedium: str(utm["medium"], 120),
         utmCampaign: str(utm["campaign"], 200),
@@ -148,7 +157,8 @@ router.post("/v1/leads", rateLimit("lead-create", 12, 60 * 60 * 1000), async (re
       });
       await db.update(leadsTable).set({ customerId: customer.id }).where(eq(leadsTable.id, row!.id));
       row!.customerId = customer.id;
-      await addEvent({ customerId: customer.id, leadId: row!.id, type: "lead", body: row!.intent, meta: { plan: row!.plan, ration: row!.planRation ?? row!.ration, calories: row!.calories } });
+      await addEvent({ customerId: customer.id, leadId: row!.id, type: "lead", body: row!.intent, meta: { plan: row!.plan, ration: row!.planRation ?? row!.ration, sku: row!.planSku, calories: row!.calories } });
+      await appendCustomerNote(customer.id, row!.note);
     } catch (err) {
       logger.error({ err, leadId: row!.id }, "lead → customer link failed");
     }
@@ -190,6 +200,8 @@ router.post("/v1/leads/:id/intent", rateLimit("lead-intent", 30, 60 * 60 * 1000)
         district: districtOf(b["district"]) ?? lead.district,
         address: str(b["address"], 200) ?? lead.address,
         deliverySlot: slotOf(b["deliverySlot"]) ?? lead.deliverySlot,
+        planSku: skuOf(b["planSku"], rationOf(b["planRation"]) ?? (lead.planRation as RationKey | null)) ?? lead.planSku,
+        note: str(b["note"], 500) ?? lead.note,
         updatedAt: new Date(),
       })
       .where(and(eq(leadsTable.id, id), eq(leadsTable.keyHash, lead.keyHash)))
@@ -197,7 +209,8 @@ router.post("/v1/leads/:id/intent", rateLimit("lead-intent", 30, 60 * 60 * 1000)
     if (row!.customerId) {
       try {
         await upsertCustomer(row!.phone, { district: row!.district, address: row!.address, deliverySlot: row!.deliverySlot });
-        await addEvent({ customerId: row!.customerId, leadId: row!.id, type: "lead", body: intent, meta: { plan: row!.plan, ration: row!.planRation } });
+        await addEvent({ customerId: row!.customerId, leadId: row!.id, type: "lead", body: intent, meta: { plan: row!.plan, ration: row!.planRation, sku: row!.planSku } });
+        await appendCustomerNote(row!.customerId, row!.note);
       } catch (err) {
         logger.error({ err, leadId: row!.id }, "lead intent CRM event failed");
       }
