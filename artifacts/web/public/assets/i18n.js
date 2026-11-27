@@ -27,7 +27,7 @@
     k4: '04 — Цены', priceH: 'Выберите срок — цена посчитается сразу', rLabel: 'Рацион', dLabel: 'Срок',
     sundayNote: 'В воскресенье доставки нет, поэтому 1 неделя = 6 дней доставки. Замороженные дни переносятся в конец подписки.',
     rcTitle: 'Расчёт', rcRation: 'Рацион', rcTerm: 'Срок', rcDays: 'Дней доставки', rcPrice: 'Цена за день', rcDisc: 'Скидка', rcTotal: 'Итого',
-    order: 'Оставить заказ', orderHow: 'Менеджер позвонит, подтвердит заказ и пришлёт ссылку на оплату через Payme · Click · Uzum', mgr: 'Связаться с менеджером', testNote: 'Пробный бокс — по предоплате', sample: '* Примерные цены',
+    order: 'Оставить заказ', orderHow: 'Менеджер позвонит, подтвердит заказ и пришлёт ссылку на оплату через Payme · Click · Uzum', mgr: 'Связаться с менеджером', testNote: 'Пробный бокс — по предоплате', kLabel: 'Калорийность',
     rcThanks: '*** Спасибо! Приятного аппетита ***',
     k5: '05 — Заморозка', freezeH: 'Планы изменились? Заморозьте день.',
     r1: 'Заморозка бесплатна и без условий — сколько угодно дней.',
@@ -52,6 +52,7 @@
     footTag: 'Доставка диетического питания с точно рассчитанной калорийностью по Ташкенту.', offer: 'Публичная оферта', privacy: 'Политика конфиденциальности',
     name: 'Ваше имя', phone: 'Номер телефона', consent: 'Нажимая кнопку, я соглашаюсь на обработку моих данных.', send: 'Оставить заказ',
     district: 'Район', districtPick: 'Выберите', districtOther: 'Другой / область', address: 'Адрес', optional: '(необязательно)', addressPh: 'Улица, дом, ориентир',
+    otherNote: 'Пока доставляем только по Ташкенту. Если вы в области — менеджер уточнит возможность.', noteL: 'Аллергия или комментарий', notePh: 'Например: аллергия на орехи, домофон 45',
     okH: 'Заявка принята!', okP: 'Что будет дальше:', ok1: 'Менеджер позвонит и подтвердит рацион, адрес и дату начала.', ok2: 'Пришлёт ссылку на оплату через Payme, Click или Uzum.', ok3: 'После оплаты первый бокс привезём в согласованный день в выбранное время.', close: 'Закрыть',
     shDate: 'Замораживаемый день', terms: 'Условия заморозки', shAdded: 'Добавится к подписке', plus1: '+1 день', shBurn: 'Использовать до', shAgree: 'Я ознакомлен(а) с условиями', shOk: 'Заморозить',
     // quiz page
@@ -71,11 +72,11 @@
 
   var DATA = {
     uz: {
-      kcal: 'kkal', g: 'g', sum: 'so‘m', P: 'Oqsil', F: 'Yog‘', C: 'Uglevod', P1: 'B', F1: 'Y', C1: 'U',
+      kcal: 'kkal', g: 'g', sum: 'so‘m', P: 'Oqsil', F: 'Yog‘', C: 'Uglevod', P1: 'O', F1: 'Y', C1: 'U',
       types: ['Nonushta', 'Perekus', 'Tushlik', 'Perekus', 'Kechki ovqat'],
       dish: { A: 'Avokado-tost va tuxum', Y: 'Yunon yogurti, qulupnay', C: 'Grilda tovuq, sabzavotlar', W: 'Tofu va guruch bouli', S: 'Losos, kinoa, yashil loviya', L: 'Mol go‘shtli iliq salat', V: 'No‘xat va avokado bouli' },
       tick: 'ERTANGI MENYU', meals5: '5 MAHAL',
-      rations: { ozish: ['Ozish', '1200–1400', 'Kaloriya defitsiti bilan vazn kamaytirish uchun'], balans: ['Balans', '1600–1900', 'Vaznni ushlab turish va tartibli ovqatlanish uchun'], sport: ['Sport', '2200+', 'Mashg‘ulot qiladiganlar va mushak massasi uchun'] },
+      rations: { ozish: ['Ozish', '1200–1400', 'Kaloriya defitsiti bilan vazn kamaytirish uchun'], balans: ['Balans', '1600–1900', 'Vaznni ushlab turish va tartibli ovqatlanish uchun'], sport: ['Sport', '2200–2500', 'Mashg‘ulot qiladiganlar va mushak massasi uchun'] },
       dayTot: 'Jami bir kunda', rationMeta: '5 mahal · 1 kunlik qiymat', kcalWord: 'Kaloriya', choose: 'Menga mosini hisoblash',
       dows: ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya'], off: 'dam',
       plans: { d3: '3 kun', w1: '1 hafta', w2: '2 hafta', w3: '3 hafta', w4: '4 hafta', m1: '1 oy' }, testTag: 'Sinov', daysW: 'kun', perDay: 'kun',
@@ -84,6 +85,8 @@
       until: 'gacha',
       ofKick: { test_drive: '3 kunlik sinov', subscription: 'Obuna', manager: 'Menejer' },
       ofTitle: { test_drive: 'Sinov boksini buyurtma qilish', subscription: 'Obunani rasmiylashtirish', manager: 'Menejer qo‘ng‘iroq qiladi' },
+      ofSend: { test_drive: 'Buyurtma qoldirish', subscription: 'Buyurtma qoldirish', manager: 'So‘rov yuborish' },
+      ofChoice: 'Tanlovingiz', ofTotal: 'Jami',
       errContact: 'Ism va telefon raqamini to‘g‘ri kiriting', errNet: 'Internet bilan bog‘lanib bo‘lmadi. Qaytadan urinib ko‘ring.',
       genders: ['Ayol', 'Erkak'],
       goals: [['−', 'Ozish', 'Ortiqcha vazndan xalos bo‘lish'], ['=', 'Vaznni saqlash', 'To‘g‘ri va tartibli ovqatlanish'], ['+', 'Massa olish', 'Mashg‘ulot va mushak uchun']],
@@ -97,7 +100,7 @@
       types: ['Завтрак', 'Перекус', 'Обед', 'Перекус', 'Ужин'],
       dish: { A: 'Тост с авокадо и яйцом', Y: 'Греческий йогурт с клубникой', C: 'Курица гриль с овощами', W: 'Боул с тофу и рисом', S: 'Лосось, киноа, стручковая фасоль', L: 'Тёплый салат с говядиной', V: 'Боул с нутом и авокадо' },
       tick: 'МЕНЮ НА ЗАВТРА', meals5: '5 ПРИЁМОВ',
-      rations: { ozish: ['Похудение', '1200–1400', 'Для снижения веса с дефицитом калорий'], balans: ['Баланс', '1600–1900', 'Для поддержания веса и режима питания'], sport: ['Спорт', '2200+', 'Для тренирующихся и набора мышечной массы'] },
+      rations: { ozish: ['Похудение', '1200–1400', 'Для снижения веса с дефицитом калорий'], balans: ['Баланс', '1600–1900', 'Для поддержания веса и режима питания'], sport: ['Спорт', '2200–2500', 'Для тренирующихся и набора мышечной массы'] },
       dayTot: 'Итого за день', rationMeta: '5 приёмов · значения за день', kcalWord: 'Калории', choose: 'Рассчитать подходящий',
       dows: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'], off: 'вых',
       plans: { d3: '3 дня', w1: '1 неделя', w2: '2 недели', w3: '3 недели', w4: '4 недели', m1: '1 месяц' }, testTag: 'Тест', daysW: 'дн.', perDay: 'день',
@@ -106,6 +109,8 @@
       until: '',
       ofKick: { test_drive: 'Пробные 3 дня', subscription: 'Подписка', manager: 'Менеджер' },
       ofTitle: { test_drive: 'Заказать пробный бокс', subscription: 'Оформить подписку', manager: 'Менеджер перезвонит' },
+      ofSend: { test_drive: 'Оставить заказ', subscription: 'Оставить заказ', manager: 'Отправить запрос' },
+      ofChoice: 'Ваш выбор', ofTotal: 'Итого',
       errContact: 'Введите имя и номер телефона правильно', errNet: 'Нет связи с интернетом. Попробуйте ещё раз.',
       genders: ['Женщина', 'Мужчина'],
       goals: [['−', 'Похудеть', 'Избавиться от лишнего веса'], ['=', 'Держать вес', 'Правильный режим питания'], ['+', 'Набрать массу', 'Для тренировок и мышц']],
@@ -120,6 +125,8 @@
   CFG.prices = CFG.prices || { ozish: 159000, balans: 179000, sport: 209000 };
   CFG.discounts = CFG.discounts || { d3: 0, w1: 0, w2: 3, w3: 5, w4: 7, m1: 10 };
   CFG.planDays = CFG.planDays || { d3: 3, w1: 6, w2: 12, w3: 18, w4: 24, m1: 26 };
+  // Calorie options per ration — the same list the quiz recommends from and the CRM sells.
+  var SKUS = { ozish: [1200, 1400], balans: [1600, 1900], sport: [2200, 2500] };
   CFG.telegram = CFG.telegram || '';
 
   function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } return null; }
@@ -248,7 +255,7 @@
   listeners.push(function () { initLinks(); });
 
   window.K = {
-    RU: RU, DATA: DATA, CFG: CFG,
+    RU: RU, DATA: DATA, CFG: CFG, SKUS: SKUS,
     get lang() { return lang; }, d: function () { return DATA[lang]; }, t: function (key) { return lang === 'ru' ? RU[key] : null; },
     onLang: function (fn) { listeners.push(fn); }, applyLang: applyLang, setLang: setLang,
     attribution: attribution, track: track, goal: goal, post: post, fmt: fmt, esc: esc, fdate: fdate, planTotal: planTotal,

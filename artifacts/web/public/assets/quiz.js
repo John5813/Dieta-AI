@@ -18,17 +18,25 @@
     riskNote: 'Siz sog‘lig‘ingiz bo‘yicha cheklov borligini belgiladingiz. Onlayn buyurtma o‘rniga menejer siz bilan bog‘lanadi va shifokoringiz tavsiyasini inobatga olgan holda maslahat beradi.',
     disc: 'Taomlar sog‘lom insonlar uchun mo‘ljallangan va tibbiy davo (qandli diabet, buyrak kasalliklari, og‘ir allergiya) o‘rnini bosmaydi.',
     contactH: 'Davom etamizmi?', contactHint: 'Ism va telefon faqat buyurtma berish yoki menyuni yuborish uchun kerak — natijani ko‘rish uchun shart emas.',
-    sendMenu: 'Menyuni Telegram’ga yuborish', sendMenuSub: 'menejer bog‘lanadi',
-    okMenu: 'Menejer tez orada Telegram yoki telefon orqali bog‘lanib, sizga mos menyuni yuboradi.',
+    sendMenu: 'Menyu va maslahat olish', sendMenuSub: 'menejer telefon orqali bog‘lanadi',
+    okMenu: 'Menejer tez orada telefon orqali bog‘lanib, sizga mos menyu va narxlarni tushuntirib beradi.',
+    district: 'Tuman', districtPick: 'Tanlang', districtOther: 'Boshqa / viloyat', address: 'Manzil', optional: '(ixtiyoriy)', addressPh: 'Ko‘cha, uy, mo‘ljal',
+    otherNote: 'Hozircha faqat Toshkent shahri bo‘ylab yetkazamiz. Viloyatda bo‘lsangiz, menejer imkoniyatni aniqlab beradi.',
+    noteL: 'Allergiya yoki izoh', notePh: 'Masalan: yong‘oqqa allergiya, domofon 45', thumbHint: 'Taomni bosing — nomi chiqadi',
     slotLabel: 'Yetkazish vaqti', slotM: 'Ertalab', slotE: 'Kechqurun',
     kcalDay: 'kkal / kun', empty: 'Javoblaringiz shu yerda yig‘iladi', okH: 'So‘rovingiz qabul qilindi!', okQ: 'Menejer tez orada qo‘ng‘iroq qilib buyurtmani tasdiqlaydi va Payme, Click yoki Uzum orqali to‘lov havolasini yuboradi.', home: 'Bosh sahifaga'
   };
-  var NAME_PH = { uz: 'Masalan, Dilnoza', ru: 'Например, Анна' };
+  // Neutral placeholder: the quiz is for men and women alike.
+  var NAME_PH = { uz: 'Ismingiz', ru: 'Ваше имя' };
+  var DISTRICTS = [['bektemir', 'Bektemir'], ['chilonzor', 'Chilonzor'], ['mirobod', 'Mirobod'], ['mirzo_ulugbek', 'Mirzo Ulug‘bek'], ['olmazor', 'Olmazor'], ['sergeli', 'Sergeli'],
+    ['shayxontohur', 'Shayxontohur'], ['uchtepa', 'Uchtepa'], ['yakkasaroy', 'Yakkasaroy'], ['yangihayot', 'Yangihayot'], ['yashnobod', 'Yashnobod'], ['yunusobod', 'Yunusobod']];
+  var DISH = ['A', 'Y', 'C', 'W', 'S'], THUMB = ['m1-breakfast', 'm2-yogurt', 'm3-chicken', 'm4-bowl', 'm5-salmon'];
   var RUX = {
     near: 'Ваша норма {k} ккал — ближайший готовый рацион {sku} ккал (разница {d} ккал). При необходимости менеджер подберёт порции.',
     contactH: 'Продолжим?', contactHint: 'Имя и телефон нужны только чтобы оформить заказ или получить меню — результат виден и без них.',
-    sendMenu: 'Отправить меню в Telegram', sendMenuSub: 'менеджер свяжется',
-    okMenu: 'Менеджер скоро свяжется с вами в Telegram или по телефону и пришлёт подходящее меню.',
+    sendMenu: 'Получить меню и консультацию', sendMenuSub: 'менеджер позвонит',
+    okMenu: 'Менеджер скоро позвонит и расскажет о подходящем меню и ценах.',
+    noteL: 'Аллергия или комментарий', notePh: 'Например: аллергия на орехи, домофон 45', thumbHint: 'Нажмите на блюдо — появится название',
     exact: 'Ваша норма полностью совпадает с рационом.', okQ: 'Менеджер скоро позвонит, подтвердит заказ и пришлёт ссылку на оплату через Payme, Click или Uzum.', result: 'Результат', q: 'Вопрос'
   };
   function tr(k) { return K.lang === 'ru' ? (RUX[k] != null ? RUX[k] : K.RU[k] != null ? K.RU[k] : UZ[k]) : UZ[k]; }
@@ -36,7 +44,7 @@
   var ACT = [1.2, 1.375, 1.55, 1.725];
   var GOALS = ['ozish', 'saqlash', 'oshirish'];
   var LIM = { age: [16, 80], height: [140, 210], weight: [40, 180] };
-  var S = { step: 0, gender: null, goal: null, age: 29, height: 165, weight: 72, act: null, risk: null, name: '', phone: '', lead: null, result: null, sending: false, err: '', done: null };
+  var S = { step: 0, gender: null, goal: null, age: 29, height: 165, weight: 72, act: null, risk: null, name: '', phone: '', district: '', address: '', note: '', slot: 'morning', lead: null, result: null, sending: false, err: '', done: null };
 
   // Same formula as @workspace/nutrition (and the mobile app); the server recomputes it.
   function calc() {
@@ -78,7 +86,7 @@
       case 2:
         return head('s2k', 's2') + '<div class="sls">' + ['age', 'height', 'weight'].map(function (k, i) {
           var lo = LIM[k][0], hi = LIM[k][1], pct = Math.round((S[k] - lo) / (hi - lo) * 100);
-          return '<div class="sl"><div class="sl-top"><label for="q-' + k + '">' + D.sl[i] + '</label><span class="val"><b class="js-v-' + k + '">' + S[k] + '</b><span class="m" style="font-size:13px"> ' + D.units[i] + '</span></span></div>' +
+          return '<div class="sl"><div class="sl-top"><label for="q-' + k + '">' + D.sl[i] + '</label><span class="val"><input class="numv js-v-' + k + '" type="number" inputmode="numeric" min="' + lo + '" max="' + hi + '" value="' + S[k] + '" data-num="' + k + '" aria-label="' + D.sl[i] + ', ' + D.units[i] + '"><span class="m" style="font-size:13px"> ' + D.units[i] + '</span></span></div>' +
             '<div class="sl-row"><button type="button" class="pm" data-dec="' + k + '" aria-label="−"><svg width="16" height="16"><use href="#i-minus"/></svg></button>' +
             '<input id="q-' + k + '" class="rng" type="range" min="' + lo + '" max="' + hi + '" value="' + S[k] + '" data-range="' + k + '" style="background:linear-gradient(90deg,#2F8A50 ' + pct + '%,#E6EAE2 0)">' +
             '<button type="button" class="pm" data-inc="' + k + '" aria-label="+"><svg width="16" height="16"><use href="#i-plus"/></svg></button></div></div>';
@@ -102,23 +110,26 @@
         var risk = S.risk === 1
           ? '<div class="risk"><svg width="24" height="24"><use href="#i-warn"/></svg><span>' + tr('riskNote') + '</span></div>'
           : '<span style="font-size:12px;line-height:1.5;color:var(--muted2)">' + tr('disc') + '</span>';
-        var thumbs = ['m1-breakfast', 'm2-yogurt', 'm3-chicken', 'm4-bowl', 'm5-salmon'].map(function (f) { return '<img src="/assets/img/' + f + '.webp" alt="" width="64" height="64">'; }).join('');
+        var thumbs = THUMB.map(function (f, i) {
+          var nm = D.types[i] + ' · ' + D.dish[DISH[i]];
+          return '<button type="button" class="th" data-th="' + i + '" aria-pressed="false" aria-label="' + K.esc(nm) + '" title="' + K.esc(nm) + '"><img src="/assets/img/' + f + '.webp" alt="" width="64" height="64"></button>';
+        }).join('');
         return '<div class="result"><div style="display:flex;flex-direction:column;gap:14px">' +
           '<span class="kick">' + D.kick + (S.name ? ' · ' + K.esc(S.name) : '') + '</span><h1 class="qh s">' + tr('s6') + '</h1>' +
           '<div class="big-k" style="border-bottom:0;padding-bottom:0"><b>' + K.fmt(r.calories) + '</b><span class="m" style="font-size:14px">' + tr('kcalDay') + '</span></div>' +
           '<div class="bars" style="gap:12px">' + bars + '</div>' + risk + '</div>' +
           '<div style="display:flex;flex-direction:column;gap:16px;min-width:0"><div class="rec"><span class="mt">' + tr('match') + '</span><div class="row"><span class="nm">' + rn + '</span><span class="m" style="font-weight:600">' + m.sku + ' ' + D.kcal + '</span></div>' +
           '<span class="near">' + (Math.abs(r.calories - m.sku) <= 20 ? tr('exact') : tr('near').replace('{k}', K.fmt(r.calories)).replace('{sku}', m.sku).replace('{d}', Math.abs(r.calories - m.sku))) + '</span>' +
-          '<div class="thumbs">' + thumbs + '</div>' +
+          '<div class="thumbs">' + thumbs + '</div><span class="th-cap js-th-cap" aria-live="polite">' + tr('thumbHint') + '</span>' +
           '<div class="row" style="border-top:1px solid var(--line);padding-top:12px"><span style="font-size:14px">' + tr('from') + '</span><span><span class="d" style="font-size:24px;font-weight:800">' + K.fmt(price) + '</span><span class="m" style="font-size:12px"> ' + D.sumDay + '</span></span></div>' +
-          '</div>' + contactHtml(m.ration) + '</div></div>';
+          '</div>' + contactHtml(m) + '</div></div>';
     }
     return '';
   }
 
   // Optional contact card under the result: name + phone only when the visitor wants to order or get the menu.
-  function contactHtml(ration) {
-    var D = K.d();
+  function contactHtml(m) {
+    var D = K.d(), ration = m.ration;
     if (S.done) {
       return '<div class="rec ok-box" role="status"><span class="ok-ic"><svg width="24" height="24"><use href="#i-check"/></svg></span><b class="d" style="font-size:20px">' + tr('okH') + '</b>' +
         '<span style="font-size:14px;line-height:1.5;color:var(--muted)">' + tr(S.done === 'manager' ? 'okMenu' : 'okQ') + '</span><a class="btn btn-line btn-block" href="/">' + tr('home') + '</a></div>';
@@ -128,8 +139,8 @@
       ? '<button type="submit" class="btn btn-hot btn-block" data-intent="manager"' + dis + '>' + tr('mgr') + '</button>'
       : '<button type="submit" class="btn btn-hot btn-block" data-intent="test_drive" style="justify-content:space-between"' + dis + '><span>' + tr('payTest') + '</span><span class="m" style="font-size:12px">' + K.fmt(testTotal) + ' ' + D.sum + '</span></button>' +
         '<button type="submit" class="btn btn-line btn-block" data-intent="manager"' + dis + '><span class="bl"><span>' + tr('sendMenu') + '</span><small>' + tr('sendMenuSub') + '</small></span></button>' +
-        // Carries the recommended ration to the price calculator on the landing page.
-        '<a class="btn btn-ink btn-block" href="/?plan=' + ration + '#narxlar">' + tr('subs') + '</a>';
+        // Carries the recommended ration, its calories and the chosen delivery time to the price calculator.
+        '<a class="btn btn-ink btn-block js-subs" href="' + subsHref(m) + '" data-ration="' + ration + '" data-sku="' + m.sku + '">' + tr('subs') + '</a>';
     return '<form class="rec js-contact" novalidate style="gap:12px"><b class="d" style="font-size:20px">' + tr('contactH') + '</b>' +
       '<span style="font-size:13px;line-height:1.45;color:var(--muted)">' + tr('contactHint') + '</span>' +
       '<div class="fld"><label for="gName">' + tr('name') + '</label><input id="gName" class="inp" name="name" autocomplete="given-name" maxlength="60" value="' + K.esc(S.name) + '" placeholder="' + NAME_PH[K.lang] + '"></div>' +
@@ -137,10 +148,18 @@
       '<fieldset class="slots"><legend>' + tr('slotLabel') + '</legend>' +
         '<label class="slot"><input type="radio" name="deliverySlot" value="morning"' + (S.slot !== 'evening' ? ' checked' : '') + '><span><b>' + tr('slotM') + '</b><small>08:00–10:00</small></span></label>' +
         '<label class="slot"><input type="radio" name="deliverySlot" value="evening"' + (S.slot === 'evening' ? ' checked' : '') + '><span><b>' + tr('slotE') + '</b><small>18:00–22:30</small></span></label></fieldset>' +
+      '<div class="fld"><label for="gDistrict">' + tr('district') + '</label><select id="gDistrict" class="inp" name="district"><option value="">' + tr('districtPick') + '</option>' +
+        DISTRICTS.map(function (d) { return '<option value="' + d[0] + '"' + (S.district === d[0] ? ' selected' : '') + '>' + d[1] + '</option>'; }).join('') +
+        '<option value="other"' + (S.district === 'other' ? ' selected' : '') + '>' + tr('districtOther') + '</option></select>' +
+        '<p class="fld-note js-other-note"' + (S.district === 'other' ? '' : ' hidden') + '>' + tr('otherNote') + '</p></div>' +
+      '<div class="fld"><label for="gAddress">' + tr('address') + ' <span class="opt-l">' + tr('optional') + '</span></label><input id="gAddress" class="inp" name="address" autocomplete="street-address" maxlength="200" value="' + K.esc(S.address) + '" placeholder="' + tr('addressPh') + '"></div>' +
+      '<div class="fld"><label for="gNote">' + tr('noteL') + ' <span class="opt-l">' + tr('optional') + '</span></label><textarea id="gNote" class="inp" name="note" maxlength="500" rows="2" placeholder="' + tr('notePh') + '">' + K.esc(S.note) + '</textarea></div>' +
       '<input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">' +
       '<span class="err js-err" role="alert">' + K.esc(S.err) + '</span>' + btns +
       '<span class="consent">' + tr('consent') + ' <a href="/privacy">' + tr('privacy') + '</a></span></form>';
   }
+
+  function subsHref(m) { return '/?plan=' + m.ration + '&kcal=' + m.sku + '&slot=' + (S.slot === 'evening' ? 'evening' : 'morning') + '#narxlar'; }
 
   function actionsHtml() {
     if (S.step < 5) {
@@ -210,13 +229,14 @@
     if (S.name.length < 2 || S.phone.length !== 9) { S.err = D.errContact; var e = $('.js-err'); if (e) e.textContent = S.err; if (nameEl && S.name.length < 2) nameEl.focus(); else if (phoneEl) phoneEl.focus(); return; }
     if (S.sending) return;
     S.sending = true; S.err = ''; render(false);
-    var ration = S.result ? S.result.ration : match(calc().calories).ration;
+    var mm = S.result ? { ration: S.result.ration, sku: S.result.sku } : match(calc().calories), ration = mm.ration;
     var plan = intent === 'test_drive' ? 'd3' : undefined;
     var a = K.attribution(), hp = document.querySelector('.js-contact input[name=website]');
     var req = S.lead
-      ? K.post('/api/v1/leads/' + S.lead.id + '/intent', { key: S.lead.key, intent: intent, plan: plan, planRation: ration, deliverySlot: S.slot })
+      ? K.post('/api/v1/leads/' + S.lead.id + '/intent', { key: S.lead.key, intent: intent, plan: plan, planRation: ration, planSku: mm.sku, deliverySlot: S.slot, district: S.district, address: S.address, note: S.note })
       : K.post('/api/v1/leads', {
-          name: S.name, phone: S.phone, lang: K.lang, intent: intent, plan: plan, planRation: ration, deliverySlot: S.slot, website: hp ? hp.value : '',
+          name: S.name, phone: S.phone, lang: K.lang, intent: intent, plan: plan, planRation: ration, planSku: mm.sku, deliverySlot: S.slot,
+          district: S.district, address: S.address.trim().slice(0, 200), note: S.note.trim().slice(0, 500), website: hp ? hp.value : '',
           quiz: { gender: S.gender === 1 ? 'erkak' : 'ayol', goal: GOALS[S.goal], age: S.age, height: S.height, weight: S.weight, activity: ACT[S.act], healthRisk: S.risk === 1 },
           utm: a.utm, referrer: a.referrer, landingPath: a.landingPath
         });
@@ -244,6 +264,12 @@
     if (ds.goal != null) { S.goal = +ds.goal; render(false); return; }
     if (ds.act != null) { S.act = +ds.act; render(false); return; }
     if (ds.risk != null) { S.risk = +ds.risk; render(false); return; }
+    if (ds.th != null) {
+      var D = K.d(), i = +ds.th;
+      document.querySelectorAll('.th').forEach(function (b) { b.setAttribute('aria-pressed', String(b === t)); });
+      var cap = $('.js-th-cap'); if (cap) { cap.textContent = D.types[i] + ' · ' + D.dish[DISH[i]]; cap.classList.add('on'); }
+      return;
+    }
     if (ds.dec || ds.inc) { var k = ds.dec || ds.inc; S[k] = Math.max(LIM[k][0], Math.min(LIM[k][1], S[k] + (ds.dec ? -1 : 1))); render(false); return; }
     if (t.classList.contains('js-next') && canNext()) { go(S.step + 1); return; }
     if (t.classList.contains('js-back') || t.classList.contains('js-back2')) { if (S.step > 0) go(S.step - 1); return; }
@@ -260,12 +286,39 @@
       var k = t.dataset.range; S[k] = +t.value;
       var lo = LIM[k][0], hi = LIM[k][1];
       t.style.background = 'linear-gradient(90deg,#2F8A50 ' + Math.round((S[k] - lo) / (hi - lo) * 100) + '%,#E6EAE2 0)';
-      var v = $('.js-v-' + k); if (v) v.textContent = S[k];
+      var v = $('.js-v-' + k); if (v) v.value = S[k];
       renderLabel();
+    }
+    // Typed age / height / weight: applied while inside the limits, clamped when the field is left.
+    if (t.dataset && t.dataset.num) {
+      var nk = t.dataset.num, nv = parseInt(t.value, 10);
+      if (nv >= LIM[nk][0] && nv <= LIM[nk][1]) { S[nk] = nv; syncRange(nk); renderLabel(); }
     }
     if (t.id === 'gPhone') { S.phone = K.phoneDigits(t.value); t.value = K.phoneFmt(S.phone); }
     if (t.id === 'gName') S.name = t.value;
+    if (t.id === 'gAddress') S.address = t.value;
+    if (t.id === 'gNote') S.note = t.value;
   });
+  document.addEventListener('change', function (e) {
+    var t = e.target;
+    if (t.dataset && t.dataset.num) {
+      var k = t.dataset.num, v = parseInt(t.value, 10);
+      S[k] = isNaN(v) ? S[k] : Math.max(LIM[k][0], Math.min(LIM[k][1], v));
+      t.value = S[k]; syncRange(k); renderLabel();
+    }
+    if (t.id === 'gDistrict') { S.district = t.value; var n = $('.js-other-note'); if (n) n.hidden = t.value !== 'other'; }
+    if (t.name === 'deliverySlot' && t.closest('.js-contact')) {
+      S.slot = t.value;
+      var a = $('.js-subs'); if (a) a.href = subsHref({ ration: a.dataset.ration, sku: a.dataset.sku });
+    }
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.dataset && e.target.dataset.num) e.target.blur(); });
+  function syncRange(k) {
+    var rng = $('#q-' + k), lo = LIM[k][0], hi = LIM[k][1];
+    if (!rng) return;
+    rng.value = S[k];
+    rng.style.background = 'linear-gradient(90deg,#2F8A50 ' + Math.round((S[k] - lo) / (hi - lo) * 100) + '%,#E6EAE2 0)';
+  }
 
   K.onLang(function () { render(false); });
   K.applyLang();

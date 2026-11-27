@@ -376,3 +376,65 @@ body.noscroll{overflow:hidden}
 .slot small{font:500 12px var(--f-m);color:var(--muted2)}
 .slot input:checked+span{border-color:#9FCBAE;background:var(--green-soft)}
 .slot input:focus-visible+span{outline:3px solid var(--green2);outline-offset:2px}
+
+/* calorie options in the price calculator, order summary, form notes */
+.kseg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.of-sum{display:flex;flex-direction:column;gap:6px;background:var(--mist);border-radius:14px;padding:12px 14px}
+.of-sum:empty{display:none}
+.of-sum .r{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:14px;color:var(--muted)}
+.of-sum .r b{color:var(--ink);font-weight:600;text-align:right}
+.of-sum .r.tot{border-top:1px dashed var(--line2);padding-top:6px;margin-top:2px}
+.of-sum .r.tot b{font:700 18px var(--f-d);letter-spacing:-.02em}
+.fld-note{margin:2px 0 0;font-size:13px;line-height:1.45;color:#5C4400;background:var(--ph);border-radius:10px;padding:8px 10px}
+.fld-note[hidden]{display:none}
+textarea.inp{height:auto;min-height:72px;padding:12px 16px;resize:vertical;font-size:16px;line-height:1.4}
+.opt-l{font-weight:400;color:var(--muted2)}
+/* typeable age / height / weight */
+.numv{font:700 30px var(--f-d);letter-spacing:-.02em;color:var(--ink);width:2.75em;text-align:right;border:0;border-bottom:2px dashed var(--line2);border-radius:0;background:transparent;padding:0;-moz-appearance:textfield;appearance:textfield}
+.numv::-webkit-outer-spin-button,.numv::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.numv:focus{outline:none;border-bottom-color:var(--green2)}
+/* dish thumbnails with names */
+.th{border:0;padding:0;background:none;border-radius:50%;cursor:pointer;flex:none;box-shadow:0 0 0 2px transparent;transition:box-shadow .15s}
+.th[aria-pressed="true"]{box-shadow:0 0 0 3px var(--hot)}
+.th-cap{font-size:13px;color:var(--muted2);margin-top:-4px;min-height:18px}
+.th-cap.on{color:var(--ink);font-weight:600}
+@media (min-width:1080px){
+  .kseg{display:inline-grid;align-self:flex-start;grid-template-columns:repeat(2,auto)}
+  .kseg button{padding:0 18px}
+}
+
+/* ───────── phones only (≤640px): compact first screen; tablets and desktop unchanged ───────── */
+@media (max-width:640px){
+  .hero{gap:14px;padding-top:6px;padding-bottom:16px}
+  .hero-l{gap:10px}
+  .chip{padding:5px 10px;font-size:12px;gap:6px}
+  .h1{font-size:clamp(21px,6.6vw,26px);line-height:1.14}
+  .lead-hero{font-size:14.5px;line-height:1.45}
+  .hero-ctas{gap:2px}
+  .hero-ctas .btn-hot{min-height:52px}
+  .link-arrow{padding:6px;font-size:15px}
+  .facts{gap:6px}
+  .facts>span{padding:4px 10px;font-size:12px}
+  .hero-pic{aspect-ratio:auto;height:180px;border-radius:22px}
+  .hero-pic .ptag{left:10px;bottom:10px;padding:6px 10px;border-radius:12px}
+  .hero-pic .ptag b{font-size:18px}
+  .hero-pic .ptag>span{font-size:11px}
+  .hero-pic .ptag2{right:10px;top:10px;padding:4px 10px;font-size:11px}
+  /* all five section tabs fit the screen width */
+  .tabs{gap:0;padding:6px 6px;justify-content:space-between}
+  .tab{flex:0 1 auto;min-width:0;padding:0 9px;min-height:36px;font-size:13px}
+  /* ration cards: compact list instead of a cut-off horizontal scroller */
+  .hs{flex-direction:column;overflow:visible;scroll-snap-type:none;margin:0;padding:0;gap:10px}
+  .ration{width:auto;padding:14px;gap:8px;border-radius:16px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}
+  .ration .nm{font-size:17px}
+  .ration .rg{font-size:17px;grid-column:2;grid-row:1}
+  .ration .rg small{font-size:12px}
+  .ration .macros,.ration p,.ration .btn{grid-column:1/-1}
+  .ration p{min-height:0;font-size:13px}
+  .ration .btn{min-height:40px;font-size:14px}
+  .macros span{padding:4px 8px}
+  /* six calorie options in one row */
+  .js-tiers{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));align-self:stretch!important}
+  .js-tiers button{min-width:0;padding:0 2px;font-size:12.5px}
+  .js-tiers small{display:none}
+}

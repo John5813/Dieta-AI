@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700&family=Onest:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
-<link rel="stylesheet" href="/assets/site.css?v=6">
+<link rel="stylesheet" href="/assets/site.css?v=7">
 <link rel="preload" as="image" href="/assets/img/m4-bowl.webp">
 <!--KALORIA:HEAD-->
 </head>
@@ -116,6 +116,10 @@
           <div class="seg rseg js-rseg" role="group" aria-label="Rasion"></div>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px">
+          <span class="ctrl-l" data-i18n="kLabel">Kaloriya</span>
+          <div class="seg kseg js-kseg" role="group" aria-label="kkal"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
           <span class="ctrl-l" data-i18n="dLabel">Muddat</span>
           <div class="tiles js-tiles" role="group" aria-label="Muddat"></div>
         </div>
@@ -137,7 +141,6 @@
           <button type="button" class="btn btn-soft btn-block js-mgr" data-i18n="mgr">Menejer bog‘lansin</button>
           <span class="small-c" data-i18n="orderHow">Menejer qo‘ng‘iroq qilib tasdiqlaydi va Payme · Click · Uzum orqali to‘lov havolasini yuboradi</span>
           <span class="small-c js-test-note" style="display:none" data-i18n="testNote">Sinov boksi oldindan to‘lov bilan</span>
-          <span class="sample js-sample" style="display:none" data-i18n="sample">* Namuna narxlar</span>
         </div>
       </div>
     </div>
@@ -235,6 +238,7 @@
         <button type="button" class="icon-btn js-close" aria-label="Yopish"><svg width="16" height="16"><use href="#i-x"/></svg></button>
       </div>
       <div class="js-of-fields" style="display:flex;flex-direction:column;gap:14px;margin-top:16px">
+        <div class="of-sum js-of-sum"></div>
         <div class="fld"><label for="ofName" data-i18n="name">Ismingiz</label><input id="ofName" class="inp" name="name" autocomplete="given-name" maxlength="60" required></div>
         <div class="fld"><label for="ofPhone" data-i18n="phone">Telefon raqamingiz</label><div class="pfx"><span>+998</span><input id="ofPhone" name="phone" inputmode="tel" autocomplete="tel-national" placeholder="90 123 45 67" required></div></div>
         <div class="fld"><label for="ofDistrict" data-i18n="district">Tuman</label>
@@ -245,16 +249,18 @@
             <option value="shayxontohur">Shayxontohur</option><option value="uchtepa">Uchtepa</option><option value="yakkasaroy">Yakkasaroy</option>
             <option value="yangihayot">Yangihayot</option><option value="yashnobod">Yashnobod</option><option value="yunusobod">Yunusobod</option>
             <option value="other" data-i18n="districtOther">Boshqa / viloyat</option>
-          </select></div>
+          </select>
+          <p class="fld-note js-other-note" hidden data-i18n="otherNote">Hozircha faqat Toshkent shahri bo‘ylab yetkazamiz. Viloyatda bo‘lsangiz, menejer imkoniyatni aniqlab beradi.</p></div>
         <div class="fld"><label for="ofAddress"><span data-i18n="address">Manzil</span> <span style="font-weight:400;color:var(--muted2)" data-i18n="optional">(ixtiyoriy)</span></label><input id="ofAddress" class="inp" name="address" autocomplete="street-address" maxlength="200" data-i18n-ph="addressPh" placeholder="Ko‘cha, uy, mo‘ljal"></div>
                 <fieldset class="slots"><legend data-i18n="slotLabel">Yetkazish vaqti</legend>
           <label class="slot"><input type="radio" name="deliverySlot" value="morning" checked><span><b data-i18n="slotM">Ertalab</b><small>08:00–10:00</small></span></label>
           <label class="slot"><input type="radio" name="deliverySlot" value="evening"><span><b data-i18n="slotE">Kechqurun</b><small>18:00–22:30</small></span></label>
         </fieldset>
+        <div class="fld"><label for="ofNote"><span data-i18n="noteL">Allergiya yoki izoh</span> <span style="font-weight:400;color:var(--muted2)" data-i18n="optional">(ixtiyoriy)</span></label><textarea id="ofNote" class="inp" name="note" maxlength="500" rows="2" data-i18n-ph="notePh" placeholder="Masalan: yong‘oqqa allergiya, domofon 45"></textarea></div>
         <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
         <span class="consent"><span data-i18n="consent">Tugmani bosib, ma’lumotlarim qayta ishlanishiga rozilik beraman.</span> <a href="/privacy" data-i18n="privacy">Maxfiylik siyosati</a></span>
         <span class="err js-of-err" role="alert"></span>
-        <button type="submit" class="btn btn-hot btn-block js-of-submit" data-i18n="send">Buyurtma qoldirish</button>
+        <button type="submit" class="btn btn-hot btn-block js-of-submit">Buyurtma qoldirish</button>
       </div>
       <div class="ok-box js-of-ok" style="display:none">
         <span class="ok-ic"><svg width="24" height="24"><use href="#i-check"/></svg></span>
@@ -271,7 +277,7 @@
   </div>
 </div>
 
-<script src="/assets/i18n.js?v=5"></script>
-<script src="/assets/site.js?v=5"></script>
+<script src="/assets/i18n.js?v=6"></script>
+<script src="/assets/site.js?v=6"></script>
 </body>
 </html>

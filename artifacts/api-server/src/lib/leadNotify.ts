@@ -58,10 +58,11 @@ export function buildLeadMessage(l: Lead, kind: "new" | "intent"): string {
       const cfg = getSiteConfig();
       const days = PLAN_DAYS[plan];
       const total = Math.round((days * cfg.prices[ration] * (1 - (cfg.discounts[plan] ?? 0) / 100)) / 1000) * 1000;
-      line += ` · ${RATION_LABEL[ration]} · ${days} kun · ≈ ${total.toLocaleString("ru-RU")} so‘m`;
+      line += ` · ${RATION_LABEL[ration]}${l.planSku ? " " + l.planSku : ""} · ${days} kun · ≈ ${total.toLocaleString("ru-RU")} so‘m`;
     }
     lines.push(line);
   }
+  if (l.note) lines.push(`📝 Izoh / allergiya: ${esc(l.note)}`);
   const utm = [l.utmSource, l.utmMedium, l.utmCampaign, l.utmContent].filter(Boolean).map((s) => esc(String(s)));
   if (utm.length) lines.push(`📣 UTM: ${utm.join(" / ")}`);
   else if (l.referrer) lines.push(`↩️ Manba: ${esc(l.referrer)}`);

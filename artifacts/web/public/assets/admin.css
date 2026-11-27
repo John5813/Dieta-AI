@@ -11,6 +11,7 @@ body{background:var(--bg)}
 .a-h{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:4px 0 14px}
 .a-h h1{margin:0;font:700 22px var(--f-b);color:var(--ink)}
 .a-sub{font-size:13px;color:var(--muted2)}
+.cnt[hidden]{display:none}
 .cnt{display:inline-flex;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--hot);color:#fff;font:600 11px var(--f-b);align-items:center;justify-content:center;margin-left:6px}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
 .chipb{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 12px;font:500 13px var(--f-b);color:var(--muted);cursor:pointer}
